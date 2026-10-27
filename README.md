@@ -1,20 +1,41 @@
 # Hatch — learn to code, one small level at a time
 
-A self-hosted web app that teaches absolute beginners to code through short, game-like levels.
-You write a few lines of real JavaScript, press Run, and watch a little character act out your
-code. Mistakes get plain-language explanations. Levels take a minute or two.
+A self-hosted web app that teaches beginners through short, game-like levels. Two tracks share
+one engine, one account system and one map:
 
-- **Pick a vibe** (games, stories & comics, music, space, nature, sports, food) — it changes the
-  character, what you collect and how the story is told. The puzzles are the same.
+**Learn to code** — you write a few lines of real JavaScript, press Run, and watch a little
+character act out your code step by step. Mistakes get plain explanations like "I don't know
+anything called `mov`. Did you mean `move()`?" instead of JavaScript errors.
+
+- **Pick a vibe** (games, stories & comics, music, space, nature, sports, food): it changes the
+  character, what you collect, the story and the accent colour. The puzzles stay the same.
 - **Seven parts, 50 levels**: first steps → loops → choices → your own commands → variables →
-  drawing with code → a tiny game. Each part ends in a boss level. Python and web pages are
-  stubbed as "coming soon".
-- **Three worlds**: a grid your character walks on, a console that prints, and a canvas you draw on.
-- **Play as a guest** first; sign up later and your progress comes with you.
-- **XP, level titles, streaks and badges** on an account basis. One Node process, one SQLite file.
+  drawing with code → a tiny game built in checkpoints. Mixed level types (write, fix the bug,
+  predict what happens), boss levels, progressive hints.
+
+**Behind the app** — for people who work _around_ tech (IT, ops, support, product, QA) and want
+the real picture of what a server, an endpoint and a database are and how they connect. You play
+the new tech person at a webtoon studio, Inkwell, and build the backend of its reader app.
+
+- **Thirteen parts, 85 levels**: what happens when you tap → requests and responses → endpoints
+  → your first server → sending data in → where the data lives (SQL) → changing data → connecting
+  tables → server meets database → the reader app → logins → shipping it → launch day.
+- **One picture, three boxes**: the phone, the server with its endpoints, and the database. A
+  packet named Bit carries every request along the wires so you can watch the round trip, the
+  queries and the response. The database is **real SQLite** (sql.js, WebAssembly) running in the
+  browser, so the SQL you write is the SQL that runs.
+- **Three roles**: some levels you are the phone (`get('/series')`), some the server
+  (`app.get('/series/:id', (req, res) => …)`), some the database (plain SQL).
+- **Concepts as webtoon strips**: explanations are short vertical comic panels with a cast (Mina
+  the artist, Theo who runs the studio, Bit the packet) instead of paragraphs.
+- Eight more modules are on the map as "coming soon": networks for IT, the command line, git,
+  security basics, reading logs, cloud and containers, APIs in the wild, automation scripts.
+
+Both tracks: **play as a guest** first; sign up later and your progress comes with you. XP, level
+titles, streaks and badges on an account basis. One Node process, one SQLite file.
 
 Learner code never runs on the server: it runs in a Web Worker in the learner's own browser, with
-a step cap and a timeout, and the result is animated afterwards.
+step caps and timeouts, and the result is animated afterwards.
 
 ## Run it locally
 
@@ -110,10 +131,15 @@ Conventions (including the SvelteKit 3 specifics) are in `CLAUDE.md`.
 ### Adding a level or a module
 
 1. Add a lesson object to the right file in `src/lib/curriculum/modules/` (see `types.ts` for the
-   shape). Give it a `solution` and `checks`.
+   shape). Give it a `solution` and `checks`. A new module is just a new file in that folder
+   exporting a `Module` (set `track: 'code'` or `'web'`); it is registered automatically.
 2. Run `npm test`. The curriculum tests check that the solution passes, the starter does not, every
-   text renders in every vibe, and every command used has been introduced.
+   text renders in every vibe, every command used has been introduced, and (for predict levels)
+   that the marked answer is what really happens (`src/lib/curriculum/facts/`).
 3. That's it: the map, the cheat sheet, the badges and XP all follow from the data.
+
+The "Behind the app" simulation, its learner-facing API and the Inkwell data model are described
+in `docs/WEB_TRACK.md`.
 
 New vibes go in `src/lib/curriculum/themes.ts`; every theme must define the same vocabulary keys.
 
