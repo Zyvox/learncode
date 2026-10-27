@@ -49,6 +49,8 @@ export interface FriendlyError {
 	message: ThemedText;
 	/** 1-based line in the learner's code, when known */
 	line?: number;
+	/** 1-based column on `line`, when known (runtime errors only) */
+	column?: number;
 	/** Original JS error text, for a "show details" toggle */
 	raw: string;
 }
