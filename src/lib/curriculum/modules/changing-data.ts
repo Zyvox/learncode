@@ -22,7 +22,7 @@ export const changingData: Module = {
 	emoji: '✏️',
 	title: 'Changing data',
 	blurb: 'Add rows, change them and delete them, and learn why one missing WHERE can ruin a day.',
-	prereq: 'Easier if you’ve done Learn to code, parts 1–5 (variables, if, loops, functions).',
+	prereq: 'No JavaScript needed here: it’s all SQL, and you’ll pick it up as you go.',
 	lessons: [
 		{
 			id: `${M}/01-insert`,
@@ -39,7 +39,7 @@ export const changingData: Module = {
 				panels: [
 					{
 						who: 'mina',
-						text: 'Asking questions is nice. Can I *put* something in there?'
+						text: 'Asking questions is nice. Can I put something in there, too?'
 					},
 					{
 						who: 'you',
@@ -108,7 +108,7 @@ SELECT * FROM comments;
 				panels: [
 					{
 						who: 'you',
-						text: '`UPDATE` changes rows that already exist. `SET` says what to change. `WHERE` says which rows.',
+						text: '`UPDATE` changes rows that already exist: `SET` says what to change, and `WHERE` says which rows.',
 						code: 'UPDATE episodes SET likes = likes + 1 WHERE id = 3;'
 					},
 					{
@@ -187,7 +187,7 @@ SELECT title, likes FROM episodes;
 			xp: 20,
 			language: 'sql',
 			story:
-				'Comment 3, under The locked gate, says “Called it. The gate was never locked.” That is the twist of the whole episode. Theo has written the SQL to remove it, and learned nothing from last time. Press **Run** and look at the comments table.',
+				'Comment 3, under The locked gate, gives away the twist of the whole episode. Theo has written the SQL to remove it, and learned nothing from last time. Press **Run** and look at the comments table.',
 			task: 'Fix the `DELETE` so it removes comment 3, and only comment 3.',
 			concept: {
 				title: 'DELETE removes rows',
@@ -203,7 +203,7 @@ SELECT title, likes FROM episodes;
 					},
 					{
 						who: 'you',
-						text: 'Same as last time. Every row. The table stays, empty.'
+						text: 'Same as last time: every row. The table stays, empty.'
 					},
 					{
 						who: 'narrator',
@@ -256,7 +256,7 @@ SELECT * FROM comments;
 					},
 					{
 						who: 'you',
-						text: 'The `id` column is the table’s **primary key**: every row has one, and no two rows ever share it. You don’t pick it. The database does.'
+						text: 'The `id` column is the table’s **primary key**: every row has one, and no two rows ever share it. You don’t pick it; the database does.'
 					},
 					{
 						who: 'narrator',
@@ -265,7 +265,7 @@ SELECT * FROM comments;
 					},
 					{
 						who: 'you',
-						text: 'Remember `comments.length + 1` in your server’s list? Delete one comment and that hands out an id that’s already taken. The database keeps better track.'
+						text: 'Remember `comments.length + 1` in your server’s list? Delete one comment and it hands out an id that’s already taken, but the database keeps better track.'
 					}
 				]
 			},
@@ -299,7 +299,7 @@ SELECT id, author, text FROM comments WHERE episode_id = 8;
 			boss: true,
 			language: 'sql',
 			story:
-				'Episode 4 of Moonlit Deliveries is finished. In the database it’s still called “Sketches” and isn’t published. Mina wants it out today, under its real title, with her first comment already under it.',
+				'Episode 4 of Moonlit Deliveries is nearly done, though the database still calls it “Sketches” and keeps it unpublished. Mina wants publish day to be one calm paste: real title, published, her first comment already under it. Write it and try it here, where the database resets on every **Run**, so it’s ready the day she says go.',
 			task: "Three changes:\n1. Give episode 4 the title `The night market`.\n2. Publish it: `published = 1`.\n3. Add a comment on episode 4 from `mina`, with any text.\nTip: one `UPDATE` can change two columns: `SET title = '…', published = 1`.",
 			hints: [
 				'Start with the `UPDATE`, for the row with `id = 4`. Don’t forget the `WHERE`: you know what happens without it.',

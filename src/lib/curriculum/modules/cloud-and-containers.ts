@@ -7,7 +7,7 @@ export const cloudAndContainers: Module = {
 	emoji: '☁️',
 	title: 'Cloud and containers',
 	blurb:
-		'What “it runs in a container in the cloud” means, and why everyone ships their apps in boxes now.',
+		'Find out what “it runs in a container in the cloud” actually means, and why so many apps ship in boxes now.',
 	comingSoon: true,
 	lessons: []
 };

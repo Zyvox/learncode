@@ -20,7 +20,7 @@ export const theReaderApp: Module = {
 			title: 'Two taps, two trips',
 			xp: 15,
 			story:
-				'You’ve spent a while being the server. Time to swap seats. In this module your code runs on the phone, and the Inkwell server you built is on the other end of the wire. A reader opens Moonlit Deliveries and then taps the first episode.',
+				'You’ve spent a while being the server, so swap seats: your code runs on the phone again, and an Inkwell server just like the one you built is on the other end of the wire. A reader opens Moonlit Deliveries, then taps the first episode.',
 			task: 'The code already fetches and shows the episode list. Now open the first episode: `get` `/episodes/` plus the `id` of the first episode in that list (`episodes[0].id`), and `show` its body. Take the id from the list rather than typing it.',
 			concept: {
 				title: 'Every screen is a trip or two',
@@ -32,7 +32,7 @@ export const theReaderApp: Module = {
 					},
 					{
 						who: 'you',
-						text: 'Pretty much what you’d guess: ask, then show. The list screen asks for the list. Tap an episode and it asks for that one.',
+						text: 'Pretty much what you’d guess: ask, then show. The list screen asks for the list, and tapping an episode asks for that one.',
 						scene: 'phone',
 						code: "const res = get('/series/1/episodes');\nshow(res.body);"
 					},
@@ -98,7 +98,7 @@ show(first.body);
 			title: 'The word “undefined”',
 			xp: 20,
 			story:
-				'Mina tapped an old link to episode 4, the one she pulled back to redraw. The phone proudly shows the word **undefined**. “That’s not a word I want readers to see,” she says, fairly.',
+				'Mina tapped an early link to episode 4, the one she’s still drawing, and the phone proudly shows the word **undefined**. You fixed this once on the Coming soon level, and here it is again on the real screen. “That’s not a word I want readers to see,” says Mina, fairly.',
 			task: "Run it and look at the phone. Then make the second episode check `b.ok` first: if it isn’t OK, `show('Episode not found')`, otherwise show the title as before.",
 			hints: [
 				'Episode 4 isn’t published, so the server answers 404 with `{ error: … }`. That body has no `title`, so `b.body.title` is `undefined`.',
@@ -222,7 +222,7 @@ show(before.body.length);
 			title: 'How it looks for real',
 			xp: 20,
 			story:
-				'Theo forwarded a snippet from the freelancer who is building the actual phone app. “Is this the same thing you’ve been doing?” It is, almost. It just has a couple of extra words in it.',
+				'Theo forwarded a snippet from the freelancer who is building the actual phone app. “Is this the same thing you’ve been doing?” It is, almost, with a couple of extra words.',
 			task: 'Rewrite the snippet from the comment for this simulation: `get` instead of `fetch`, no `await`, and keep `res.json()` to read the body. Show the title of episode 7, then fetch and show its comments the same way.',
 			concept: {
 				title: '`await`: wait for Bit to come back',
@@ -235,7 +235,7 @@ show(before.body.length);
 					},
 					{
 						who: 'you',
-						text: '`fetch` is the real name for `get`. Same trip, same answer.',
+						text: '`fetch` is what real apps use where you’ve been writing `get`. Same trip, same answer.',
 						scene: 'phone'
 					},
 					{
@@ -245,7 +245,7 @@ show(before.body.length);
 					},
 					{
 						who: 'narrator',
-						text: 'In this simulation Bit is instant, so the waiting is built in and there’s no `await`. `res.json()` reads the body, the same as `res.body`.',
+						text: 'In the simulation Bit is instant, so there’s nothing to `await`. And `res.json()` you’ve met already: the same as `res.body`.',
 						scene: 'none'
 					},
 					{
@@ -312,7 +312,7 @@ show(comments);
 			xp: 45,
 			boss: true,
 			story:
-				'Mina is testing the episode screen on three episodes: 3 (has a comment), 4 (unpublished, so it’s a 404) and 8 (brand new, no comments yet). Right now it shows **undefined**, asks for comments on an episode that doesn’t exist, and shows an empty pair of brackets where a friendly line should be.',
+				'Mina is testing the episode screen on episodes 3 (one comment), 4 (unpublished, so a 404) and 8 (no comments yet). Right now it shows **undefined**, asks for comments on an episode that doesn’t exist, and shows an empty pair of brackets where a friendly line should be. Fix it and the reader app has a screen that copes with real life.',
 			task: 'Fix `openEpisode(id)`:\n\n1. If the episode answer isn’t OK, show `Episode not found` and don’t fetch its comments.\n2. Otherwise show the title, fetch the comments, and show `No comments yet` when the list is empty (`length === 0`), or the list when it isn’t.',
 			hints: [
 				'Put an `if (!res.ok) { … } else { … }` around everything after the first `get`. The comments trip goes inside the `else` part, so it only happens for real episodes.',

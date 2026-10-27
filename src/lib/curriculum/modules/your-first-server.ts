@@ -58,7 +58,7 @@ export const yourFirstServer: Module = {
 			title: 'Hello from the other side',
 			xp: 15,
 			story:
-				'Until now you were the phone, asking. Today Theo hands you the keys to the server itself. It is completely empty: it knows no paths at all, so every request gets a 404.',
+				'Until now you were the phone, asking a server somebody else wrote. Today Theo hands you a server of your own, and it is completely empty: it knows no paths at all, so every request gets a 404.',
 			task: "Add an endpoint for `/hello` that answers with the text `Hello, Inkwell`. Type the line from the strip: `app.get('/hello', (req, res) => { res.send('Hello, Inkwell') })`",
 			concept: {
 				title: 'A server is a list of answers',
@@ -70,7 +70,7 @@ export const yourFirstServer: Module = {
 					},
 					{
 						who: 'mina',
-						text: 'So what *is* a server, actually? A big humming box in a cupboard?'
+						text: 'So what is a server, actually? A big humming box in a cupboard?'
 					},
 					{
 						who: 'you',
@@ -83,12 +83,12 @@ export const yourFirstServer: Module = {
 					},
 					{
 						who: 'you',
-						text: 'One line adds an entry to the list: the path, then a function that gets the request and writes the answer.',
+						text: 'From the phone’s side, each entry is an endpoint. In your code it’s a **route**: the path, then a function that gets the request and writes the answer, called the **handler**.',
 						code: "app.get('/hello', (req, res) => {\n  res.send('Hello, Inkwell')\n})"
 					},
 					{
 						who: 'narrator',
-						text: '`req` is the request that came in. `res` is the reply you are writing. `res.send()` sends it back down the wire.'
+						text: '`req` is the request that came in and `res` is the reply you’re writing. `res.send()` sends it back down the wire.'
 					}
 				]
 			},
@@ -135,7 +135,7 @@ export const yourFirstServer: Module = {
 					},
 					{
 						who: 'you',
-						text: 'Because the phone has to draw a card for each one. It needs to pick out the title, the genre, the id. A sentence is no good for that.'
+						text: 'Because the phone draws a card for each one, and it needs to pick out the title, the genre and the id. A sentence is no good for that.'
 					},
 					{
 						who: 'bit',
@@ -225,7 +225,7 @@ ${LIST_ROUTE}
 					},
 					{
 						who: 'you',
-						text: 'The route `/series/:id` matches it. The `:id` part is a blank that catches whatever is in that spot.',
+						text: 'The route `/series/:id` matches it. The `:id` is a path parameter, the blank you filled in from the phone side, and now you’re the one reading it.',
 						code: "app.get('/series/:id', (req, res) => { … })"
 					},
 					{
@@ -238,7 +238,7 @@ ${LIST_ROUTE}
 					},
 					{
 						who: 'you',
-						text: "It’s the text `'2'`. Everything in a path is text. `Number(req.params.id)` turns it into the number 2, so it can match the ids in the list."
+						text: "It’s the text `'2'`, because everything in a path is text. `Number(req.params.id)` turns it into the number 2, so it can match the ids in the list."
 					},
 					{
 						who: 'you',
@@ -288,7 +288,7 @@ ${BY_ID_ROUTE}`,
 			title: 'Say when it isn’t there',
 			xp: 20,
 			story:
-				'A reader typed `/series/9` into a link. There’s no series 9. Your endpoint answered `200 OK` with nothing in it, and the app showed a blank page. Theo got an email about it.',
+				'A reader followed a link to `/series/9`, and there’s no series 9. Your endpoint answered `200 OK` with nothing in it, the app showed a blank page, and Theo got an email about it.',
 			task: "When no series matches, answer with status `404` and `{ error: 'No series with id 9' }`, built from `req.params.id`. When one matches, keep answering with it as before.",
 			concept: {
 				title: 'Status first, then the body',
@@ -299,7 +299,7 @@ ${BY_ID_ROUTE}`,
 					},
 					{
 						who: 'you',
-						text: 'Worse. It said “200, here you go” and handed over nothing. The phone believed it.'
+						text: 'Worse: it said “200, here you go” and handed over nothing. The phone believed it.'
 					},
 					{
 						who: 'bit',
@@ -366,7 +366,7 @@ app.get('/series/:id', (req, res) => {
 			title: 'The handler that never answered',
 			xp: 20,
 			story:
-				'Jun, who draws Grove & Gear, has been learning to code too, and wrote the “Latest episodes” endpoint. On the phone it says “Server error”. Press **Run** and read the server log.',
+				'Jun has been learning to code on the side and wrote the “Latest episodes” endpoint. On the phone it says “Server error”. Press **Run** and read the server log.',
 			task: 'Fix the handler so that `GET /episodes` answers `200` with the whole `episodes` list.',
 			hints: [
 				'The log says the handler finished without sending a response. Look for the line that is supposed to send the list.',
@@ -417,11 +417,11 @@ app.get('/episodes', (req, res) => {
 					{
 						who: 'bit',
 						scene: 'wire',
-						text: 'I’m carrying GET /series?genre=comedy. The bit after the `?` is a note pinned to the request.'
+						text: 'I’m carrying GET /series?genre=comedy. The query string after the `?` is a note pinned to the request.'
 					},
 					{
 						who: 'you',
-						text: 'The route is still `/series`. The note doesn’t change which endpoint answers. It lands in `req.query`.',
+						text: 'The route is still `/series`: the note doesn’t change which endpoint answers. It lands in `req.query`.',
 						code: "req.query.genre   // 'comedy'"
 					},
 					{
@@ -492,7 +492,7 @@ app.get('/series', (req, res) => {
 			xp: 50,
 			boss: true,
 			story:
-				'Theo wants the reader app’s browsing done by Friday: the series list with genre filters, a page per series, and the episodes of each series. The data is in place. The server is empty. It’s all yours.',
+				'Theo wants browsing done by Friday: the series list with genre filters, a page per series, and the episodes of each series. The data is in place and the server is empty. Three endpoints from now, Inkwell has an API you wrote yourself.',
 			task: 'Write three endpoints:\n1. `GET /series`: all series, or only one genre when there is `?genre=`.\n2. `GET /series/:id`: that series, or `404` with an `error` when there is none.\n3. `GET /series/:id/episodes`: the episodes whose `series_id` matches.',
 			hints: [
 				'Take them one at a time and press **Run** after each. The first two are the endpoints you wrote earlier in this module.',

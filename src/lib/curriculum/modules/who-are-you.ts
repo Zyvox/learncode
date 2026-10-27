@@ -68,7 +68,7 @@ export const whoAreYou: Module = {
 			title: 'Even you can’t read it',
 			xp: 15,
 			story:
-				'Inkwell is getting accounts, so comments can have real names that nobody else can borrow. The database now has a `users` table. A developer left a debugging endpoint in that lists it.',
+				'Inkwell is getting accounts, so comments can have real names that nobody else can borrow. The database now has a `users` table, and Theo’s cousin left a debugging endpoint in that lists it.',
 			task: 'Read the endpoint and decide what Mina’s row looks like.',
 			concept: {
 				title: 'The server never keeps your password',
@@ -86,7 +86,7 @@ export const whoAreYou: Module = {
 					},
 					{
 						who: 'bit',
-						text: 'One-way means nobody can unscramble it. When you log in, the server scrambles what you typed the same way and checks the two scrambles match.',
+						text: 'When you log in, I carry what you typed to the server. It scrambles that the same way and checks the two scrambles match, and nobody ever unscrambles anything.',
 						scene: 'server'
 					},
 					{ who: 'mina', text: 'So even you can’t read my password?', scene: 'none' },
@@ -113,7 +113,7 @@ export const whoAreYou: Module = {
 			],
 			answer: 1,
 			explanation:
-				'The table only has the scrambled version: `$argon2id$v=19$…`. The start says which scrambler made it (argon2, a modern one) and with which settings, so the server can scramble a typed password the same way later. One thing to take away from this endpoint, though: delete it. Hashes are much safer than passwords, but you still never hand them to the outside world.',
+				'The table only has the scrambled version, `$argon2id$v=19$…`, because the server never kept anything else. The start says which scrambler made it (argon2, a modern one) and with which settings, so the server can scramble a typed password the same way later. One thing to take away from this endpoint, though: delete it. Hashes are much safer than passwords, but you still never hand them to the outside world.',
 			hints: [
 				'Look at the column name the SQL asks for.',
 				'If the server stored the real password, anyone who could read the database could read everyone’s password.'
@@ -138,13 +138,13 @@ export const whoAreYou: Module = {
 					},
 					{
 						who: 'you',
-						text: 'Once. If it’s right, the server hands the phone a token: a long random ticket.',
+						text: 'Once. If it’s right, the server hands the phone a **token**: a long random ticket.',
 						scene: 'server',
 						code: "{ token: 'tok_ravi_481516' }"
 					},
 					{
 						who: 'bit',
-						text: 'The server writes the ticket in the `sessions` table, next to the user’s id. From then on, I carry the ticket on every trip.',
+						text: 'The server writes the ticket in the `sessions` table next to the user’s id, and that row is a **session**. From then on, I carry the ticket on every trip.',
 						scene: 'database'
 					},
 					{
@@ -245,19 +245,19 @@ app.post('/login', (req, res) => {
 				panels: [
 					{
 						who: 'bit',
-						text: 'Every trip, I carry a few labels on the outside. Not the message, but notes about it. They’re called **headers**.',
+						text: 'On every trip I carry a few labels on the outside, notes about the message rather than the message itself. They’re called **headers**.',
 						scene: 'wire'
 					},
 					{ who: 'mina', text: 'Like a return address on an envelope?', scene: 'none' },
 					{
 						who: 'you',
-						text: 'Exactly. After logging in, the phone writes its token on every envelope. The server reads it from `req.headers`.',
+						text: 'Exactly. After logging in, the phone writes its token on every envelope, and the server reads it from `req.headers`.',
 						scene: 'server',
 						code: "req.headers.token   // 'tok_mina_123'"
 					},
 					{
 						who: 'narrator',
-						text: 'The server looks the token up in `sessions`. Found: it knows who’s asking. Missing or made up: 401, which means “who are you?”',
+						text: 'The server looks the token up in `sessions`, and if it’s there, it knows who’s asking. Missing or made up means 401: “who are you?”',
 						scene: 'database'
 					}
 				]
@@ -346,7 +346,7 @@ app.get('/me', (req, res) => {
 			title: '401 or 403?',
 			xp: 15,
 			story:
-				'Readers can now delete their own comments. Two phones try to delete comment 1, which Ravi wrote. The first has no token. The second is Mina’s phone: logged in, but it isn’t her comment.',
+				'Readers can now delete their own comments, and two phones try to delete comment 1, which Ravi wrote. The first has no token. The second is Mina’s: logged in, but it isn’t her comment.',
 			task: 'Read the route and decide what each phone gets back.',
 			code: `${CURRENT_USER}
 app.delete('/comments/:id', (req, res) => {
@@ -477,7 +477,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 			xp: 50,
 			boss: true,
 			story:
-				'Theo’s list for logins: “People must be able to delete their own comments, nobody else’s, and log out.” Mina adds: “And if a comment doesn’t exist, say so.” The phones are lined up.',
+				'Theo’s list for logins: “People must be able to delete their own comments, nobody else’s, and log out.” Mina adds: “And if a comment doesn’t exist, say so.” Get this through and Inkwell has real accounts, the last big piece before launch.',
 			task: 'Write two routes, using `currentUser(req)`.\n\n**`DELETE /comments/:id`**: no user → `401`. No such comment → `404`. Someone else’s comment → `403`. Otherwise delete it and answer `204` with `res.status(204).end()`.\n\n**`DELETE /session`** (log out): no user → `401`. Otherwise delete the row from `sessions` whose token is `req.headers.token`, and answer `204`.',
 			hints: [
 				"For the comment, fetch both first: `const user = currentUser(req);` and `const comment = db.get('SELECT * FROM comments WHERE id = ?', [req.params.id]);`. Then one chain: `if (!user) … else if (!comment) … else if (comment.author !== user.name) … else …`.",

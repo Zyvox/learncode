@@ -18,7 +18,7 @@ export const whatHappensWhenYouTap: Module = {
 			title: 'Where does it come from?',
 			xp: 10,
 			story:
-				'Your first morning at Inkwell. Mina, the lead artist, scrolls the Inkwell Reader app on her phone and frowns: "The comics aren’t stored on my phone. So where do they come from when I tap?" Time to follow one tap all the way.',
+				'Your first morning at Inkwell. Mina, the lead artist, scrolls the Inkwell Reader app on her phone and frowns: “The comics aren’t stored on my phone. So where do they come from when I tap?” Time to follow one tap all the way.',
 			task: 'Press **Run** and watch Bit carry the question to the server and back. Nothing shows on the phone yet. Add `show(res.body)` on the empty line so the list of series appears on the screen.',
 			concept: {
 				title: 'A phone asks, a server answers',
@@ -35,7 +35,7 @@ export const whatHappensWhenYouTap: Module = {
 					{
 						who: 'bit',
 						scene: 'wire',
-						text: 'That’s me. I’m the question, called a **request**. I run down the wire to the server: "the list of series, please".',
+						text: 'That’s me, the question. I’m called a **request**, and I run down the wire to the server: “the list of series, please”.',
 						code: "const res = get('/series')"
 					},
 					{
@@ -97,7 +97,7 @@ show(res.body)
 			title: 'Two parts to every answer',
 			xp: 15,
 			story:
-				'Mina is impressed, then suspicious: "How does the phone know it worked? What if the server sent back nonsense?" Every answer comes with a little number on the outside that says how it went.',
+				'Mina is impressed, then suspicious: “How does the phone know it worked? What if the server sent back nonsense?” Every answer comes with a little number on the outside that says how it went.',
 			task: 'Keep showing the body, and add a second line that shows the status of the answer with `show(res.status)`. The phone should show `200`.',
 			concept: {
 				title: 'Status + body',
@@ -105,11 +105,11 @@ show(res.body)
 					{
 						who: 'bit',
 						scene: 'wire',
-						text: 'Every answer I bring back has two parts. On the outside there’s a number, the **status**. It says how things went.'
+						text: 'Every answer I bring back has two parts. On the outside there’s a number, the **status**, which says how things went.'
 					},
 					{
 						who: 'bit',
-						text: '`200` means "here you go, it worked". There are others, and you’ll meet the important ones soon.'
+						text: '`200` means “here you go, it worked”. There are others, and you’ll meet the important ones soon.'
 					},
 					{
 						who: 'bit',
@@ -177,7 +177,7 @@ show(res.status)
 					{
 						who: 'narrator',
 						scene: 'server',
-						text: '3 a.m. The server is off. Its lights are dark.'
+						text: '3 a.m. The server is off, its lights dark.'
 					},
 					{
 						who: 'bit',
@@ -186,11 +186,11 @@ show(res.status)
 					},
 					{
 						who: 'bit',
-						text: 'Nobody opens. Eventually the phone gives up and calls me back. I come home with nothing in my hands.'
+						text: 'Nobody opens. Eventually the phone gives up and calls me back, and I come home with nothing in my hands.'
 					},
 					{
 						who: 'theo',
-						text: 'Readers keep saying the app is "broken". I need to know which kind of broken.'
+						text: 'Readers keep saying the app is “broken”. I need to know which kind of broken.'
 					}
 				]
 			},
@@ -202,12 +202,12 @@ show(res.status)
 			choices: [
 				'`200` and the list of series, a bit later than usual',
 				'`404`, because the server couldn’t find the series',
-				'"Could not reach the server" and the status `0`',
+				'“Could not reach the server” and the status `0`',
 				'`500`, because the server is broken'
 			],
 			answer: 2,
 			explanation:
-				'Nobody answered, so there is no real status at all. The simulation writes that as `0`, and the phone shows "Could not reach the server". Real apps say "No connection" or "Something went wrong". Every other status, `404` and `500` included, means the server **did** answer. So "the app is down" (nobody answered) and "the app says not found" (somebody answered, with bad news) are different problems with different fixes.',
+				'Nobody answered, so there is no real status at all. The simulation writes that as `0`, and the phone shows “Could not reach the server”. Real apps say “No connection” or “Something went wrong”. Every other status, `404` and `500` included, means the server **did** answer. So “the app is down” (nobody answered) and “the app says not found” (somebody answered, with bad news) are different problems with different fixes.',
 			hints: [
 				'Every status number is written by the server. Could the server write anything tonight?',
 				'`404` and `500` are both answers from a server that is switched on. Bit came back empty-handed.'
@@ -220,10 +220,10 @@ show(res.status)
 			title: 'One letter short',
 			xp: 15,
 			story:
-				'Theo, who runs the studio, typed this line himself to "help". The phone shows an error card instead of the series. The server is definitely switched on, so something answered.',
+				'Theo, who runs the studio, typed this line himself to “help”. The phone shows an error card instead of the series. The server is definitely switched on, so something answered.',
 			task: 'Press **Run** and read what the server sent back. Then fix the code so the phone shows the list of series again.',
 			hints: [
-				'The answer has the status `404`, which means "nothing here". Its body even tells you which path it couldn’t find.',
+				'The answer has the status `404`, which means “nothing here”. Its body even tells you which path it couldn’t find.',
 				'Compare the path in the code, letter by letter, with the one from the first level: `/series`.',
 				"Change `'/seris'` to `'/series'`."
 			],
@@ -250,7 +250,7 @@ show(res.body)
 			title: 'Just the title, please',
 			xp: 20,
 			story:
-				'Mina looks at the screen: "It works, but it’s all brackets and quotes. For the banner at the top I only want the name of the first series." The body isn’t a blob of text. It has a shape, and you can reach into it.',
+				'Mina looks at the screen: “It works, but it’s all brackets and quotes. For the banner at the top I only want the name of the first series.” The body isn’t a blob of text. It has a shape, and you can reach into it.',
 			task: 'Change the `show` line so the phone shows only the title of the first series: **Moonlit Deliveries**. Use `res.body[0].title`.',
 			concept: {
 				title: 'The body is data, and data has shape',
@@ -271,7 +271,7 @@ show(res.body)
 					},
 					{
 						who: 'bit',
-						text: 'Each item is an **object**: labelled values, like `title`, `genre` and `author`. A dot and a label picks one value.',
+						text: 'Each item I carried back is an **object**: labelled values, like `title`, `genre` and `author`. A dot and a label picks one value.',
 						code: 'res.body[0].title   // Moonlit Deliveries'
 					},
 					{
@@ -315,7 +315,7 @@ show(res.body[0].title)
 			xp: 45,
 			boss: true,
 			story:
-				'Theo wants a demo for the artists’ meeting in ten minutes: "Show me all the series, and under them, the first episode of Moonlit Deliveries. Just the title. Can it do that?" It can. It takes two questions to the server.',
+				'Theo wants a demo for the artists’ meeting in ten minutes: “All the series, and under them the title of the first Moonlit Deliveries episode. Can it do that?” It can, with two questions to the server, and it will be the first screen you’ve built yourself.',
 			task: 'Ask for `/series` and show the whole list. Then ask for the episodes of series 1, at the path `/series/1/episodes`, and show only the title of the first episode.',
 			hints: [
 				'Two requests, two answers. Give each answer its own name: the starter already calls the first one `series`. Call the second one `episodes`.',

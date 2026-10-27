@@ -29,7 +29,7 @@ export const requestsAndResponses: Module = {
 			title: 'What Bit actually carries',
 			xp: 15,
 			story:
-				'Mina has started reading the picture above the editor: "Bit’s label says `GET /episodes`. What’s the GET for? And what does the answer look like on the way back, before the phone tidies it up?"',
+				'Mina has started reading the picture above the editor: “Bit’s label says `GET /episodes`. What’s the GET for? And what does the answer look like on the way back, before the phone tidies it up?”',
 			task: 'Ask for `/episodes` and show the body on the phone. Then write the raw text Bit carried back into the log with `log(res.text())`.',
 			concept: {
 				title: 'Method + path = the question',
@@ -42,7 +42,7 @@ export const requestsAndResponses: Module = {
 					},
 					{
 						who: 'bit',
-						text: 'The method is the kind of question. **GET** means "give me". **POST** means "here’s something new, please keep it".'
+						text: 'The method is the kind of question: **GET** means “give me”, and **POST** means “here’s something new, please keep it”.'
 					},
 					{
 						who: 'bit',
@@ -56,7 +56,7 @@ export const requestsAndResponses: Module = {
 					{
 						who: 'bit',
 						scene: 'wire',
-						text: 'And on the way back, the body is just text in a format called **JSON**. `res.text()` gives you that raw text. `res.body` is the same thing, unpacked for you.',
+						text: 'On the way back, the body travels as plain text in a format called **JSON**. `res.text()` gives you that raw text, and `res.body` is the same thing, unpacked for you.',
 						code: 'log(res.text())'
 					}
 				]
@@ -109,7 +109,7 @@ log(res.text())
 			title: 'Whose problem is it?',
 			xp: 15,
 			story:
-				'A message from support: since last night’s update, readers of Night Shift Noodles can’t open the episode list. Moonlit Deliveries works fine. The server is switched on. Theo wants to know who to call.',
+				'A message from support: since last night’s update, readers of Night Shift Noodles can’t open the episode list, though Moonlit Deliveries works fine. Theo wants to know who to call.',
 			task: 'Read the code, then pick the status the Night Shift Noodles request gets.',
 			concept: {
 				title: 'Status codes come in families',
@@ -127,7 +127,7 @@ log(res.text())
 					{
 						who: 'bit',
 						scene: 'phone',
-						text: '**4xx** (400, 404…): you asked wrong. A path that doesn’t exist, or something missing from the request. The phone’s side of the fence.',
+						text: '**4xx** (400, 404…): you asked wrong, with a path that doesn’t exist or something missing from the request. The phone’s side of the fence.',
 						code: '404'
 					},
 					{
@@ -187,7 +187,7 @@ show(noodles.status)
 					},
 					{
 						who: 'bit',
-						text: 'If there’s no episode behind that door, the server answers `404`. Not found. You asked for something that isn’t there.',
+						text: 'If there’s no episode behind that door, the server answers `404`: not found, you asked for something that isn’t there.',
 						code: "get('/episodes/99')   // 404"
 					}
 				]
@@ -251,13 +251,13 @@ log(missing.status)
 					},
 					{
 						who: 'you',
-						text: 'Same path. You add a question mark and some extra details after it. That part is called the **query string**.',
+						text: 'Same path, plus a question mark and some extra details after it. That part is called the **query string**.',
 						code: "get('/episodes?page=2')"
 					},
 					{
 						who: 'bit',
 						scene: 'server',
-						text: 'Everything after `?` is a note for the server: "same list, page 2, please". A slash would mean a different place entirely.'
+						text: 'Everything after `?` is a note for the server: “same list, page 2, please”. A slash would mean a different place entirely.'
 					}
 				]
 			},
@@ -303,11 +303,11 @@ show(res.body)
 					{
 						who: 'mina',
 						scene: 'phone',
-						text: 'Why does it say "undefined"?'
+						text: 'Why does it say “undefined”?'
 					},
 					{
 						who: 'you',
-						text: 'The answer was a `404`. Its body is an error message, which has no title in it. The phone showed a title that doesn’t exist.'
+						text: 'The answer was a `404`, and its body is an error message with no title in it. The phone tried to show a title that isn’t there.'
 					},
 					{
 						who: 'bit',
@@ -315,7 +315,7 @@ show(res.body)
 					},
 					{
 						who: 'you',
-						text: 'So the app can choose what to show:',
+						text: 'So the app can choose what to show. `if` and `else` read the way they sound:',
 						code: "if (res.ok) {\n  show(res.body.title)\n} else {\n  show('Coming soon')\n}"
 					}
 				]
@@ -364,11 +364,11 @@ if (res.ok) {
 			title: 'Wrong kind of question',
 			xp: 20,
 			story:
-				'Theo copied this line from a tutorial for a different app. The phone says `Not found: POST /series`. "But `/series` exists! I’ve seen it!" He has. Something else about the question is wrong.',
+				'Theo copied this line from a tutorial for a different app, and the phone says `Not found: POST /series`. “But `/series` exists. I’ve seen it.” He has. Something else about the question is wrong.',
 			task: 'Fix the request so the phone shows the list of series.',
 			hints: [
 				'Read the error: it names the method as well as the path. Which kind of question is it asking?',
-				'POST means "here’s something new to keep". You want "give me", which is GET.',
+				'POST means “here’s something new to keep”. You want “give me”, which is GET.',
 				"Change `post('/series')` to `get('/series')`."
 			],
 			world: clientWorld(),
@@ -395,7 +395,7 @@ show(res.body)
 			xp: 45,
 			boss: true,
 			story:
-				'Theo’s idea of the week: a **Load more** button at the bottom of the episode list. When a reader taps it, the phone fetches the next page and tells them how many new episodes arrived. If anything goes wrong, it should say so politely.',
+				'Theo’s idea of the week: a **Load more** button at the bottom of the episode list. The phone fetches the next page, says how many new episodes arrived, and if anything goes wrong, says so politely. It’s your first real feature, start to finish.',
 			task: 'Fetch page 2 of `/episodes`. If it worked, show how many episodes came back (`res.body.length`), then show the list. Otherwise show **Could not load more episodes**.',
 			hints: [
 				"Start with the request: `const res = get('/episodes?page=2')`. Then an `if (res.ok) { … } else { … }`, like in Coming soon.",

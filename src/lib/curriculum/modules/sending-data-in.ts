@@ -59,7 +59,7 @@ export const sendingDataIn: Module = {
 			title: 'Readers can talk back',
 			xp: 15,
 			story:
-				'Theo’s question, every single morning: “Can readers comment yet?” The server can list comments. It can’t take new ones. Today it learns.',
+				'Readers could comment on the old server, and Theo has noticed that yours can only list comments. “So can readers comment yet?” Today your server learns to take new ones.',
 			task: 'Add `POST /comments`. Make a new comment from `req.body.author` and `req.body.text`, with `id: comments.length + 1`, add it to the list with `comments.push(...)`, and answer with it using `res.json(...)`.',
 			concept: {
 				title: 'GET asks, POST brings something',
@@ -67,11 +67,11 @@ export const sendingDataIn: Module = {
 					{
 						who: 'bit',
 						scene: 'wire',
-						text: 'On a GET I travel light: just the path. On a POST I carry a parcel.'
+						text: 'You’ve seen this from the phone: on a POST I carry a parcel. This time you’re on the receiving end.'
 					},
 					{
 						who: 'you',
-						text: 'The parcel is the request body. On the server it’s waiting in `req.body`, already unpacked.',
+						text: 'The parcel is the request’s **body**. On the server it’s waiting in `req.body`, already unpacked.',
 						code: "req.body   // { author: 'noodlefan', text: 'Need episode 3 now' }"
 					},
 					{
@@ -80,7 +80,7 @@ export const sendingDataIn: Module = {
 					},
 					{
 						who: 'you',
-						text: 'Yes. Method plus path. `app.post` only answers POSTs, so `GET /comments` and `POST /comments` can live side by side.',
+						text: 'Yes: an endpoint is method plus path. `app.post` only answers POSTs, so `GET /comments` and `POST /comments` can live side by side.',
 						code: "app.post('/comments', (req, res) => { … })"
 					},
 					{
@@ -149,7 +149,7 @@ app.post('/comments', (req, res) => {
 			title: 'The blank comments',
 			xp: 20,
 			story:
-				'While you were at lunch, someone “tidied up” your comment endpoint. It now answers `201` instead of `200`: 201 means **Created**, the precise way to say “I made a new thing, here it is”. Nice touch. But every new comment comes out blank.',
+				'While you were at lunch, someone “tidied up” your comment endpoint. It now answers `201`, the “created” status you saw when Mina posted her first comment, which is a nice touch. But every new comment comes out blank.',
 			task: 'Press **Run** and look at what the POST answers. Fix the endpoint so new comments keep their author and text. Keep the `201`.',
 			hints: [
 				'The answer has an `id`, but no `author` and no `text`. Where does the endpoint look for them?',
@@ -222,12 +222,12 @@ app.post('/comments', (req, res) => {
 					},
 					{
 						who: 'you',
-						text: 'It should. But anything can send requests to the server: old app versions, a script, someone being clever. The server is the last line of defence.'
+						text: 'It should, but anything can send requests to the server: old app versions, a script, someone being clever. The server is the last line of defence.'
 					},
 					{
 						who: 'bit',
 						scene: 'wire',
-						text: '400 Bad Request means: “your request is wrong, fix it and try again”. It’s not a 404, the endpoint exists. It’s not a 500, the server is fine.'
+						text: 'You’ve met **400** from the phone’s side: “your request is wrong, fix it and try again”. Not a 404, because the endpoint exists, and not a 500, because the server is fine.'
 					},
 					{
 						who: 'you',
@@ -354,7 +354,7 @@ app.post('/comments', (req, res) => {
 					},
 					{
 						who: 'you',
-						text: 'Let me look. The server answered 200, so it’s not crashing. Something inside is quietly wrong.'
+						text: 'The server answered 200, so it isn’t crashing. Something inside is quietly wrong.'
 					}
 				]
 			},
@@ -415,14 +415,14 @@ app.put('/episodes/:id/like', (req, res) => {
 			title: 'Take it down',
 			xp: 20,
 			story:
-				'Comment 2 says the cat is the real main character. It is right, and that is the problem: episode 4 is the big reveal. Mina would like it gone before anyone else reads it. The moderator button in the app sends `DELETE /comments/2`.',
+				'Comment 2 says the cat is the real main character. It’s right, and that’s the problem: episode 4 is the big reveal. Mina would like it gone, and the moderator button in the app sends `DELETE /comments/2`.',
 			task: 'Add `DELETE /comments/:id`. Remove that comment from the list, then answer `204` with no body: `res.status(204).end()`.',
 			concept: {
 				title: 'Delete, and say nothing',
 				panels: [
 					{
 						who: 'mina',
-						text: 'June guessed the twist and posted it. Can we take that down, nicely?'
+						text: 'A reader called june_b guessed the twist. Can we take that down, nicely?'
 					},
 					{
 						who: 'you',
@@ -494,12 +494,12 @@ app.delete('/comments/:id', (req, res) => {
 			xp: 50,
 			boss: true,
 			story:
-				'Launch week. Every episode gets its own comments section, readers post and the moderators clean up. The app team has sent you the list of requests their app will make. Theo has sent you three coffee emojis.',
+				'Every episode gets its own comments section, where readers post and moderators clean up. The freelancer building the phone app has sent the list of requests it will make, and Theo has sent three coffee emojis. When this passes, Theo’s favourite question finally gets a yes.',
 			task: 'Write three endpoints:\n1. `GET /episodes/:id/comments`: the comments whose `episode_id` matches.\n2. `POST /episodes/:id/comments`: `400` with an `error` if `author` or `text` is missing; otherwise save `{ id, episode_id, author, text }` and answer `201` with it. `episode_id` must be a number.\n3. `DELETE /comments/:id`: `204` when it was there, `404` with an `error` when it wasn’t.',
 			hints: [
 				'Do them in order and press **Run** after each. Every one of them is something you did earlier in this module, with an `episode_id` added.',
 				'For the new comment, use `episode_id: Number(req.params.id)` and `id: comments.length + 1`. For the delete, first `find` the comment: if it isn’t there, answer 404.',
-				"The delete:\n```js\napp.delete('/comments/:id', (req, res) => {\n  const id = Number(req.params.id)\n  if (!comments.find((c) => c.id === id)) {\n    res.status(404).json({ error: 'No comment with id ' + id })\n  } else {\n    comments = comments.filter((c) => c.id !== id)\n    res.status(204).end()\n  }\n})\n```"
+				"All three:\n```js\napp.get('/episodes/:id/comments', (req, res) => {\n  res.json(comments.filter((c) => c.episode_id === Number(req.params.id)))\n})\n\napp.post('/episodes/:id/comments', (req, res) => {\n  if (!req.body.author || !req.body.text) {\n    res.status(400).json({ error: 'author and text are required' })\n  } else {\n    const comment = { id: comments.length + 1, episode_id: Number(req.params.id), author: req.body.author, text: req.body.text }\n    comments.push(comment)\n    res.status(201).json(comment)\n  }\n})\n\napp.delete('/comments/:id', (req, res) => {\n  const id = Number(req.params.id)\n  if (!comments.find((c) => c.id === id)) {\n    res.status(404).json({ error: 'No comment with id ' + id })\n  } else {\n    comments = comments.filter((c) => c.id !== id)\n    res.status(204).end()\n  }\n})\n```"
 			],
 			world: server([
 				{

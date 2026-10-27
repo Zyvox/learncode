@@ -55,7 +55,7 @@ export const serverMeetsDatabase: Module = {
 					},
 					{
 						who: 'bit',
-						text: 'So I go phone to server. Then a smaller packet hops from server to database and back. Then I carry the rows home.',
+						text: 'So I go phone to server, then a smaller packet hops from server to database and back. Then I carry the rows home.',
 						scene: 'wire'
 					},
 					{
@@ -121,10 +121,10 @@ app.get('/series', (req, res) => {
 			title: 'Just the one, please',
 			xp: 20,
 			story:
-				'A reader taps on a series. The phone asks for `/series/2`, and the server needs that one row, not all of them. Somebody will also follow an old link to a series that doesn’t exist. They deserve a proper 404, not a mystery.',
+				'A reader taps a series, so the phone asks for `/series/2` and the server needs that one row, not all of them. Somebody else follows an old link to a series that doesn’t exist, and deserves a proper 404, not a mystery.',
 			task: "In `GET /series/:id`, get the row with `db.get('SELECT * FROM series WHERE id = ?', [req.params.id])`. If there's no row, answer `404` with `{ error: 'No such series' }`. Otherwise answer with the row.",
 			concept: {
-				title: 'The `?` is a blank the database fills in',
+				title: 'The `?` is a placeholder',
 				panels: [
 					{
 						who: 'mina',
@@ -138,13 +138,13 @@ app.get('/series', (req, res) => {
 					},
 					{
 						who: 'bit',
-						text: 'Now that 2 has to go into the SQL. Don’t glue it in. Leave a blank, a `?`, and hand the value over separately.',
+						text: 'Now that 2 has to go into the SQL, but don’t glue it in. Leave a **placeholder**, a `?`, and hand the value over separately.',
 						scene: 'wire',
 						code: "db.get('SELECT * FROM series WHERE id = ?', [req.params.id])"
 					},
 					{
 						who: 'narrator',
-						text: 'The list in square brackets fills the blanks in order. The database treats it as a value, never as part of the SQL. Remember that; it matters in a few levels.',
+						text: 'The list in square brackets fills the placeholders in order, and the database treats each one as a value, never as part of the SQL. Remember that: it matters in a few levels.',
 						scene: 'database'
 					},
 					{
@@ -210,7 +210,7 @@ app.get('/series', (req, res) => {
 			title: 'Where did my other series go?',
 			xp: 20,
 			story:
-				'Mina searches the app for her own work with `/series?author=Mina`. She has two series. The phone shows one, and not even as a list. “Did somebody delete Night Shift Noodles?” Nobody did. The data is fine; the handler asks the wrong way.',
+				'Mina searches the app for her own two series with `/series?author=Mina`. The phone shows one, and not even as a list. “Did somebody delete Night Shift Noodles?” Nobody did: the handler asks the wrong way.',
 			task: 'Fix the handler so `/series?author=Mina` answers with a list of both of Mina’s series, and `/series?author=Jun` with a list of one.',
 			hints: [
 				'Run it and look at the answer to the first request. It’s a single object in curly brackets, not a list in square brackets.',
@@ -290,18 +290,22 @@ app.get('/series', (req, res) => {
 			id: `${M}/05-new-comment`,
 			slug: '05-new-comment',
 			kind: 'code',
-			title: 'Readers can talk back',
+			title: 'Comments that stay',
 			xp: 20,
 			story:
-				'Theo has been asking all week: “Can readers comment yet?” Today they can. A reader called noodlefan has something to say about episode 3.',
+				'Your comments endpoint from “Sending data in” kept comments in a list, and the list forgot them at every restart. Theo found out the hard way. Today comments go into the database, starting with noodlefan’s thoughts on episode 3.',
 			task: "In `POST /episodes/:id/comments`, save the comment with `db.run('INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)', [req.params.id, req.body.author, req.body.text])`. Answer with status `201` and `{ id: … }`, the new comment's id from what `db.run` gives back.",
 			concept: {
 				title: 'Changing things: `db.run`',
 				panels: [
-					{ who: 'theo', text: 'Can readers comment yet?', scene: 'none' },
+					{
+						who: 'theo',
+						text: 'We restarted the server and every comment vanished. Again.',
+						scene: 'none'
+					},
 					{
 						who: 'you',
-						text: 'Almost. Reading uses `db.all` and `db.get`. Changing anything (INSERT, UPDATE, DELETE) uses `db.run`.',
+						text: 'Not once they’re in the database. Reading uses `db.all` and `db.get`; changing anything (INSERT, UPDATE, DELETE) uses `db.run`.',
 						scene: 'server',
 						code: "const r = db.run('INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)', [id, author, text]);"
 					},
@@ -313,7 +317,7 @@ app.get('/series', (req, res) => {
 					},
 					{
 						who: 'narrator',
-						text: 'Three `?` blanks, three values, in the same order. Status 201 means “created”, and sending the new id back lets the phone link straight to it.',
+						text: 'Three placeholders, three values, in the same order. Then the same polite `201` as before, with the new id so the phone can link straight to it.',
 						scene: 'phone'
 					}
 				]
@@ -374,7 +378,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 				{
 					type: 'queries-parameterized',
 					message:
-						'Use three `?` blanks in the SQL and pass the values in the list, instead of gluing them into the text.'
+						'Use three `?` placeholders in the SQL and pass the values in the list, instead of gluing them into the text.'
 				}
 			]
 		},
@@ -385,7 +389,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 			title: 'The comment that deleted the comments',
 			xp: 20,
 			story:
-				'Before you joined, Theo’s cousin wrote the first comments endpoint over a weekend. Instead of `?` blanks, it glues the values straight into the SQL with `+`. Today a “reader” posts a very odd comment under episode 7.',
+				'Before you joined, Theo’s cousin wrote the first comments endpoint over a weekend. Instead of `?` placeholders, it glues the values straight into the SQL with `+`. Today a “reader” posts a very odd comment under episode 7.',
 			task: 'Read the code and the three requests. Work out what the third one gets back.',
 			concept: {
 				title: 'When text turns into SQL',
@@ -397,7 +401,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 					},
 					{
 						who: 'mina',
-						text: 'That’s not a comment. That’s… gibberish?',
+						text: 'That’s not a comment, that’s… gibberish?',
 						scene: 'phone'
 					},
 					{
@@ -439,7 +443,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 			],
 			answer: 2,
 			explanation:
-				"Glued in, the SQL becomes `INSERT INTO comments (…) VALUES (7, 'troll', ''); DELETE FROM comments; --')`. The `')` closes the text early, the `;` starts a brand-new statement, and `--` turns the leftover into a comment. The database sees two instructions and does both: it saves an empty comment, then deletes every comment in the table. This is called **SQL injection**, and it’s one of the oldest attacks on the web. Even an innocent “can’t wait” would break this code, because of the apostrophe. The fix is the `?` blank you already know, and that’s the next level.",
+				"Glued in, the SQL becomes `INSERT INTO comments (…) VALUES (7, 'troll', ''); DELETE FROM comments; --')`. The `')` closes the text early, the `;` starts a brand-new statement, and `--` turns the leftover into a comment. The database sees two instructions and does both: it saves an empty comment, then deletes every comment in the table. This is called **SQL injection**, and it’s one of the oldest attacks on the web. Even an innocent “can’t wait” would break this code, because of the apostrophe. The fix is the `?` placeholder you already know, and that’s the next level.",
 			hints: [
 				'Write out the SQL string by hand for the second request, with the odd text pasted in where `req.body.text` goes.',
 				'Look at what comes after the `;` in the result.'
@@ -452,8 +456,8 @@ app.post('/episodes/:id/comments', (req, res) => {
 			title: 'Close the hole',
 			xp: 25,
 			story:
-				'Mina restored the comments from last night’s backup (phew). Now the endpoint needs fixing before anyone tries that again. Run it first: june_b’s perfectly normal comment already breaks it, because of one apostrophe.',
-			task: 'Rewrite the INSERT with three `?` blanks and pass `[req.params.id, req.body.author, req.body.text]` as a list. Both comments must be saved, the odd one as plain harmless text, and nothing deleted.',
+				'You restored the comments from last night’s backup (phew). Now the endpoint needs fixing before anyone tries that again. Run it first: june_b’s perfectly normal comment already breaks it, because of one apostrophe.',
+			task: 'Rewrite the INSERT with three `?` placeholders and pass `[req.params.id, req.body.author, req.body.text]` as a list. Both comments must be saved, the odd one as plain harmless text, and nothing deleted.',
 			hints: [
 				'Look at the server log for the first request. SQLite got confused near `t`: that’s the t in “Can’t”. The apostrophe ended the quoted text early, so the rest no longer made sense as SQL.',
 				"You don't need the `sql` variable with all the `+` pieces. Write the SQL in one piece with `?` where the values go: `'INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)'`.",
@@ -502,7 +506,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 				{
 					type: 'queries-parameterized',
 					message:
-						'A value from the request is still glued into the SQL. Use `?` blanks and pass the values in a list.'
+						'A value from the request is still glued into the SQL. Use `?` placeholders and pass the values in a list.'
 				},
 				{
 					type: 'db-rows',
@@ -533,7 +537,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 			xp: 50,
 			boss: true,
 			story:
-				'Theo wants two things before Friday: the ♥ button should work, and comments should show newest first, “like every other app on earth”. Readers are already tapping.',
+				'Theo wants two things before Friday: a working ♥ button, and comments newest first, “like every other app on earth”. After this, every tap on the phone lands in the real database, and your server stops being a demo.',
 			task: "Write two endpoints.\n\n**`PUT /episodes/:id/like`**: add one like with `db.run('UPDATE episodes SET likes = likes + 1 WHERE id = ?', …)`. If the receipt says `changes` is `0`, no such episode: answer `404`. Otherwise answer with `{ id, likes }` for that episode, fresh from the database.\n\n**`GET /episodes/:id/comments`**: the episode's comments with `author`, `text` and `created_at`, newest first (`ORDER BY created_at DESC`).",
 			hints: [
 				"For the like: `const r = db.run(…)`, then `if (r.changes === 0) { 404 } else { … }`. In the else part, fetch the episode again with `db.get('SELECT id, likes FROM episodes WHERE id = ?', [req.params.id])` and send it.",

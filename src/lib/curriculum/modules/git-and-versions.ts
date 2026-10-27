@@ -7,7 +7,7 @@ export const gitAndVersions: Module = {
 	emoji: '🌿',
 	title: 'Git and versions',
 	blurb:
-		'Keep every version of your work, undo mistakes without panic, and finally see what a pull request actually is.',
+		'Keep every version of your work, undo mistakes without panic, and see what a pull request actually is.',
 	comingSoon: true,
 	lessons: []
 };

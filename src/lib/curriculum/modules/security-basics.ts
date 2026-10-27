@@ -7,7 +7,7 @@ export const securityBasics: Module = {
 	emoji: '🛡️',
 	title: 'Security basics',
 	blurb:
-		'How real attacks work, from phishing to injection, and the handful of habits that stop most of them.',
+		'See how real attacks work, from phishing to injection, and pick up the few habits that stop most of them.',
 	comingSoon: true,
 	lessons: []
 };

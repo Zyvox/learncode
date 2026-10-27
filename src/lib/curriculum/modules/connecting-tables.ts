@@ -11,7 +11,7 @@ export const connectingTables: Module = {
 	title: 'Connecting tables',
 	blurb:
 		'See how one table points at another, and put them side by side to answer bigger questions.',
-	prereq: 'Easier if you’ve done Learn to code, parts 1–5 (variables, if, loops, functions).',
+	prereq: 'No JavaScript needed here: it’s all SQL, and you’ll pick it up as you go.',
 	lessons: [
 		{
 			id: `${M}/01-join`,
@@ -37,7 +37,7 @@ export const connectingTables: Module = {
 					},
 					{
 						who: 'narrator',
-						text: '`series_id` points at the row in `series` with that `id`. A column that points at another table’s id is called a **foreign key**. A pointer, not a copy.'
+						text: '`series_id` points at the row in `series` with that `id`: a pointer, not a copy. A column like that is called a **foreign key**.'
 					},
 					{
 						who: 'theo',
@@ -202,7 +202,7 @@ JOIN episodes ON episodes.id = comments.episode_id;
 				panels: [
 					{
 						who: 'theo',
-						text: 'How many episodes does each series have? Not the total. One number per series.'
+						text: 'How many episodes does each series have? Not the total, one number per series.'
 					},
 					{
 						who: 'you',
@@ -259,7 +259,7 @@ GROUP BY series_id;
 			xp: 20,
 			language: 'sql',
 			story:
-				'The new “Most discussed” list says Sketches has a comment. Sketches isn’t even published. Somebody’s `JOIN` is matching the wrong things. Press **Run** and compare with the `comments` table.',
+				'The new “Most discussed” list says Sketches has a comment, and Sketches isn’t even published. Somebody’s `JOIN` is matching the wrong things. Press **Run** and compare with the `comments` table.',
 			task: 'Fix the query so it counts each episode’s real comments. The first parcel should have 2, The locked gate 1 and Opening night 2.',
 			hints: [
 				'Look at the `ON` part. Which column in `comments` says which episode a comment belongs to?',
@@ -300,7 +300,7 @@ GROUP BY episodes.id;
 			boss: true,
 			language: 'sql',
 			story:
-				'End of season. Theo needs one small table for the investors: each series by name, how many episodes it has published, and how many likes they got in total, most liked series first. He’d like it before his coffee gets cold.',
+				'End of season. Theo needs one small table for the investors: each series by name, how many episodes it has published, and how many likes they got in total, most liked series first. He’d like it before his coffee gets cold. This is the kind of report that usually means waiting on someone else, and this time the someone is you.',
 			task: 'One row per series with three columns: `series` (the series title), `published_episodes` (how many published episodes) and `total_likes` (their likes added up), sorted by `total_likes`, biggest first.\nNew helper: `SUM(column)` adds up a column the way `COUNT(*)` counts rows.',
 			hints: [
 				'Build it in steps and press **Run** after each: first the `JOIN` from level 1, then `WHERE episodes.published = 1`, then `GROUP BY series.id`, then the sort.',
@@ -340,7 +340,7 @@ ORDER BY total_likes DESC;
 						{ series: 'Grove & Gear', published_episodes: 2, total_likes: 138 }
 					],
 					message:
-						'Close. Check two things: Moonlit Deliveries has 3 *published* episodes (Sketches isn’t one, so use `WHERE episodes.published = 1`), and the most liked series comes first (`ORDER BY total_likes DESC`).'
+						'Close. Check two things: Moonlit Deliveries has 3 published episodes (Sketches isn’t one, so use `WHERE episodes.published = 1`), and the most liked series comes first (`ORDER BY total_likes DESC`).'
 				}
 			]
 		}

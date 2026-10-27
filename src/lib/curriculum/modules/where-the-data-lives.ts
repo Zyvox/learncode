@@ -10,7 +10,7 @@ export const whereTheDataLives: Module = {
 	emoji: '🗄️',
 	title: 'Where the data lives',
 	blurb: 'Meet the database: tables, rows and columns, and how to ask it questions in SQL.',
-	prereq: 'Easier if you’ve done Learn to code, parts 1–5 (variables, if, loops, functions).',
+	prereq: 'No JavaScript needed here: it’s all SQL, and you’ll pick it up as you go.',
 	lessons: [
 		{
 			id: `${M}/01-select`,
@@ -20,7 +20,7 @@ export const whereTheDataLives: Module = {
 			xp: 15,
 			language: 'sql',
 			story:
-				'The lists in your server’s code vanish every time it restarts, and Theo has noticed. Inkwell has a real database now. Before the server talks to it, you’re going to talk to it yourself.',
+				'The lists in your server’s code vanish every time it restarts, and Theo has noticed. The old server never had that problem, because it kept everything in a database. Before your server talks to it, you’re going to talk to it yourself.',
 			task: 'Ask the database for every row and every column of the `series` table: `SELECT * FROM series;`',
 			concept: {
 				title: 'Tables, rows, columns',
@@ -32,7 +32,7 @@ export const whereTheDataLives: Module = {
 					},
 					{
 						who: 'you',
-						text: 'It holds tables. A table is a set of rows that all have the same columns. Every row in `series` has an `id`, a `title`, a `genre` and an `author`.'
+						text: 'It keeps things in **tables**. Each **row** is one thing, like one series, and every row has the same **columns**: `id`, `title`, `genre`, `author`.'
 					},
 					{
 						who: 'mina',
@@ -40,12 +40,12 @@ export const whereTheDataLives: Module = {
 					},
 					{
 						who: 'you',
-						text: 'Pretty much. You ask in a language called SQL, and it answers with rows.',
+						text: 'Pretty much. You ask in a language called **SQL**, each question is a **query**, and the answer comes back as rows.',
 						code: 'SELECT * FROM series;'
 					},
 					{
 						who: 'bit',
-						text: '`SELECT` means “give me”, `*` means “every column”, `FROM series` says which table. The `;` ends the question.'
+						text: 'I’ll carry that one over. `SELECT` means “give me”, `*` “every column”, `FROM series` says which table, and `;` ends the question.'
 					},
 					{
 						who: 'theo',
@@ -86,7 +86,7 @@ export const whereTheDataLives: Module = {
 			xp: 15,
 			language: 'sql',
 			story:
-				'Theo wants a short list for the website footer: each series and who makes it. Instead of `*`, you can name just the columns you want, with commas between them. Theo tried. Press **Run**.',
+				'Theo wants a short list for the website footer: each series and who draws it. Instead of `*` you can name just the columns you want, with commas between them, and Theo has had a go. Press **Run**.',
 			task: 'Read the error, then fix the query so it gives back two columns: `title` and the column that holds who makes each series.',
 			hints: [
 				'The database tells you which columns `series` really has. Is `artist` one of them?',
@@ -139,7 +139,7 @@ export const whereTheDataLives: Module = {
 					},
 					{
 						who: 'narrator',
-						text: "Tests work like in JavaScript: `>`, `<`, `>=`. One difference: “equals” is a single `=` in SQL. Text goes in single quotes: `WHERE genre = 'comedy'`."
+						text: "Tests work like in JavaScript (`>`, `<`, `>=`), except that “equals” is a single `=`. Text goes in single quotes: `WHERE genre = 'comedy'`."
 					}
 				]
 			},
@@ -195,7 +195,7 @@ export const whereTheDataLives: Module = {
 				'Don’t skip the episode that nobody has seen yet. 0 is under 100 too.'
 			],
 			explanation:
-				'Four: Rain on Pine Street (98), A seed in the gears (61), The clockwork fox (77) and Sketches (0). Sketches is the sneaky one. It isn’t even published yet, but the database doesn’t know what you *meant*, only what you asked: every row with `likes` under 100. Theo’s shelf would show readers an episode that doesn’t exist for them. Keep that in mind for the boss level.'
+				'Four: Rain on Pine Street (98), A seed in the gears (61), The clockwork fox (77) and Sketches (0). Sketches is the sneaky one. It isn’t even published yet, but the database doesn’t know what you meant, only what you asked: every row with `likes` under 100. Theo’s shelf would show readers an episode that doesn’t exist for them. Keep that in mind for the boss level.'
 		},
 		{
 			id: `${M}/05-top-three`,
@@ -226,7 +226,7 @@ export const whereTheDataLives: Module = {
 					},
 					{
 						who: 'you',
-						text: 'Yes. SQL is fussy about it: `SELECT`, `FROM`, `WHERE`, `ORDER BY`, `LIMIT`. Sort first, then cut, otherwise you’d keep three random rows.'
+						text: 'Yes, SQL wants them in this order: `SELECT`, `FROM`, `WHERE`, `ORDER BY`, `LIMIT`. Read it as pick, filter, sort, then cut.'
 					}
 				]
 			},
@@ -332,7 +332,7 @@ SELECT * FROM episodes;
 			boss: true,
 			language: 'sql',
 			story:
-				'Theo is back with the “Needs some love” shelf, and this time he means it: the three published episodes with the fewest likes, so the studio can share them on social media this week. Unpublished episodes are not invited.',
+				'Theo is back with the “Needs some love” shelf, and this time he means it: the three published episodes with the fewest likes, so the studio can share them on social media this week. Unpublished episodes are not invited, and every piece of this module gets a turn.',
 			task: 'Get the `title` and `likes` of the three **published** episodes with the fewest likes, fewest first.',
 			hints: [
 				'You need every piece from this module: pick the columns, keep only `published = 1`, sort by `likes`, keep three.',

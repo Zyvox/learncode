@@ -30,7 +30,7 @@ export const shippingIt: Module = {
 			title: 'It works on my laptop',
 			xp: 15,
 			story:
-				'Everything works. Theo is thrilled and tells a friend in another city to try the app. Meanwhile you close your laptop and go to lunch, because the Inkwell server is running on your laptop.',
+				'Everything works, and Theo is so pleased he tells a friend in another city to try the app. Meanwhile you close your laptop and go to lunch. The Inkwell server is running on that laptop.',
 			task: 'Decide what the friend’s phone gets.',
 			concept: {
 				title: 'Where a server lives',
@@ -43,13 +43,13 @@ export const shippingIt: Module = {
 					},
 					{
 						who: 'narrator',
-						text: 'A server is just a computer running your program and waiting for requests. Any computer can be one. The trick is one that never sleeps.',
+						text: 'A server is just a computer running your program and waiting for requests. Any computer can be one; the trick is finding one that never sleeps.',
 						scene: 'server'
 					},
 					{ who: 'mina', text: 'So where do the real ones live?', scene: 'none' },
 					{
 						who: 'bit',
-						text: 'In datacenters: huge, cold rooms full of computers with fast connections and backup power. “The cloud” means renting one of them. Someone else’s computer, basically.',
+						text: 'In datacentres: huge, cold rooms full of computers with fast connections and backup power. “The cloud” means renting one of them: someone else’s computer, basically.',
 						scene: 'cloud'
 					}
 				]
@@ -80,7 +80,7 @@ show(res.status);
 			title: 'The trip before the trip',
 			xp: 20,
 			story:
-				'Inkwell now runs on a rented machine in a datacenter, at `https://api.inkwell.studio`. A reader’s phone asks for `https://api.inkwell.studio/series/3?lang=en`. That’s a lot of address. Your handler logs what it actually receives.',
+				'Inkwell now runs on a rented machine in a datacentre, at `https://api.inkwell.studio`. A reader’s phone asks for `https://api.inkwell.studio/series/3?lang=en`, which is a lot of address, and your handler logs what it actually receives.',
 			task: 'Read the trip in the strip, then decide what the handler writes in the log.',
 			concept: {
 				title: 'Name, address, door, envelope, receptionist',
@@ -98,7 +98,7 @@ show(res.status);
 					},
 					{
 						who: 'bit',
-						text: 'The address gets me to the building. The **port** picks the door: 443 for HTTPS. On your laptop the app used 3000, which is why you typed `:3000`.',
+						text: 'The address gets me to the building, and the **port** picks the door: 443 for HTTPS. On your laptop the app sat behind door 3000, which is why developers are forever typing `localhost:3000`.',
 						scene: 'wire'
 					},
 					{
@@ -152,7 +152,7 @@ show(res.status);
 			title: 'Settings live outside the code',
 			xp: 20,
 			story:
-				'The server on the rented machine starts and immediately looks for a database at `/Users/mina/Desktop/inkwell-test.db`. That’s a file on Mina’s laptop. The code was copied from there with her settings typed right into it.',
+				'Mina has been running a test copy of Inkwell on her laptop to preview episodes, and the code on the rented machine was copied from hers. Now the real server starts and goes looking for `/Users/mina/Desktop/inkwell-test.db`, because her settings are typed right into the code.',
 			task: "Use the environment instead of typed-in values: log `'Using database at ' + env.DB_PATH`, and make `/health` answer `{ status: 'ok', app: env.APP_NAME }`.",
 			concept: {
 				title: 'Environment variables',
@@ -174,8 +174,8 @@ show(res.status);
 						scene: 'lock'
 					},
 					{
-						who: 'bit',
-						text: 'Same place, never in the code. Code gets copied, shared and pasted into chats. Secrets shouldn’t travel with it.',
+						who: 'you',
+						text: 'Same place, never in the code. Code gets copied, shared and pasted into chats, and secrets shouldn’t travel with it.',
 						scene: 'lock'
 					},
 					{
@@ -250,7 +250,7 @@ app.get('/health', (req, res) => {
 					},
 					{
 						who: 'you',
-						text: 'On purpose. Details about our code are none of the internet’s business. They go in the server log, for us.',
+						text: 'On purpose. Details about our code are none of the internet’s business, so they go in the server log, for us.',
 						scene: 'server'
 					},
 					{
@@ -427,7 +427,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 			xp: 45,
 			boss: true,
 			story:
-				'The night before launch, Theo runs a dress rehearsal on the real machine. The checklist from the ops person: the startup log must say which port the app listens on (they set `PORT` to `8080`), the receptionist needs a `/health` endpoint to check the app is alive, and every request must come back in the 200s. Something in there is already broken.',
+				'Launch is a week away, and Theo wants a dress rehearsal on the real machine. The ops person’s checklist: the startup log must say which port the app listens on (they set `PORT` to `8080`), the receptionist needs a `/health` endpoint to check the app is alive, and every request must come back in the 200s. Something in there is already broken, and once it isn’t, Inkwell is ready to live on the internet.',
 			task: "1. Log `'Listening on port ' + env.PORT` instead of the typed-in port.\n2. Add `GET /health` answering `{ status: 'ok', app: env.APP_NAME }`.\n3. Run it, read the log, and fix the endpoint that answers 500.",
 			hints: [
 				'Run it first. The log tells you which port the code claims, and which request crashed and why.',

@@ -153,14 +153,14 @@ export const launchInkwell: Module = {
 			title: 'Checkpoint 1: the front page',
 			xp: 20,
 			story:
-				'Launch is Monday. Theo has cleared a wall for the plan, and you’re building the real Inkwell API from a clean file, one checkpoint at a time. Each checkpoint starts where the last one finished. First up: the front page of the app, the series list.',
+				'Launch is Monday. Theo has cleared a wall for the plan, and you’re building the launch version of the Inkwell API in one clean file, each checkpoint starting where the last one finished. First up: the front page, the series list.',
 			task: 'Write `GET /series`. For each series, answer with its `id`, `title`, `genre` and how many **published** episodes it has, named `episodes`. Order them by title.\n\nYou’ll need `JOIN`, `WHERE episodes.published = 1`, `GROUP BY series.id`, `COUNT(episodes.id) AS episodes` and `ORDER BY series.title`. Long SQL can be split over lines with `+`. That’s fine, as long as nothing from the request gets glued in.',
 			concept: {
 				title: 'The launch plan',
 				panels: [
 					{
 						who: 'theo',
-						text: 'Monday. Real readers. Front page, episode pages, comments, likes, search. Can we do it?',
+						text: 'Monday, real readers: front page, episode pages, comments, likes, search. Can we do it?',
 						scene: 'none'
 					},
 					{
@@ -180,7 +180,7 @@ export const launchInkwell: Module = {
 					},
 					{
 						who: 'bit',
-						text: 'Six checkpoints. I’ll be doing a lot of running.',
+						text: 'Five checkpoints and a launch. I’ll be doing a lot of running.',
 						scene: 'wire'
 					}
 				]
@@ -270,7 +270,7 @@ export const launchInkwell: Module = {
 			title: 'Checkpoint 3: comments that work',
 			xp: 25,
 			story:
-				'This is the one Mina cares about. Comments under every episode, signed with the name of whoever is logged in, and no empty ones. “People will tap Send by accident. A blank comment is just sad.”',
+				'This is the one Mina cares about: comments under every episode, signed with the name of whoever is logged in, and no empty ones. “People will tap Send by accident. A blank comment is just sad.”',
 			task: "Add two routes.\n\n**`GET /episodes/:id/comments`**: the episode's comments (`id`, `author`, `text`, `created_at`), oldest first (`ORDER BY id`).\n\n**`POST /episodes/:id/comments`**: no user → `401`. No `text` in the body (or an empty one) → `400`. Otherwise save it with `user.name` as the author and answer `201` with `{ id, author, text }`.",
 			hints: [
 				'The GET is one `db.all` with `WHERE episode_id = ? ORDER BY id`.',
@@ -498,34 +498,39 @@ export const launchInkwell: Module = {
 			xp: 50,
 			boss: true,
 			story:
-				'Monday, 8:59. Theo is refreshing the app store page. Mina has made coffee for everyone and is pretending not to be nervous. The receptionist on the real machine wants a `/health` check before it lets anyone in, and the series page, the one where a reader taps a series and sees its episodes, never made it onto the wall. At 9:00 the doors open and the requests start arriving.',
+				'Monday, 8:59. Theo is refreshing the app store page, and Mina has made coffee for everyone and is pretending not to be nervous. Two things never made it onto the wall: the `/health` check the receptionist wants before it lets anyone in, and the series page, where a reader taps a series and sees its episodes. At 9:00 the doors open, and everything those readers touch is something you built.',
 			task: "Add the last two routes, then let launch day run. Every request has to come back in the 200s.\n\n**`GET /health`**: `{ status: 'ok', app: env.APP_NAME }`.\n\n**`GET /series/:id/episodes`**: the series' published episodes (`id`, `number`, `title`, `likes`), in `number` order.",
 			concept: {
-				title: 'Look how far Bit has come',
+				title: 'Look how far you’ve come',
 				panels: [
 					{
 						who: 'bit',
-						text: 'Remember my first trip? Phone to server and back with a 200. I didn’t know what a 200 was.',
+						text: 'Remember my first trip? Phone to server and back with a 200, and none of us knew what a 200 was.',
 						scene: 'wire'
 					},
 					{
 						who: 'mina',
-						text: 'Now I know where an episode comes from when I tap it. Phone, server, database, and back.',
+						text: 'Now I know where an episode comes from when I tap it: phone, server, database, and back.',
 						scene: 'phone'
 					},
 					{
 						who: 'theo',
-						text: 'And I know what “it’s a 502” means. I even know who to call.',
+						text: 'And when someone says “it’s a 502”, I know who to call. Mostly you.',
 						scene: 'cloud'
 					},
 					{
 						who: 'narrator',
-						text: 'Status codes, API docs, server logs, “the server queries the database”: you can read all of it now. And you’ve built the thing they describe.',
+						text: 'What you built: endpoints, a real SQL database behind them, a phone that calls them, logins with tokens, and settings that live in the environment.',
 						scene: 'none'
 					},
 					{
 						who: 'you',
-						text: 'One last check, and then the doors open.',
+						text: 'And the things people say at work, like “the endpoint 404s”, “check the logs” or “that UPDATE had no WHERE”: I can read every one of them now.',
+						scene: 'server'
+					},
+					{
+						who: 'bit',
+						text: 'One last check, and then the doors open. Ready when you are.',
 						scene: 'server'
 					}
 				]

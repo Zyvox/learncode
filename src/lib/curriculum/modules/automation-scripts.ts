@@ -7,7 +7,7 @@ export const automationScripts: Module = {
 	emoji: '🤖',
 	title: 'Automation scripts',
 	blurb:
-		'Hand the boring, repetitive part of your job to a small script, and have a coffee while it runs.',
+		'Hand the dull, repetitive part of your job to a small script, and do something better while it runs.',
 	comingSoon: true,
 	lessons: []
 };

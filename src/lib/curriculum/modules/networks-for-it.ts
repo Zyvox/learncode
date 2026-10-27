@@ -7,7 +7,7 @@ export const networksForIt: Module = {
 	emoji: '🌐',
 	title: 'Networks for IT',
 	blurb:
-		'What really happens between a laptop and the internet: IP addresses, Wi-Fi, routers, and why turning it off and on again so often works.',
+		'Follow a request out of your laptop and onto the internet: IP addresses, Wi-Fi, routers, and why turning it off and on again works so often.',
 	comingSoon: true,
 	lessons: []
 };

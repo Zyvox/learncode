@@ -7,6 +7,7 @@ const M = 'endpoints';
 const MENU = `GET  /series
 GET  /series/:id
 GET  /series/:id/episodes
+GET  /episodes
 GET  /episodes/:id
 GET  /episodes/:id/comments
 POST /episodes/:id/comments
@@ -19,7 +20,7 @@ export const endpoints: Module = {
 	emoji: '📋',
 	title: 'Endpoints: the server’s menu',
 	blurb:
-		'A server only answers the questions on its menu. Read the menu, and you can build a whole screen from it.',
+		'A server only answers the questions on its menu, and once you can read the menu you can build a whole screen from it.',
 	lessons: [
 		{
 			id: `${M}/01-the-menu`,
@@ -28,7 +29,7 @@ export const endpoints: Module = {
 			title: 'Reading the menu',
 			xp: 15,
 			story:
-				'Jun, who draws Grove & Gear, sends you a note: "Our backend person left a list of what the server can do. It looks like a menu written by a robot." You pin it to the wall and start reading.',
+				'Jun, who draws Grove & Gear, sends you a note: “Our backend person left a list of what the server can do. It looks like a menu written by a robot.” You pin it to the wall and start reading.',
 			task: 'Read the menu and the code, then pick which line of the menu answers this request.',
 			concept: {
 				title: 'Endpoints: the server’s menu',
@@ -36,7 +37,7 @@ export const endpoints: Module = {
 					{
 						who: 'you',
 						scene: 'server',
-						text: 'A server can’t answer just anything. It answers a fixed list of questions. Each one is a method and a path, called an **endpoint**.'
+						text: 'A server can’t answer just anything, only a fixed list of questions. Each one is a method and a path, called an **endpoint**.'
 					},
 					{
 						who: 'narrator',
@@ -84,7 +85,7 @@ show(res.body)
 			title: 'One screen, two questions',
 			xp: 20,
 			story:
-				'Mina wants a proper page for Night Shift Noodles, series 3: its title at the top, its episodes below. No line on the menu gives you both at once. That’s normal. Most screens in most apps are built from several requests.',
+				'Mina wants a proper page for Night Shift Noodles, series 3: its title at the top, its episodes below. No line on the menu gives you both at once, and that’s normal: most screens in most apps are built from several requests.',
 			task: 'Ask for series 3 and show its title. Then ask for the episodes of series 3 and show them. Use the menu above to find both paths.',
 			concept: {
 				title: 'One screen, several requests',
@@ -101,7 +102,7 @@ show(res.body)
 					},
 					{
 						who: 'you',
-						text: 'One more thing you’ll see in real code: `res.json()`. It gives you the same thing as `res.body`. Real apps use a command called `fetch`, and there you write `.json()`, so here it works too.',
+						text: 'One more thing you’ll see in real code: `res.json()`, which gives you the same thing as `res.body`. Real apps make their trips with a command called `fetch`, where `.json()` is how you read the body, so it works here too.',
 						code: "const series = get('/series/3').json()\nshow(series.title)"
 					}
 				]
@@ -163,7 +164,7 @@ show(episodes)
 			title: 'Say something nice',
 			xp: 20,
 			story:
-				'Theo, for the third time today: "Can readers comment yet?" The menu says yes: `POST /episodes/:id/comments`. Mina wants to be the first, on episode 1 of her own series.',
+				'Theo, for the third time today: “Can readers comment yet?” The menu says yes: `POST /episodes/:id/comments`. Mina wants to be the first, on episode 1 of her own series.',
 			task: "Post a comment on episode 1 with the author `'mina'` and any text you like. Show the status and the id of the new comment.",
 			concept: {
 				title: 'POST: here’s something new',
@@ -181,7 +182,7 @@ show(episodes)
 					{
 						who: 'bit',
 						scene: 'server',
-						text: 'The server keeps it in the database and answers `201`: "created". The answer’s body has the new comment’s **id**, its number from now on.'
+						text: 'The server keeps it in the database and answers `201`: “created”. The answer’s body has the new comment’s **id**, its number from now on.'
 					},
 					{
 						who: 'bit',
@@ -237,7 +238,7 @@ show(res.body.id)
 			title: 'The heart button',
 			xp: 20,
 			story:
-				'Every episode has a little heart. Tapping it should add one like and show the new count. The menu has a line for that: `PUT /episodes/:id/like`. PUT means "change something that already exists".',
+				'Every episode has a little heart, and tapping it should add one like and show the new count. The menu has a line for that: `PUT /episodes/:id/like`. **PUT** means “change something that already exists”.',
 			task: 'Like episode 3, The locked gate, with `put`, and show its new number of likes from the answer.',
 			newCommands: ['put(path, body)'],
 			hints: [
@@ -274,7 +275,7 @@ show(res.body.likes)
 			title: 'Not on the menu',
 			xp: 20,
 			story:
-				'Someone posted spam under episode 1. Theo, sharp as ever: "Just delete comment 1 from your phone thing." He even wrote the line for you. It doesn’t work, and the reason is worth a screenshot for Theo.',
+				'Someone posted spam under episode 1. Theo, sharp as ever: “Just delete comment 1 from your phone thing.” He even wrote the line for you. It doesn’t work, and the reason is worth a screenshot for Theo.',
 			task: 'Keep the answer to Theo’s request in `res`. Show its status and the error message the server sent (`res.body.error`).',
 			concept: {
 				title: 'Not on the menu',
@@ -282,7 +283,7 @@ show(res.body.likes)
 					{
 						who: 'bit',
 						scene: 'wire',
-						text: '`del(path)` sends a **DELETE** request: "please remove this". I’ll carry anything you like.'
+						text: '`del(path)` sends a **DELETE** request: “please remove this”. I’ll carry anything you like.'
 					},
 					{
 						who: 'bit',
@@ -291,11 +292,11 @@ show(res.body.likes)
 					},
 					{
 						who: 'you',
-						text: 'So it answers `404`. Here that doesn’t mean "comment 1 is missing". It means "I don’t answer that question at all".'
+						text: 'So it answers `404`. Here that doesn’t mean “comment 1 is missing”, it means “I don’t answer that question at all”.'
 					},
 					{
 						who: 'narrator',
-						text: 'A phone can only ask. Adding a line to the menu happens on the server, and that’s where you’re going in a few modules.'
+						text: 'A phone can only ask. Adding a line to the menu happens on the server, and that’s where you’re going next.'
 					}
 				]
 			},
@@ -341,7 +342,7 @@ show(res.body.error)
 			xp: 50,
 			boss: true,
 			story:
-				'Launch rehearsal. Theo opens episode 7, Opening night, the studio’s most-liked episode, and wants the full page: the title at the top, the comments under it, and then he taps the heart and wants to see the new count. Three questions from the menu, in that order.',
+				'Theo is showing investors round this afternoon and wants Opening night (episode 7), the studio’s most-liked episode, as a full page: the title, the comments under it, and a live tap on the heart with the new count. Three questions from the menu, in that order. Pull it off and you’ve built a whole screen from nothing but the API docs.',
 			task: 'For episode 7: show its title, then show its comments, then like it and show the new number of likes. Three requests, in that order.',
 			hints: [
 				'From the menu: `GET /episodes/:id` for the title, `GET /episodes/:id/comments` for the comments, `PUT /episodes/:id/like` for the heart. The id is 7 every time.',

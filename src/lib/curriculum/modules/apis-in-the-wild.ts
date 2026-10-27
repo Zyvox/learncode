@@ -7,7 +7,7 @@ export const apisInTheWild: Module = {
 	emoji: '🧩',
 	title: 'APIs in the wild',
 	blurb:
-		'Read real API docs, use API keys properly, and get two services you already use talking to each other.',
+		'Read real API docs, look after your API keys, and get two services you already use talking to each other.',
 	comingSoon: true,
 	lessons: []
 };

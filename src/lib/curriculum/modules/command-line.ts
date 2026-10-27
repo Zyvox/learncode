@@ -7,7 +7,7 @@ export const commandLine: Module = {
 	emoji: '⌨️',
 	title: 'The command line',
 	blurb:
-		'Type commands instead of clicking, and make friends with the black window everyone else seems so calm about.',
+		'Type commands instead of clicking, and get comfortable in the black window everyone else seems so calm about.',
 	comingSoon: true,
 	lessons: []
 };
