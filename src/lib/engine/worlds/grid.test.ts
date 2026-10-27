@@ -57,7 +57,7 @@ describe('grid world', () => {
 		}
 		expect(err).toBeInstanceOf(WorldHalt);
 		expect((err as WorldHalt).friendly).toBe(
-			'{Hero} bumped into the {wall} on move 2. Check the path — maybe a turn is needed before that move.'
+			'{Hero} bumped into the {wall} on move 2. Is a turn missing before that move?'
 		);
 		expect(w.trace.at(-1)).toEqual({ t: 'bump', at: [2, 1], dir: 'E' });
 		expect(w.state.hero).toMatchObject({ x: 2, y: 1 });

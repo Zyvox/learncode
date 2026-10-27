@@ -8,13 +8,13 @@ import { codeOnly, maskStrings, stripComments } from './source.ts';
 import type { FriendlyError } from './types.ts';
 
 export const TIMEOUT_MESSAGE: ThemedText =
-	"Your program ran for too long — probably a loop that never ends. Press Reset and check your loop's condition.";
+	'Your program ran for too long, so it was stopped. Usually that means a loop that never ends. Look at the question your loop asks: does the answer ever change?';
 
 export const BRACKET_MESSAGE: ThemedText =
-	'It looks like a bracket or brace is missing. Every `(` needs a `)` and every `{` needs a `}`.';
+	'It looks like a bracket is missing. Every `(` needs a `)` and every `{` needs a `}`.';
 
 export const SMART_QUOTES_MESSAGE: ThemedText =
-	'There\'s a character JavaScript doesn\'t understand — often curly quotes “ ” pasted from somewhere. Use straight quotes " ".';
+	'There\'s a curly quote mark (like “ or ”) in your code, probably pasted from somewhere else. Code only understands plain straight quotes: " ".';
 
 export const MISSING_QUOTE_MESSAGE: ThemedText =
 	'A piece of text is missing its closing quote. Text needs a quote at both ends, like `"Hello"`.';
@@ -357,7 +357,7 @@ export function toFriendlyError(
 			return done(
 				reused
 					? `${tick(x)} is the name of a command, but your code also uses that name for something else. Give your variable a different name so ${tick(`${x}()`)} still works.`
-					: `${tick(x)} is a command — it needs round brackets: ${tick(`${x}()`)}.`,
+					: `${tick(x)} is a command, so it needs round brackets: ${tick(`${x}()`)}.`,
 				raw
 			);
 		}
@@ -427,7 +427,7 @@ export function toFriendlyError(
 			const [close, open] = brackets.extraClose.char === '}' ? ['}', '{'] : [')', '('];
 			line = brackets.extraClose.line;
 			return done(
-				`There's a ${tick(close)} here without a matching ${tick(open)} before it. Every ${tick(open)} needs one ${tick(close)} — check for an extra ${tick(close)}.`,
+				`There's a ${tick(close)} here without a matching ${tick(open)} before it. Look for one ${tick(close)} too many.`,
 				raw
 			);
 		}
@@ -501,7 +501,7 @@ function syntaxMessage(msg: string, line: string): string {
 		msg.match(/^Unexpected identifier(?: '([^']*)')?/) ?? msg.match(/unexpected token: identifier/);
 	if (ident) {
 		const what = ident[1] ? tick(ident[1]) : 'a name';
-		return `JavaScript found ${what} somewhere it didn't expect a name. That's often a typo or a missing bracket just before it, or two commands on one line — put each command on its own line.`;
+		return `JavaScript found ${what} somewhere it didn't expect a name. That's often a typo or a missing bracket just before it, or two commands squashed onto one line. Give each command a line of its own.`;
 	}
 	if (/Unexpected string|unexpected token: string literal/.test(msg)) {
 		return `There's a piece of text in quotes where JavaScript didn't expect one. Maybe the round brackets are missing, like ${tick('say("Hi")')}, or a ${tick('+')} or comma is missing, like ${tick('print("Hi " + name)')}.`;
@@ -583,7 +583,7 @@ function syntaxHints(
 	const hints: string[] = [];
 	if (/^\s*(?:\}\s*else\s+)?(?:if|while)\s+[^\s(]/.test(masked)) {
 		hints.push(
-			`Conditions after ${tick('if')} and ${tick('while')} go inside round brackets: ${tick('if (x > 5) {')}.`
+			`The question after ${tick('if')} or ${tick('while')} goes inside round brackets, like ${tick('if (x > 5) {')}.`
 		);
 	}
 	if (/\b(and|or|not)\b/.test(masked)) {

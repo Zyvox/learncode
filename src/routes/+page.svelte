@@ -40,8 +40,8 @@
 				Learn to code by telling a little character what to do.
 			</h1>
 			<p class="text-ink-soft mt-5 max-w-xl text-lg text-pretty sm:text-xl">
-				You write a few lines of real JavaScript, press Run, and watch your code come to life, step
-				by step. Each level takes a minute or two, and you don't need to know anything to start.
+				You write a few lines of real JavaScript, press Run, and watch it happen, one step at a
+				time. Each level takes a minute or two, and you don't need to know anything to start.
 			</p>
 			<div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
 				<a
@@ -49,7 +49,7 @@
 					class="btn btn-primary px-6 py-3.5 text-lg"
 					data-testid="start-first-level"
 				>
-					Try the first level — no account needed
+					Try the first level, no account needed
 					<span aria-hidden="true">→</span>
 				</a>
 				<a href="/learn" class="btn btn-ghost">See the whole map</a>
@@ -116,15 +116,15 @@
 				<h3 class="text-lg font-extrabold">You see your code move</h3>
 				<p class="text-ink-soft mt-1.5">
 					Every line does something you can watch. {theme.hero.name} walks, turns and grabs things exactly
-					as you wrote it — no guessing what happened.
+					as you wrote it, so you never have to guess what happened.
 				</p>
 			</div>
 			<div class="card p-6">
 				<div class="mb-3 text-3xl" aria-hidden="true">🤝</div>
 				<h3 class="text-lg font-extrabold">Mistakes are part of it</h3>
 				<p class="text-ink-soft mt-1.5">
-					Typo? You'll get a plain explanation, like “I don't know <code class="font-mono"
-						>mov()</code
+					Typo? You'll get a plain explanation, like “I don't know anything called <code
+						class="font-mono">mov</code
 					>. Did you mean <code class="font-mono">move()</code>?” Hints are there if you want them.
 				</p>
 			</div>

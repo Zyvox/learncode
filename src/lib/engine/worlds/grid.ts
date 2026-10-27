@@ -138,7 +138,7 @@ export function createGridWorld(spec: GridWorldSpec): GridWorld {
 		if (args.length > 0) {
 			throw new CommandError(
 				name === 'move'
-					? "`move()` always takes exactly one step, so it doesn't need anything inside the round brackets. To go further, call it again or use a loop."
+					? "`move()` always takes exactly one step, so it doesn't need anything inside the round brackets. To go further, write it again or use a loop."
 					: `\`${name}()\` doesn't need anything inside the round brackets. Just write \`${name}()\`.`,
 				`${name}() called with ${args.length} argument(s)`
 			);
@@ -156,8 +156,8 @@ export function createGridWorld(spec: GridWorldSpec): GridWorld {
 				base.trace.push({ t: 'bump', at: [x, y], dir });
 				const inside = nx >= 0 && ny >= 0 && nx < state.width && ny < state.height;
 				const message: ThemedText = inside
-					? `{Hero} bumped into the {wall} on move ${moves}. Check the path — maybe a turn is needed before that move.`
-					: `{Hero} tried to walk off the edge of the map on move ${moves}. Check the path — maybe a turn is needed before that move.`;
+					? `{Hero} bumped into the {wall} on move ${moves}. Is a turn missing before that move?`
+					: `{Hero} tried to walk off the edge of the map on move ${moves}. Is a turn missing before that move?`;
 				base.halt(
 					new WorldHalt(
 						'bump',

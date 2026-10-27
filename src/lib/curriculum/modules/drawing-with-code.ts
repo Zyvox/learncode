@@ -50,9 +50,9 @@ export const drawingWithCode: Module = {
 			xp: 15,
 			story: {
 				default:
-					'{Friend} painted a night sky with a moon and a little star, but the code crashes halfway. Press **Run** and read the error. (Hint: programmers spell it the American way.)',
+					'{Friend} painted a night sky with a moon and a little star, but the code stops halfway. Press **Run** and read the error.',
 				space:
-					'{Friend} sent a picture of the sky over {place}, but the code crashes halfway. Press **Run** and read the error. (Programmers spell it the American way.)'
+					'{Friend} sent a picture of the sky over {place}, but the code stops halfway. Press **Run** and read the error.'
 			},
 			task: 'Fix the error so you get a dark background, a gold moon and a white star.',
 			concept: {
@@ -62,7 +62,7 @@ export const drawingWithCode: Module = {
 			newCommands: ['background(color)', 'color(name)'],
 			hints: [
 				'The error points at line 4. Compare it with line 2.',
-				'`colour` is the British spelling. The command is `color`.',
+				"`colour` is how it's spelled in Britain. Code is nearly always spelled the American way, so the command is `color`.",
 				'Change line 4 to `color("white");`.'
 			],
 			world: { kind: 'canvas' },
@@ -108,7 +108,7 @@ circle(240, 70, 10);
 				default:
 					"Circles are nice, but you can't build a house out of them. Meet two more shapes: rectangles and lines.",
 				games:
-					'{Friend} wants a cottage. The walls are done. It still needs a roof and a door, or the rain gets in and the goblins walk in.',
+					'{Friend} wants a cottage. The walls are done. It still needs a roof and a door, or the rain gets in. And the goblins.',
 				food: '{Friend} is opening a bakery. The walls are up. It needs a roof and a door before the first croissant.'
 			},
 			task: 'The walls are there. Add a roof with two `line()`s and a door with another `rect()`.',
@@ -154,7 +154,7 @@ rect(135, 210, 30, 50);
 					'Five dots in a row, like notes on a stave. You could type five `circle()` lines. Or let a loop do the boring part.',
 				food: 'Five cookies on a tray. You could place every one by hand. Or let a loop do the boring part.'
 			},
-			task: 'Draw 5 circles in a row, using a loop and only one `circle()` call. Each one 60 to the right of the last.',
+			task: 'Draw 5 circles in a row, each one 60 to the right of the last. Use a loop, and write `circle()` only once.',
 			concept: {
 				title: 'A loop that draws',
 				body: 'Keep the x position in a variable. Draw, then move x along, and repeat.\n\n```js\nlet x = 30;\nfor (let i = 0; i < 5; i++) {\n  circle(x, 150, 25);\n  x = x + 60;\n}\n```\n\nEach time round, x is 60 bigger, so each circle lands further right.'
@@ -182,7 +182,7 @@ for (let i = 0; i < 5; i++) {
 					command: 'circle',
 					count: 1,
 					message:
-						"You can type five circles, but try the loop with one `circle()` inside. That's the trick here."
+						'Five `circle()` lines would work, but put one inside a loop and let the loop do the repeating.'
 				}
 			]
 		},
@@ -233,15 +233,15 @@ x = x + 100;
 					'Functions can take extra information, like where to draw. Then one function can draw the same thing in lots of places.',
 				nature:
 					'{Friend} wants a meadow full of flowers. Teach the computer to draw one flower anywhere, and you can plant as many as you like.',
-				food: 'A doughnut is a big circle with a small one in the middle. Teach the computer to draw one anywhere, and you have a whole box.'
+				food: 'A doughnut is a big circle with a small one in the middle. Teach the computer to draw one anywhere, and you have a whole box. (The function is called `flower`. Squint.)'
 			},
 			task: 'The `flower(x, y)` function draws one flower. Use it to draw at least three flowers in different places.',
 			concept: {
 				title: 'Functions with inputs',
-				body: 'Put names in the brackets of a function, and they become variables inside it. When you call it, you fill them in.\n\n```js\nfunction flower(x, y) {\n  color("hotpink");\n  circle(x, y, 20);\n  color("gold");\n  circle(x, y, 8);\n}\n\nflower(80, 100);\nflower(200, 160);\n```\n\nThe first call draws at 80, 100. The second at 200, 160. Same function, different place.'
+				body: 'Put names in the brackets when you make a function, and they work like variables inside it. When you use the function, you fill in the numbers.\n\n```js\nfunction flower(x, y) {\n  color("hotpink");\n  circle(x, y, 20);\n  color("gold");\n  circle(x, y, 8);\n}\n\nflower(80, 100);\nflower(200, 160);\n```\n\nThe first `flower` lands at 80, 100, the second at 200, 160. Same flower, different spot. Using a function like this is called **calling** it.'
 			},
 			hints: [
-				'The function is done. You just need to call it, like `flower(150, 150);`.',
+				'The function is finished. All you need to do is call it, like `flower(150, 150);`.',
 				'Call it three times with three different pairs of numbers.',
 				'Add three lines at the bottom:\n```js\nflower(70, 100);\nflower(150, 200);\nflower(230, 100);\n```'
 			],
@@ -301,10 +301,10 @@ flower(230, 100);
 				space:
 					'{Friend} wants a postcard from the moon base: a dark sky, a planet, and a tall base with rows of glowing windows.'
 			},
-			task: 'Make it your own, but include: a background, at least 3 colours, a circle, and at least 12 rectangles. Draw the windows with loops: no more than 3 `rect()` calls in your code.',
+			task: 'Make it your own, but include: a background, at least 3 colours, a circle, and at least 12 rectangles. Draw the windows with loops: you can write `rect()` at most 3 times.',
 			hints: [
 				'Start with the easy parts: `background()`, a moon `circle()`, and one big `rect()` for the building.',
-				'For the windows, put a loop for the columns inside a loop for the rows. Keep `x` and `y` in variables, like the row of circles.',
+				'For the windows, put a loop for the columns inside a loop for the rows. Keep `x` and `y` in variables, like the row of circles. Set `x` back to the left at the start of every row, or the windows wander off to the right.',
 				'Here\'s one way:\n```js\nbackground("midnightblue");\ncolor("lightyellow");\ncircle(240, 60, 30);\ncolor("dimgray");\nrect(60, 90, 140, 210);\ncolor("gold");\nlet y = 110;\nfor (let row = 0; row < 5; row++) {\n  let x = 75;\n  for (let col = 0; col < 3; col++) {\n    rect(x, y, 25, 25);\n    x = x + 40;\n  }\n  y = y + 40;\n}\n```'
 			],
 			world: { kind: 'canvas' },
@@ -348,7 +348,7 @@ for (let row = 0; row < 5; row++) {
 					command: 'rect',
 					count: 3,
 					message:
-						'Drawing every window by hand works, but let loops do it. No more than 3 `rect()` calls in your code.'
+						'Drawing every window by hand works, but let loops do it. You can write `rect()` at most 3 times.'
 				}
 			]
 		}

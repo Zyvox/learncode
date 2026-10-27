@@ -201,7 +201,7 @@ export function checkFails(check: Check, result: RunResult, code: string): Theme
 			);
 			if (colors.size >= check.min) return null;
 			return msg(
-				`Use at least ${check.min} different ${plural(check.min, 'colour', 'colours')} for your shapes. So far there ${plural(colors.size, 'is', 'are')} ${colors.size}. Call ${tick('color("…")')} before a shape to change it.`
+				`Use at least ${check.min} different ${plural(check.min, 'colour', 'colours')} for your shapes. So far there ${plural(colors.size, 'is', 'are')} ${colors.size}. Put ${tick('color("…")')} before a shape to change its colour.`
 			);
 		}
 		case 'draw-background':

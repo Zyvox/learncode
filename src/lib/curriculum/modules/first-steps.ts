@@ -31,7 +31,7 @@ export const firstSteps: Module = {
 			},
 			newCommands: ['move()'],
 			hints: [
-				"Run it as it's first and watch: {hero} takes one step. You need one more.",
+				'Press **Run** first and watch: {hero} takes one step and stops. One more to go.',
 				'Click at the end of the `move();` line, press Enter, and type `move();` again.',
 				'Your code should be exactly two lines:\n```js\nmove();\nmove();\n```'
 			],
@@ -72,7 +72,7 @@ move();
 			hints: [
 				'Look at which way {hero} is facing (the little arrow). Left of "facing right" is "up".',
 				'After the two `move();` lines, add `turnLeft();`, then two more `move();` lines.',
-				'Here it is:\n```js\nmove();\nmove();\nturnLeft();\nmove();\nmove();\n```'
+				'All of it:\n```js\nmove();\nmove();\nturnLeft();\nmove();\nmove();\n```'
 			],
 			world: {
 				kind: 'grid',
@@ -117,8 +117,8 @@ move();
 			},
 			task: 'Press **Run** to see what happens now. Then change the code so {hero} goes down, along, and back up to the {goal}.',
 			hints: [
-				'Plan it with your finger on the screen first: down one, right two, up one.',
-				'Start with `turnRight();` so {hero} faces down. Then `move();`, then turn to face right again.',
+				'Trace a route with your finger on the screen before you type anything. Which squares are free?',
+				'The route is down one, right two, up one. Start with `turnRight();` so {hero} faces down.',
 				'One route that works:\n```js\nturnRight();\nmove();\nturnLeft();\nmove();\nmove();\nturnLeft();\nmove();\n```'
 			],
 			world: {
@@ -251,7 +251,7 @@ move();
 			title: 'Be the computer',
 			xp: 15,
 			story:
-				'Time to swap seats. Before you run anything, read the code and play it in your head. This is a real programmer skill, and you already have it.',
+				"Swap seats: this time you're the computer. Read the code and play it out in your head, one line at a time.",
 			task: 'Read the code. Where will {hero} end up?',
 			code: `move();
 turnRight();

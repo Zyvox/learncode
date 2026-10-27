@@ -7,7 +7,7 @@ export const rememberingThings: Module = {
 	order: 5,
 	emoji: '🧠',
 	title: 'Remembering things',
-	blurb: 'Give a value a name, keep it, change it, and print it out.',
+	blurb: 'Get your program to remember a number or a word, change it, and print it out.',
 	lessons: [
 		{
 			id: `${M}/01-print`,
@@ -17,9 +17,9 @@ export const rememberingThings: Module = {
 			xp: 10,
 			story: {
 				default:
-					"{Hero} is taking a break. This time there's no map, just a console: a place where your program can write text. Programmers have started this way for decades, so you're in good company.",
+					"{Hero} is taking a day off. No map this time, just a console: a plain box where your program writes text, one line at a time. Less scenery, but it's where most programmers start.",
 				games:
-					'{Hero} is resting at the inn. No map this time, just a console: a place where your program writes text. Every programmer in history started here.',
+					'{Hero} is resting at the inn. No map this time, just a console: a plain box where your program writes text. Fewer goblins, too.',
 				space:
 					'{Hero} is recharging. Time to send a message back home instead. The console is where your program writes text, line by line.'
 			},
@@ -56,7 +56,7 @@ export const rememberingThings: Module = {
 				default:
 					'{Friend} asks: if you have 17 {items} and find 25 more, how many is that? This code tries to work it out, but it prints the question instead of the answer.',
 				games:
-					'{Friend} asks: 17 {items} plus 25 {items}, how many is that? This code tries to work it out, but it prints the sum instead of the answer. Press **Run**.',
+					'{Friend} asks: 17 {items} plus 25 {items}, how many is that? This code tries to work it out, but it prints the question instead of the answer. Press **Run**.',
 				music:
 					'{Friend} asks: a 17-note riff plus a 25-note riff, how many notes is that? This code prints the question instead of the answer. Press **Run**.'
 			},
@@ -66,7 +66,7 @@ export const rememberingThings: Module = {
 				body: 'Anything in quotes is text, and the computer prints it exactly as written. Numbers without quotes are numbers, and the computer can do maths with them.\n\n```js\nprint("2 + 3");   // prints 2 + 3\nprint(2 + 3);     // prints 5\n```'
 			},
 			hints: [
-				'Run it and look at the console: the computer printed your sum word for word. Why?',
+				'Run it and look at the console. The computer printed `17 + 25` exactly as written. Look at what is wrapped around it in the code.',
 				'The quotes turn the sum into text. Remove them.',
 				'Write `print(17 + 25);`'
 			],
@@ -93,19 +93,19 @@ export const rememberingThings: Module = {
 			xp: 20,
 			story: {
 				default:
-					"{Hero} picks up {items} one at a time. To keep count, the program needs to remember a number and change it. That's what a variable is for.",
+					'{Hero} picks up {items} one at a time. To keep count, the program needs to remember a number and change it as it goes.',
 				games:
-					"Every time {hero} picks up a {item}, someone has to keep count. Let's teach the program to remember.",
-				food: "Every time {hero} adds a {item} to the {goal}, someone has to keep count. Let's teach the program to remember."
+					'Every time {hero} picks up a {item}, someone has to keep count. That someone is going to be your program.',
+				food: 'Every time {hero} drops a {item} in the {goal}, someone has to keep count. That someone is going to be your program.'
 			},
 			task: 'The code makes a variable called `score` and prints it. Below that, add 1 to `score` three times, then print it again. The console should show 0, then 3.',
 			concept: {
 				title: 'Variables',
-				body: 'A variable is a box with a name on it. `let` makes a new box and puts a value in.\n\n```js\nlet score = 0;\nscore = score + 1;\nprint(score);   // 1\n```\n\nThe middle line looks odd at first. Read it as "score becomes score plus one". The computer works out the right side first, then puts the result back in the box.'
+				body: '`let` makes a box with a name on it and puts something inside. A named box like this is called a **variable**.\n\n```js\nlet score = 0;\nscore = score + 1;\nprint(score);   // 1\n```\n\nThe middle line looks odd at first. Read it as "score becomes score plus one". The computer works out the right side, then puts the answer back in the box.'
 			},
 			hints: [
-				'The line that adds one is `score = score + 1;`.',
-				'Write that line three times, then `print(score);` again.',
+				"You need a line that makes `score` one bigger. There's one in the box above.",
+				'Write `score = score + 1;` three times, then `print(score);` again.',
 				'Full code:\n```js\nlet score = 0;\nprint(score);\nscore = score + 1;\nscore = score + 1;\nscore = score + 1;\nprint(score);\n```'
 			],
 			world: { kind: 'console' },
@@ -173,14 +173,14 @@ print(score);
 			xp: 20,
 			story: {
 				default:
-					"{Friend} wants to play hide and seek. Someone has to count to 5. Remember the `for` loop counter `i`? It's a variable too, and you can print it.",
+					'{Friend} wants to play hide and seek, and someone has to count to 5. The `for` loop counter `i` is a variable too, so you can print it.',
 				sports:
-					"{Friend} says: five jumping jacks, count them out loud. Remember the `for` loop counter `i`? It's a variable too, so you can print it."
+					'{Friend} says: five jumping jacks, count them out loud. The `for` loop counter `i` is a variable too, so you can print it.'
 			},
-			task: 'Print the numbers 1 to 5, each on its own line, then `Ready or not`. Use a loop: at most 2 `print` calls in your code.',
+			task: 'Print the numbers 1 to 5, each on its own line, then `Ready or not`. Use a loop: you can only write `print` twice.',
 			concept: {
 				title: 'The counter is a variable',
-				body: 'In a `for` loop, `i` is a variable that changes every time round. You can start it anywhere you like.\n\n```js\nfor (let i = 0; i < 3; i++) {\n  print(i);\n}\n// 0, 1, 2\n```\n\nIf you want it to start at 1, write `let i = 1`. The loop runs while `i < something` is true.'
+				body: 'In a `for` loop, `i` is a variable that changes every time round. You can start it anywhere you like.\n\n```js\nfor (let i = 0; i < 3; i++) {\n  print(i);\n}\n// 0, 1, 2\n```\n\nWant it to start at 1? Write `let i = 1`. The number after `i <` decides where it stops.'
 			},
 			hints: [
 				'Run the starter first. It counts 0, 1, 2. You need 1 to 5.',
@@ -207,7 +207,7 @@ print("Ready or not");
 					command: 'print',
 					count: 2,
 					message:
-						'You can type five prints, but let the loop count for you. At most 2 `print` calls.'
+						'Five `print` lines would work, but let the loop do the counting. You can only write `print` twice.'
 				}
 			]
 		},
@@ -367,7 +367,7 @@ if (score > 30) {
 					type: 'max-calls',
 					command: 'print',
 					count: 4,
-					message: 'Let the loop print the hits. You need at most 4 `print` calls in your code.'
+					message: 'Let the loop print the hits. You can write `print` at most four times.'
 				}
 			]
 		}

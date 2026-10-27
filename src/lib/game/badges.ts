@@ -23,7 +23,7 @@ export const BADGES: readonly Badge[] = [
 	{
 		id: 'first-loop',
 		name: 'Round and Round',
-		description: 'Finished a level with loops.',
+		description: 'Finished your first level about loops.',
 		emoji: '🔁'
 	},
 	{

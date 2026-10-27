@@ -34,7 +34,7 @@ export const doingItAgain: Module = {
 			},
 			task: 'Get {hero} to the {goal} using `move()` only once. Use a `while (pathAhead())` loop.',
 			concept: {
-				title: 'Repeat while something is true',
+				title: 'Keep going while…',
 				body: '`pathAhead()` is a question: "is the square in front of me free?" It answers yes or no.\n\n```js\nwhile (pathAhead()) {\n  move();\n}\n```\n\nRead it out loud: "while there\'s a path ahead, move." The lines inside the curly brackets `{ }` repeat until the answer becomes no. That repeat-until trick has a name: a **loop**.'
 			},
 			newCommands: ['pathAhead()'],
@@ -67,7 +67,7 @@ move();
 					command: 'move',
 					count: 1,
 					message:
-						"You can get there by typing `move();` lots of times, but try the loop: one `move();` inside `while (pathAhead()) { }`. That's the whole point here."
+						"Typing `move();` seven times works, but that's exactly the chore this level saves you from. Use one `move();` inside `while (pathAhead()) { }`."
 				}
 			]
 		},
@@ -125,12 +125,12 @@ move();
 			task: 'Make {hero} take exactly 4 steps, using a `for` loop with only one `move()`.',
 			concept: {
 				title: 'Repeat a number of times',
-				body: 'When you know how many times, use this pattern:\n\n```js\nfor (let i = 0; i < 4; i++) {\n  move();\n}\n```\n\nRead it as "repeat 4 times". The `i` is a counter: it starts at 0 and goes up by one each time, and the loop stops when it reaches 4. So it runs for 0, 1, 2 and 3. That\'s four times. To repeat 7 times, change the 4 to a 7.'
+				body: 'When you know how many times, use this:\n\n```js\nfor (let i = 0; i < 4; i++) {\n  move();\n}\n```\n\nRead it as "repeat 4 times". Most of that first line is fixed wording you can copy as it is. The number after `i <` is the bit you change.\n\n`i` is a counter. It goes 0, 1, 2, 3, and when it gets to 4 the loop stops. Four goes.'
 			},
 			hints: [
 				'Replace the `while` loop with the `for` loop from the box above.',
 				'The number after `i <` is how many times it repeats. You need 4.',
-				'Like this:\n```js\nfor (let i = 0; i < 4; i++) {\n  move();\n}\n```'
+				'The whole thing:\n```js\nfor (let i = 0; i < 4; i++) {\n  move();\n}\n```'
 			],
 			world: {
 				kind: 'grid',
@@ -286,7 +286,7 @@ turnLeft();
 				space:
 					'{Hero} has to circle a giant {wall} {wallEmoji} and grab the {items} {itemEmoji} in the corners, then park back at the start.'
 			},
-			task: 'The code walks one side. Make it do all four sides and pick up the {items} in the corners. Put the whole thing inside another loop.',
+			task: 'The code walks one side. Make {hero} go all the way round, pick up the {items} in the corners, and finish back at the start. Do it by wrapping the code in another loop.',
 			concept: {
 				title: 'A loop inside a loop',
 				body: "Anything can go inside a loop, including another loop. The inner loop walks one side. The outer loop does that four times.\n\n```js\nfor (let side = 0; side < 4; side++) {\n  for (let step = 0; step < 3; step++) {\n    move();\n  }\n  turnRight();\n}\n```\n\nThe counters have different names (`side` and `step`) so they don't get mixed up."
@@ -423,10 +423,10 @@ turnRight();
 				music:
 					"The {goal} {goalEmoji} is at the top of a big staircase, and there's a {item} {itemEmoji} on four of the steps. Every step sounds the same. Hmm."
 			},
-			task: 'Climb to the {goal} and grab every {item}. Use a loop: no more than 2 `move()` calls in your code.',
+			task: 'Climb to the {goal} and grab every {item}. Use a loop: you may only write `move()` twice.',
 			hints: [
-				'One step of the stairs is: right one, up one. Then face right again.',
-				'One step: `move(); turnLeft(); move(); pickUp(); turnRight();` There are 5 steps.',
+				"Look at a single stair. {Hero} goes right one, up one, then faces right again. That's the bit that repeats.",
+				'One stair, in code: `move(); turnLeft(); move(); pickUp(); turnRight();` There are 5 stairs.',
 				"Here's one way:\n```js\nfor (let i = 0; i < 5; i++) {\n  move();\n  turnLeft();\n  move();\n  pickUp();\n  turnRight();\n}\n```"
 			],
 			world: {
@@ -467,7 +467,7 @@ turnRight();
 					command: 'move',
 					count: 2,
 					message:
-						'You could write out every step, but a loop is the trick here. Use no more than 2 `move();` lines.'
+						'Writing out every step works, but the stairs repeat, so a loop can climb them. You only get to write `move()` twice.'
 				}
 			]
 		}

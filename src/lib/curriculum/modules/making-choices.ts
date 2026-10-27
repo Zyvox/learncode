@@ -51,7 +51,7 @@ export const makingChoices: Module = {
 			},
 			newCommands: ['onItem()'],
 			hints: [
-				'Keep the loop. After `move();`, ask the question.',
+				'Keep the loop. After each `move();`, {hero} should ask "am I on a {item}?" before grabbing.',
 				'Inside the loop, under `move();`, add `if (onItem()) {`, then `pickUp();`, then `}`.',
 				'Like this:\n```js\nwhile (pathAhead()) {\n  move();\n  if (onItem()) {\n    pickUp();\n  }\n}\n```'
 			],
@@ -86,7 +86,7 @@ export const makingChoices: Module = {
 					type: 'code-includes',
 					pattern: 'if\\s*\\(\\s*onItem\\(\\)\\s*\\)',
 					message:
-						'You could grab at every square, but try asking first: `if (onItem()) { pickUp(); }`. Asking before acting is the whole idea here.'
+						'Grabbing at every square works, but this level is about looking first: `if (onItem()) { pickUp(); }`.'
 				},
 				{
 					type: 'max-calls',
@@ -118,7 +118,7 @@ export const makingChoices: Module = {
 			hints: [
 				'Change the loop question from `pathAhead()` to `!atGoal()`.',
 				'Keep the `if (onItem())` part inside the loop. Only the first line changes.',
-				'Like this:\n```js\nwhile (!atGoal()) {\n  move();\n  if (onItem()) {\n    pickUp();\n  }\n}\n```'
+				'All together:\n```js\nwhile (!atGoal()) {\n  move();\n  if (onItem()) {\n    pickUp();\n  }\n}\n```'
 			],
 			world: {
 				kind: 'grid',
@@ -177,7 +177,7 @@ export const makingChoices: Module = {
 			hints: [
 				'Start with `while (!atGoal()) {` and a closing `}`. Everything else goes inside.',
 				'Inside the loop, use the `if (pathAhead()) { … } else { … }` from the box above.',
-				'Like this:\n```js\nwhile (!atGoal()) {\n  if (pathAhead()) {\n    move();\n  } else {\n    turnRight();\n  }\n}\n```'
+				'Here it is:\n```js\nwhile (!atGoal()) {\n  if (pathAhead()) {\n    move();\n  } else {\n    turnRight();\n  }\n}\n```'
 			],
 			world: {
 				kind: 'grid',
@@ -240,7 +240,7 @@ turnRight();
 			xp: 25,
 			story: {
 				default:
-					'This path turns left and right. Press **Run** to see what your spiral code does here. Spoiler: {hero} gets a bit lost. {Hero} needs to look both ways.',
+					'This path turns left and right. Press **Run** to see what your spiral code does here. Spoiler: {hero} gets a bit lost, and needs to look both ways.',
 				sports:
 					'{Friend} set up a zigzag drill: left, right, left, right. Your spiral code only turns right. Press **Run** and watch {hero} get dizzy.',
 				nature:
@@ -249,13 +249,13 @@ turnRight();
 			task: "If the path ahead is clear, move. Else if there's a path on the left, turn left. Otherwise, turn right.",
 			concept: {
 				title: 'Else if',
-				body: '`pathLeft()` and `pathRight()` ask "is the square on my left (or right) free?" You can chain questions with `else if`. The computer tries them in order and does the first one that\'s true.\n\n```js\nif (pathAhead()) {\n  move();\n} else if (pathLeft()) {\n  turnLeft();\n} else {\n  turnRight();\n}\n```'
+				body: '`pathLeft()` and `pathRight()` ask "is the square on my left (or right) free?" You can chain questions with `else if`. The computer asks them in order and goes with the first yes.\n\n```js\nif (pathAhead()) {\n  move();\n} else if (pathLeft()) {\n  turnLeft();\n} else {\n  turnRight();\n}\n```'
 			},
 			newCommands: ['pathLeft()', 'pathRight()'],
 			hints: [
 				'Keep the `while (!atGoal())` loop and the `if (pathAhead())` part. You only need to add a middle option.',
 				'Between the `move();` part and the `else`, add `} else if (pathLeft()) {` and `turnLeft();`.',
-				'Like this:\n```js\nwhile (!atGoal()) {\n  if (pathAhead()) {\n    move();\n  } else if (pathLeft()) {\n    turnLeft();\n  } else {\n    turnRight();\n  }\n}\n```'
+				'The full loop:\n```js\nwhile (!atGoal()) {\n  if (pathAhead()) {\n    move();\n  } else if (pathLeft()) {\n    turnLeft();\n  } else {\n    turnRight();\n  }\n}\n```'
 			],
 			world: {
 				kind: 'grid',
@@ -325,8 +325,8 @@ turnRight();
 			},
 			newCommands: ['itemsLeft()'],
 			hints: [
-				'The loop question should be `itemsLeft() > 0`.',
-				'Inside the loop: `move();`, then `if (onItem()) { pickUp(); }`.',
+				'Right now the loop asks `pathAhead()`, so {hero} walks to the very end. What could it ask instead, so it stops once nothing is left?',
+				'Swap `pathAhead()` for `itemsLeft() > 0`. Everything inside the loop stays the same.',
 				'Like this:\n```js\nwhile (itemsLeft() > 0) {\n  move();\n  if (onItem()) {\n    pickUp();\n  }\n}\n```'
 			],
 			world: {
@@ -378,7 +378,7 @@ turnRight();
 			title: 'Yes or nope',
 			xp: 15,
 			story:
-				"Every time round the loop, the `if` asks a fresh question. Let's see if you can keep track.",
+				'Every time round the loop, the `if` asks its question again. The answer can be different each time.',
 			task: 'Read the code, look at the map, and answer.',
 			code: `for (let i = 0; i < 3; i++) {
   move();
@@ -406,7 +406,7 @@ turnRight();
 				'Step 1 lands on a {item}: pick it up. Step 2 lands on an empty square: "Nope". Step 3 lands on a {item} again: pick it up. So, one "Nope".',
 			hints: [
 				'Go step by step: where is {hero} after each `move()`? Is there a {item} there?',
-				'The {items} are on squares 1 and 3. The loop runs 3 times.'
+				"There's a {item} one step from the start, and another three steps from the start. The loop runs 3 times."
 			]
 		},
 		{
@@ -472,7 +472,7 @@ turnRight();
 			xp: 50,
 			story: {
 				default:
-					"A real maze, with dead ends and everything. There's an old trick for mazes: keep your right hand on the wall and never let go. You will always find the way out.",
+					"A real maze, with dead ends and everything. There's an old trick for mazes: keep your right hand on the wall and never let go. It sounds too simple to work. It works.",
 				games:
 					'{Villain} built a maze and hid three {items} {itemEmoji} in it. {Friend} whispers an old trick: keep your right hand on the wall and never let go.',
 				nature:
@@ -480,8 +480,8 @@ turnRight();
 			},
 			task: 'Get to the {goal} and pick up all three {items} on the way. Use the right-hand rule in a loop.',
 			hints: [
-				'Every step, ask in this order: is there a path on my right? Then turn right and step. If not, is there a path ahead? Step. If not, turn left.',
-				'Use `while (!atGoal())`. At the top of the loop, pick up if `onItem()`. Then an `if (pathRight())` / `else if (pathAhead())` / `else` chain.',
+				'The comments in the editor are your plan. Each numbered line becomes one part of an `if` / `else if` / `else`, and all of it goes inside `while (!atGoal())`.',
+				'Start the loop with `if (onItem()) { pickUp(); }` so {hero} grabs {items} on the way. Rule 1 needs two lines inside its `{ }`: `turnRight();` and then `move();`.',
 				"Here's one way:\n```js\nwhile (!atGoal()) {\n  if (onItem()) {\n    pickUp();\n  }\n  if (pathRight()) {\n    turnRight();\n    move();\n  } else if (pathAhead()) {\n    move();\n  } else {\n    turnLeft();\n  }\n}\n```"
 			],
 			world: {
@@ -541,7 +541,7 @@ turnRight();
 					command: 'move',
 					count: 2,
 					message:
-						'Writing out the whole route works, but the point is the rule. Use a loop, with at most 2 `move();` lines.'
+						'Writing out the whole route works, but the rule is the clever part. Put it in a loop: you only get to write `move()` twice.'
 				}
 			]
 		}

@@ -49,7 +49,7 @@
 
 	let showDetails = $state(false);
 
-	const PASS_LINES = ['You did it.', 'That’s it, nicely done.', 'Yes. Exactly that.', 'Smooth.'];
+	const PASS_LINES = ['That works.', 'That’s it, nicely done.', 'Yes. Exactly that.', 'Smooth.'];
 	const passLine = PASS_LINES[Math.floor(Math.random() * PASS_LINES.length)];
 </script>
 
@@ -102,7 +102,7 @@
 			<div class="flex gap-3">
 				<span class="text-2xl leading-none" aria-hidden="true">🧐</span>
 				<div class="min-w-0 flex-1">
-					<p class="font-extrabold">Close. Not quite there yet.</p>
+					<p class="font-extrabold">It ran, but it’s not there yet.</p>
 					<ul class="text-ink-soft mt-1.5 space-y-1.5">
 						{#each outcome.failures as f, i (i)}
 							<li class="flex gap-2">
@@ -118,7 +118,7 @@
 			class="animate-fade-up bg-warn-soft rounded-2xl border border-[#f0d9a0] px-4 py-4 sm:px-5"
 			data-testid="result-wrong"
 		>
-			<p class="font-extrabold">Not quite — but good guess.</p>
+			<p class="font-extrabold">Not quite. Here’s what really happens:</p>
 			<RichText text={outcome.explanation} class="text-ink-soft mt-1.5" />
 			{#if onretry}
 				<button type="button" class="btn btn-quiet mt-3" onclick={onretry}>Pick again</button>
@@ -160,7 +160,7 @@
 					</div>
 					{#if c.saveFailed}
 						<p class="text-oops mt-2 text-sm">
-							We couldn't save this one — your connection may have dropped.
+							We couldn't save this one. Your connection may have dropped.
 							{#if onretrysave}<button
 									type="button"
 									class="font-bold underline"

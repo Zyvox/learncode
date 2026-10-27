@@ -45,27 +45,27 @@ export const COMMANDS: Record<WorldKind, CommandDoc[]> = {
 		{
 			name: 'pathAhead()',
 			summary:
-				'`true` if the square in front of {hero} is free, `false` if a {wall} or the edge is there.',
+				'Is the square in front of {hero} free? `true` means yes. `false` means no: a {wall} or the edge is in the way.',
 			example: 'if (pathAhead()) {\n  move()\n}'
 		},
 		{
 			name: 'pathLeft()',
-			summary: '`true` if the square to the left of {hero} is free.',
+			summary: 'Is the square to the left of {hero} free? `true` for yes, `false` for no.',
 			example: 'if (pathLeft()) {\n  turnLeft()\n}'
 		},
 		{
 			name: 'pathRight()',
-			summary: '`true` if the square to the right of {hero} is free.',
+			summary: 'Is the square to the right of {hero} free? `true` for yes, `false` for no.',
 			example: 'if (pathRight()) {\n  turnRight()\n}'
 		},
 		{
 			name: 'onItem()',
-			summary: '`true` if {hero} is standing on a {item}.',
+			summary: 'Is {hero} standing on a {item}? `true` for yes, `false` for no.',
 			example: 'if (onItem()) {\n  pickUp()\n}'
 		},
 		{
 			name: 'atGoal()',
-			summary: '`true` once {hero} is on the {goal}.',
+			summary: 'Is {hero} on the {goal} yet? `true` for yes, `false` for no.',
 			example: 'while (!atGoal()) {\n  move()\n}'
 		},
 		{
@@ -172,20 +172,21 @@ export const SYNTAX: SyntaxDoc[] = [
 	{
 		id: 'if',
 		name: 'if',
-		summary: 'Run the code inside `{ }` only when the condition in `( )` is true.',
+		summary:
+			'Runs the lines inside `{ }` only when the answer to the question in `( )` is yes (`true`).',
 		example: 'if (onItem()) {\n  pickUp()\n}'
 	},
 	{
 		id: 'if-else',
 		name: 'if … else',
-		summary: "Do one thing when the condition is true, and something else when it isn't.",
+		summary: "Does one thing when the answer is yes, and something else when it's no.",
 		example: 'if (pathAhead()) {\n  move()\n} else {\n  turnLeft()\n}'
 	},
 	{
 		id: 'while-loop',
 		name: 'while loop',
 		summary:
-			'Repeat the code inside `{ }` again and again, as long as the condition is true. Make sure it can become false, or it never stops.',
+			'Repeats the lines inside `{ }` for as long as the answer to the question in `( )` is yes. If the answer never changes, it never stops.',
 		example: 'while (!atGoal()) {\n  move()\n}'
 	},
 	{

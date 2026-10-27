@@ -33,7 +33,7 @@ describe('runInNode', () => {
 			ok: false,
 			error: {
 				message:
-					"Your program ran for too long — probably a loop that never ends. Press Reset and check your loop's condition.",
+					'Your program ran for too long, so it was stopped. Usually that means a loop that never ends. Look at the question your loop asks: does the answer ever change?',
 				raw: 'Stopped after 200 ms'
 			},
 			trace: [{ t: 'stopped', reason: 'timeout' }],

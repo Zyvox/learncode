@@ -54,7 +54,7 @@ describe('friendly errors', () => {
 
 	it('X is not a function for a known command', async () => {
 		const e = toFriendlyError(new TypeError('move is not a function'), 'move()', ['move'], 3);
-		expect(e.message).toBe('`move` is a command — it needs round brackets: `move()`.');
+		expect(e.message).toBe('`move` is a command, so it needs round brackets: `move()`.');
 		const reused = await err('let move = 3\nmove()');
 		expect(reused.message).toMatch(/also uses that name for something else/);
 		expect(reused.line).toBe(2);
@@ -72,19 +72,19 @@ describe('friendly errors', () => {
 	it('missing brackets and braces', async () => {
 		const e1 = await err('move(\nmove()');
 		expect(e1.message).toBe(
-			'It looks like a bracket or brace is missing. Every `(` needs a `)` and every `{` needs a `}`.'
+			'It looks like a bracket is missing. Every `(` needs a `)` and every `{` needs a `}`.'
 		);
 		expect(e1.line).toBe(2);
 		const e2 = await err('while (true) {\n  move()\n');
-		expect(e2.message).toMatch(/bracket or brace is missing/);
+		expect(e2.message).toMatch(/bracket is missing/);
 		expect(e2.line).toBeUndefined();
 		const e3 = await err('move()\n}\nmove()');
 		expect(e3.message).toBe(
-			"There's a `}` here without a matching `{` before it. Every `{` needs one `}` — check for an extra `}`."
+			"There's a `}` here without a matching `{` before it. Look for one `}` too many."
 		);
 		expect(e3.line).toBe(2);
 		const e4 = await err('if (pathAhead()) {\n  move()\n}\nwhile (true {\n}');
-		expect(e4.message).toMatch(/bracket or brace is missing/);
+		expect(e4.message).toMatch(/bracket is missing/);
 		expect(e4.line).toBe(4);
 	});
 
@@ -93,7 +93,7 @@ describe('friendly errors', () => {
 		expect(e.message).toMatch(/^JavaScript found `move` somewhere it didn't expect a name/);
 		expect(e.line).toBe(2);
 		const cond = await err('let x = 1\nif x > 3 {\n}', consoleWorld);
-		expect(cond.message).toMatch(/Conditions after `if` and `while` go inside round brackets/);
+		expect(cond.message).toMatch(/The question after `if` or `while` goes inside round brackets/);
 	});
 
 	it('misspelt keywords', async () => {
@@ -105,7 +105,7 @@ describe('friendly errors', () => {
 	it('curly quotes', async () => {
 		const e = await err('move()\nsay(“hi”)');
 		expect(e.message).toBe(
-			'There\'s a character JavaScript doesn\'t understand — often curly quotes “ ” pasted from somewhere. Use straight quotes " ".'
+			'There\'s a curly quote mark (like “ or ”) in your code, probably pasted from somewhere else. Code only understands plain straight quotes: " ".'
 		);
 		expect(e.line).toBe(2);
 	});

@@ -176,7 +176,7 @@ describe('evaluate', () => {
 		expect((await check('circle(1, 1, 1)', canvas, checks)).failures).toEqual([
 			'Draw at least 2 circles. So far there is 1.',
 			'Draw at least 3 shapes. So far there is 1.',
-			'Use at least 2 different colours for your shapes. So far there is 1. Call `color("…")` before a shape to change it.',
+			'Use at least 2 different colours for your shapes. So far there is 1. Put `color("…")` before a shape to change its colour.',
 			'Give the canvas a background colour with `background("…")`.'
 		]);
 		expect(

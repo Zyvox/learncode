@@ -37,8 +37,8 @@ export const yourOwnCommands: Module = {
 				body: 'You can give a few lines a name with `function`. After that, the name works just like `move()`.\n\n```js\nfunction turnAround() {\n  turnLeft();\n  turnLeft();\n}\n\nturnAround();\n```\n\nThe top part only **teaches** the computer the new word. Nothing moves until you actually use it: `turnAround();`. A named block like this is called a **function**.'
 			},
 			hints: [
-				'Before the loop, add `turnAround();`, one `move();` and `pickUp();`.',
-				'Then `turnAround();` once more so {hero} faces the {goal} again, and let the loop do the rest.',
+				'The {item} is one square behind {hero}. Fetch it before the `while` loop, then let the loop do the long walk.',
+				'Above the loop: `turnAround();`, `move();`, `pickUp();`, then `turnAround();` again so {hero} faces the {goal}.',
 				'After the function, write:\n```js\nturnAround();\nmove();\npickUp();\nturnAround();\nwhile (pathAhead()) {\n  move();\n}\n```'
 			],
 			world: {
@@ -80,7 +80,7 @@ while (pathAhead()) {
 					command: 'turnLeft',
 					count: 2,
 					message:
-						'You can spin with lots of `turnLeft();` lines, but use your new `turnAround();` instead. Making your own commands is the whole point here.'
+						"You can spin with lots of `turnLeft();` lines, but you've got `turnAround();` now. Use that instead."
 				}
 			]
 		},
@@ -154,7 +154,7 @@ move();
 					command: 'turnLeft',
 					count: 2,
 					message:
-						'It looks like you wrote the jump out twice. Put it in `hop()` once and call `hop();` twice instead.'
+						'It looks like you wrote the jump out twice. Put it in `hop()` once, then write `hop();` twice.'
 				}
 			]
 		},
@@ -167,9 +167,9 @@ move();
 			story: {
 				default:
 					'Three little pockets, each with a {item} {itemEmoji} at the bottom. Visiting one is always the same dance: in, grab, turn around, out. Functions can use other functions, so `visitPocket()` can use `turnAround()`.',
-				food: 'The pantry has three narrow shelves, each with a {item} {itemEmoji} at the back. Fetching one is always the same: in, grab, turn around, out.',
+				food: 'The pantry has three narrow pockets between the shelves, each with a {item} {itemEmoji} at the back. Fetching one is always the same: in, grab, turn around, out.',
 				games:
-					'Three alcoves in the wall, each with a {item} {itemEmoji} at the bottom. Visiting one is always the same dance: in, grab, turn around, out.'
+					'Three little pockets in the dungeon wall, each with a {item} {itemEmoji} at the bottom. Visiting one is always the same dance: in, grab, turn around, out.'
 			},
 			task: 'Finish `visitPocket()` so {hero} comes back out facing right. Then visit all three pockets and finish on the {goal}.',
 			hints: [
@@ -252,7 +252,7 @@ move();
 					command: 'pickUp',
 					count: 1,
 					message:
-						'Keep `pickUp();` in one place, inside `visitPocket()`, and call that three times.'
+						'Keep `pickUp();` in one place, inside `visitPocket()`, and use `visitPocket();` three times.'
 				},
 				{
 					type: 'max-calls',
@@ -298,7 +298,7 @@ move();
 			explanation:
 				'`function wiggle() { … }` only teaches the computer what "wiggle" means. The lines inside run each time you write `wiggle();`. Here that\'s twice, between the two moves.',
 			hints: [
-				'Remember `turnAround()`: did {hero} spin before you wrote `turnAround();`?',
+				'Think back to `turnAround()`. Did {hero} spin before you wrote `turnAround();` underneath?',
 				'Count how many times `wiggle();` appears below the function.'
 			]
 		},
@@ -388,10 +388,10 @@ for (let i = 0; i < 4; i++) {
 					'{Friend} wants a full survey: three long rows of {items} {itemEmoji}, linked by a passage on the left. Sweep every row and park at the {goal}.',
 				food: 'Closing time. Three long counters with {items} {itemEmoji} left on them, linked by a passage on the left. Clear them all and finish at the {goal}.'
 			},
-			task: 'Collect every {item} and finish on the {goal}. Make your own functions: use no more than 4 `move()` calls in total.',
+			task: 'Collect every {item} and finish on the {goal}. Make your own commands for the parts that repeat: you may only write `move()` four times in total.',
 			hints: [
 				'Write `sweepRow()`: walk to the end picking up as you go, turn around, walk back. Then `goDown()`: turn to face down, two steps, turn to face right.',
-				"When {hero} gets back to the left of a row, it's facing left. `turnLeft()` makes it face down; after two moves, `turnLeft()` again faces right.",
+				'When {hero} gets back to the left end of a row, {hero} is facing left. One `turnLeft()` faces down. After two moves, another `turnLeft()` faces right again.',
 				"Here's one way:\n```js\nfunction sweepRow() {\n  while (pathAhead()) {\n    move();\n    if (onItem()) {\n      pickUp();\n    }\n  }\n  turnAround();\n  while (pathAhead()) {\n    move();\n  }\n}\n\nfunction goDown() {\n  turnLeft();\n  move();\n  move();\n  turnLeft();\n}\n\nsweepRow();\ngoDown();\nsweepRow();\ngoDown();\nsweepRow();\n```"
 			],
 			world: {
@@ -470,7 +470,7 @@ sweepRow();
 					command: 'move',
 					count: 4,
 					message:
-						'You can spell out every row, but this level is about your own commands. Put the row in a function and use at most 4 `move();` lines.'
+						'Spelling out every row works, but it is a lot of typing. Put one row in a function and use it three times. You only get to write `move()` four times.'
 				}
 			]
 		}

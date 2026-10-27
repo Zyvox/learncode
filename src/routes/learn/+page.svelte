@@ -79,7 +79,7 @@
 					<div class="text-muted text-sm">
 						{user.streak === 0
 							? 'Finish a level today to start a streak'
-							: 'streak — keep it going'}
+							: 'in a row. Keep it going.'}
 					</div>
 				</div>
 			</div>

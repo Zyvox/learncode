@@ -118,12 +118,12 @@ export const tinyGame: Module = {
 			xp: 20,
 			story: {
 				default:
-					"Last module. You're going to build a small game: a treasure hunt. Behind one of seven doors is a treasure, behind another is a trap set by {villain}. Each level adds a piece, and your code carries on to the next one.",
+					"This is the big one. You're going to build a small game: a treasure hunt. Behind one of seven doors is a treasure, and behind another is a trap set by {villain}. Each level adds a piece, and your code carries over to the next one.",
 				games:
-					"Last module, and you're making your own game. A treasure hunt: seven doors, a treasure behind one, and a trap behind another, set by {villain}. Each level adds a piece.",
+					"This is the big one: you're making your own game. A treasure hunt with seven doors, a treasure behind one, and a trap behind another, set by {villain}. Each level adds a piece.",
 				space:
-					"Last module, and you're making your own game. {Hero} finds seven hatches on an old space station. One hides treasure, one hides a trap set by {villain}. Each level adds a piece.",
-				food: "Last module, and you're making your own game. Seven cupboards in {place}: one hides a treasure, one hides a trap set by {villain}. Each level adds a piece."
+					"This is the big one: you're making your own game. {Hero} finds seven hatches on an old space station. One hides treasure, one hides a trap set by {villain}. Each level adds a piece.",
+				food: "This is the big one: you're making your own game. Seven cupboards in {place}: one hides a treasure, one hides a trap set by {villain}. Each level adds a piece."
 			},
 			task: 'Three variables already exist: `doors` (7), `treasure` (5) and `trap` (3). After the title, use a loop to print `Door 1` up to `Door 7`. Use `doors` in the loop, not the number 7.',
 			concept: {
@@ -154,7 +154,7 @@ export const tinyGame: Module = {
 					type: 'max-calls',
 					command: 'print',
 					count: 2,
-					message: 'Let the loop print the doors: at most 2 `print` calls.'
+					message: 'Let the loop print the doors. You can write `print` at most twice.'
 				}
 			]
 		},
@@ -250,7 +250,7 @@ export const tinyGame: Module = {
 			xp: 25,
 			story: {
 				default:
-					'{Friend} tidied up your game by moving the door logic into a function called `openDoor(door)`. Very neat. Except now every door says "undefined". Press **Run**.',
+					'{Friend} tidied up your game by moving the door-opening code into a function called `openDoor(door)`. Very neat. Except now every door says "undefined". Press **Run**.',
 				games:
 					'{Friend} tidied your game up with a function called `openDoor(door)`. Very wizardly. Except now every door says "undefined". Press **Run**.'
 			},

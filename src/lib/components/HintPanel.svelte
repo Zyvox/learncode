@@ -44,7 +44,7 @@
 		</ol>
 		{#if used === hints.length && hints.length > 1}
 			<p class="text-ink-soft text-sm">
-				That's every hint. Next level, try one fewer — you'll get there.
+				That's every hint. On the next level, see if you can manage with one fewer.
 			</p>
 		{/if}
 		{#if left > 0}
