@@ -69,7 +69,7 @@ export const whoAreYou: Module = {
 			title: 'Even you can’t read it',
 			xp: 15,
 			story:
-				'Inkwell has been live for a week, and now it’s getting accounts, so comments can have real names that nobody else can borrow. Mina and Ravi are the first two testers in the new `users` table, and Theo’s cousin left a debugging endpoint in that lists it.',
+				'The first test readers have been commenting all week, and now Inkwell is getting accounts, so comments can have real names that nobody else can borrow. Mina and Ravi are the first two testers in the new `users` table, and Theo’s cousin left a debugging endpoint in that lists it.',
 			task: 'Read the endpoint and decide what Mina’s row looks like.',
 			concept: {
 				title: 'The server never keeps your password',
@@ -239,7 +239,7 @@ app.post('/login', (req, res) => {
 			title: 'Who is asking?',
 			xp: 25,
 			story:
-				'Mina’s phone sends her token with every request now. The profile screen asks `GET /me`, and the server has to work out who that is. Also knocking: a phone with no token at all, and someone who made one up. And Ravi, who lent his phone to his little brother, wants to log out of it.',
+				'Mina’s phone sends her token with every request now. The profile screen asks `GET /me`, and the server has to work out who that is. Also knocking: a phone with no token at all, and someone who made one up. And Ravi wants to try the new log-out button: out, then knock again with the old ticket.',
 			task: '1. Finish `currentUser(req)`. Read the token from `req.headers.token`. No token: `return undefined`. Otherwise give back the user from `sessions JOIN users` where `sessions.token = ?`. The `/me` route is already written and answers 401 when you give back nothing.\n2. Fill in `DELETE /session` (log out): delete the row from `sessions` whose token is `req.headers.token`, then answer `204` with `res.status(204).end()`.',
 			concept: {
 				title: 'Headers: writing on the envelope',
@@ -265,7 +265,7 @@ app.post('/login', (req, res) => {
 						who: 'bit',
 						text: 'And logging out? The server just tears up the ticket: it deletes that row from `sessions`. Next time I show up with it, nobody knows me.',
 						scene: 'database',
-						code: "DELETE FROM sessions WHERE token = ?"
+						code: 'DELETE FROM sessions WHERE token = ?'
 					}
 				]
 			},
@@ -284,12 +284,12 @@ app.post('/login', (req, res) => {
 					headers: { token: 'tok_made_up' },
 					label: 'someone tries a made-up token'
 				},
-				{ method: 'DELETE', path: '/session', headers: RAVI, label: 'Ravi logs out on his phone' },
+				{ method: 'DELETE', path: '/session', headers: RAVI, label: 'Ravi taps Log out' },
 				{
 					method: 'GET',
 					path: '/me',
 					headers: RAVI,
-					label: 'the phone’s old token tries to open the profile'
+					label: 'Ravi’s old ticket tries to open the profile'
 				}
 			]),
 			starterCode: `// Who is asking? Give back the user ({ id, name }) or undefined.
@@ -421,31 +421,28 @@ app.delete('/comments/:id', (req, res) => {
 				'Replace the `log(…)` part with `if (!user) { res.status(401)… } else { …save and answer 201… }`.',
 				"The fixed route:\n```js\napp.post('/episodes/:id/comments', (req, res) => {\n  const user = currentUser(req);\n  if (!user) {\n    res.status(401).json({ error: 'Please log in to comment' });\n  } else {\n    const r = db.run(\n      'INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)',\n      [req.params.id, user.name, req.body.text]\n    );\n    res.status(201).json({ id: r.lastId });\n  }\n});\n```"
 			],
-			world: world(
-				[
-					{
-						method: 'POST',
-						path: '/episodes/3/comments',
-						headers: MINA,
-						body: { author: 'mina', text: 'Thanks for reading, everyone.' },
-						label: 'Mina comments on episode 3'
-					},
-					{
-						method: 'POST',
-						path: '/episodes/3/comments',
-						headers: RAVI,
-						body: { author: 'mina', text: 'Mina here: I ran out of ideas.' },
-						label: 'Ravi’s phone posts, signed as mina'
-					},
-					{
-						method: 'POST',
-						path: '/episodes/3/comments',
-						body: { author: 'june_b', text: 'First!' },
-						label: 'a phone with no token posts'
-					}
-				],
-				{ schema: TWO_SESSIONS }
-			),
+			world: world([
+				{
+					method: 'POST',
+					path: '/episodes/3/comments',
+					headers: MINA,
+					body: { author: 'mina', text: 'Thanks for reading, everyone.' },
+					label: 'Mina comments on episode 3'
+				},
+				{
+					method: 'POST',
+					path: '/episodes/3/comments',
+					headers: RAVI,
+					body: { author: 'mina', text: 'Mina here: I ran out of ideas.' },
+					label: 'Ravi’s phone posts, signed as mina'
+				},
+				{
+					method: 'POST',
+					path: '/episodes/3/comments',
+					body: { author: 'june_b', text: 'First!' },
+					label: 'a phone with no token posts'
+				}
+			]),
 			starterCode: `${CURRENT_USER}
 app.post('/episodes/:id/comments', (req, res) => {
   const user = currentUser(req);
@@ -496,63 +493,80 @@ app.post('/episodes/:id/comments', (req, res) => {
 			]
 		},
 		{
-			id: `${M}/06-boss-delete-and-log-out`,
-			slug: '06-boss-delete-and-log-out',
+			id: `${M}/06-boss-delete-comments`,
+			slug: '06-boss-delete-comments',
 			kind: 'code',
-			title: 'Delete, refuse, log out',
+			title: 'Your comment, your call',
 			xp: 50,
 			boss: true,
 			story:
-				'Theo’s list for logins: “People must be able to delete their own comments, nobody else’s, and log out.” Mina adds: “And if a comment doesn’t exist, say so.” Get this through and Inkwell has real accounts, the last big piece before launch.',
-			task: 'Write two routes, using `currentUser(req)`.\n\n**`DELETE /comments/:id`**: no user → `401`. No such comment → `404`. Someone else’s comment → `403`. Otherwise delete it and answer `204` with `res.status(204).end()`.\n\n**`DELETE /session`** (log out): no user → `401`. Otherwise delete the row from `sessions` whose token is `req.headers.token`, and answer `204`.',
+				'Last item on Theo’s list for logins: “People must be able to delete their own comments, and nobody else’s.” Mina adds: “And if a comment doesn’t exist, say so.” You read a route like this in 401 or 403. This time you write it, and the server has to get four different callers right.',
+			task: 'Write `DELETE /comments/:id`, using `currentUser(req)`:\n\n1. No user → `401`.\n2. No such comment → `404`.\n3. Someone else’s comment → `403`.\n4. Otherwise delete it and answer `204` with `res.status(204).end()`.',
+			outro: {
+				panels: [
+					{
+						who: 'narrator',
+						scene: 'lock',
+						text: 'Four callers, four honest answers: “who are you?”, “not yours”, “not here”, and “done”.'
+					},
+					{
+						who: 'theo',
+						text: 'Real accounts. Real names on comments. That was the last big piece. Somebody find me a launch date.'
+					},
+					{
+						who: 'mina',
+						scene: 'phone',
+						text: 'And nobody can sign my name under a comment again, or delete my note under The night market. I checked. Twice.'
+					},
+					{
+						who: 'bit',
+						scene: 'wire',
+						text: 'I carry the ticket, the server checks the name. Nice to know someone’s watching the door.'
+					}
+				]
+			},
 			hints: [
-				"For the comment, fetch both first: `const user = currentUser(req);` and `const comment = db.get('SELECT * FROM comments WHERE id = ?', [req.params.id]);`. Then one chain: `if (!user) … else if (!comment) … else if (comment.author !== user.name) … else …`.",
-				"Logging out is just deleting the ticket: `db.run('DELETE FROM sessions WHERE token = ?', [req.headers.token])`. After that, the token finds nobody, so `/me` says 401.",
-				"Both routes:\n```js\napp.delete('/comments/:id', (req, res) => {\n  const user = currentUser(req);\n  const comment = db.get('SELECT * FROM comments WHERE id = ?', [req.params.id]);\n  if (!user) {\n    res.status(401).json({ error: 'Who are you? Please log in.' });\n  } else if (!comment) {\n    res.status(404).json({ error: 'No such comment' });\n  } else if (comment.author !== user.name) {\n    res.status(403).json({ error: 'Only the author can delete this' });\n  } else {\n    db.run('DELETE FROM comments WHERE id = ?', [req.params.id]);\n    res.status(204).end();\n  }\n});\n\napp.delete('/session', (req, res) => {\n  const user = currentUser(req);\n  if (!user) {\n    res.status(401).json({ error: 'Who are you? Please log in.' });\n  } else {\n    db.run('DELETE FROM sessions WHERE token = ?', [req.headers.token]);\n    res.status(204).end();\n  }\n});\n```"
+				"Fetch both first: `const user = currentUser(req);` and `const comment = db.get('SELECT * FROM comments WHERE id = ?', [req.params.id]);`. Then go down the list in order, one question at a time.",
+				'One chain, in the order of the task: `if (!user) { … } else if (!comment) { … } else if (comment.author !== user.name) { … } else { … }`. The last part runs only when all three questions passed.',
+				"The route:\n```js\napp.delete('/comments/:id', (req, res) => {\n  const user = currentUser(req);\n  const comment = db.get('SELECT * FROM comments WHERE id = ?', [req.params.id]);\n  if (!user) {\n    res.status(401).json({ error: 'Who are you? Please log in.' });\n  } else if (!comment) {\n    res.status(404).json({ error: 'No such comment' });\n  } else if (comment.author !== user.name) {\n    res.status(403).json({ error: 'Only the author can delete this' });\n  } else {\n    db.run('DELETE FROM comments WHERE id = ?', [req.params.id]);\n    res.status(204).end();\n  }\n});\n```"
 			],
-			world: world(
-				[
-					{
-						method: 'DELETE',
-						path: '/comments/3',
-						label: 'a phone with no token deletes comment 3'
-					},
-					{
-						method: 'DELETE',
-						path: '/comments/3',
-						headers: MINA,
-						label: 'Mina tries to delete Ravi’s comment'
-					},
-					{
-						method: 'DELETE',
-						path: '/comments/99',
-						headers: MINA,
-						label: 'Mina deletes a comment that’s already gone'
-					},
-					{
-						method: 'DELETE',
-						path: '/comments/3',
-						headers: RAVI,
-						label: 'Ravi deletes his own comment'
-					},
-					{ method: 'DELETE', path: '/session', headers: RAVI, label: 'Ravi logs out' },
-					{
-						method: 'GET',
-						path: '/me',
-						headers: RAVI,
-						label: 'Ravi’s old token tries to open his profile'
-					},
-					{ method: 'DELETE', path: '/session', label: 'a phone with no token logs out' }
-				],
-				{ schema: TWO_SESSIONS, serverCode: ME_ROUTE }
-			),
+			world: world([
+				{
+					method: 'DELETE',
+					path: '/comments/3',
+					label: 'a phone with no token deletes comment 3'
+				},
+				{
+					method: 'DELETE',
+					path: '/comments/3',
+					headers: MINA,
+					label: 'Mina tries to delete Ravi’s comment'
+				},
+				{
+					method: 'DELETE',
+					path: '/comments/99',
+					headers: MINA,
+					label: 'Mina deletes a comment that’s already gone'
+				},
+				{
+					method: 'DELETE',
+					path: '/comments/3',
+					headers: RAVI,
+					label: 'Ravi deletes his own comment'
+				},
+				{
+					method: 'DELETE',
+					path: '/comments/3',
+					headers: RAVI,
+					label: 'Ravi’s app sends the delete a second time'
+				}
+			]),
 			starterCode: `${CURRENT_USER}
 app.delete('/comments/:id', (req, res) => {
-  // 401 no user, 404 no comment, 403 not the author, otherwise delete and 204
-});
-
-app.delete('/session', (req, res) => {
-  // 401 no user, otherwise delete this token from sessions and 204
+  // 1. No user? 401
+  // 2. No such comment? 404
+  // 3. Someone else's comment? 403
+  // 4. Otherwise delete it and answer 204
 });
 `,
 			solution: `${CURRENT_USER}
@@ -567,16 +581,6 @@ app.delete('/comments/:id', (req, res) => {
     res.status(403).json({ error: 'Only the author can delete this' });
   } else {
     db.run('DELETE FROM comments WHERE id = ?', [req.params.id]);
-    res.status(204).end();
-  }
-});
-
-app.delete('/session', (req, res) => {
-  const user = currentUser(req);
-  if (!user) {
-    res.status(401).json({ error: 'Who are you? Please log in.' });
-  } else {
-    db.run('DELETE FROM sessions WHERE token = ?', [req.headers.token]);
     res.status(204).end();
   }
 });
@@ -609,33 +613,19 @@ app.delete('/session', (req, res) => {
 				{
 					type: 'response-status',
 					request: 4,
-					status: 204,
-					message: 'Ravi logging out should answer 204 after deleting his row from `sessions`.'
-				},
-				{
-					type: 'response-status',
-					request: 5,
-					status: 401,
+					status: 404,
 					message:
-						'After logging out, Ravi’s old token shouldn’t work any more. Delete it from `sessions` in `DELETE /session`.'
-				},
-				{
-					type: 'response-status',
-					request: 6,
-					status: 401,
-					message: 'Logging out with no token at all: 401.'
+						'The second delete arrives after comment 3 is gone, so this time it’s a 404, not a 500 and not another 204.'
 				},
 				{
 					type: 'db-rows',
 					sql: 'SELECT id FROM comments ORDER BY id',
-					expected: [{ id: 1 }, { id: 2 }, { id: 4 }, { id: 5 }],
+					expected: [{ id: 1 }, { id: 2 }, { id: 4 }, { id: 5 }, { id: 6 }, { id: 7 }, { id: 8 }],
 					message: 'Only comment 3 should be gone. Every other comment should still be there.'
 				},
 				{
-					type: 'db-rows',
-					sql: 'SELECT token FROM sessions',
-					expected: [{ token: 'tok_mina_123' }],
-					message: 'After Ravi logs out, only Mina’s session should be left.'
+					type: 'queries-parameterized',
+					message: 'Use `?` for the comment id in both queries, and pass `[req.params.id]`.'
 				}
 			]
 		}

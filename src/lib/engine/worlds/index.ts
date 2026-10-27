@@ -3,6 +3,7 @@ import type { WorldSpec } from '#lib/curriculum/types.ts';
 import { SpecError, type World } from '../core.ts';
 import { createCanvasWorld } from './canvas.ts';
 import { createConsoleWorld } from './console.ts';
+import { createGitWorld } from './git.ts';
 import { createGridWorld } from './grid.ts';
 import { createNetWorld } from './net.ts';
 import { createWebWorld } from './web.ts';
@@ -31,6 +32,8 @@ export function createWorld(spec: WorldSpec, deps: WorldDeps = {}): World {
 			return createWebWorld(spec, { SQL: deps.SQL, verifySql: deps.verifySql });
 		case 'net':
 			return createNetWorld(spec);
+		case 'git':
+			return createGitWorld(spec);
 		default:
 			throw new SpecError(
 				`unknown world kind ${JSON.stringify((spec as { kind?: unknown })?.kind)}`

@@ -15,6 +15,7 @@
 	import {
 		cellText,
 		emptyTables,
+		htmlToText,
 		sqlVerb,
 		statusFamily,
 		statusLabel,
@@ -68,6 +69,8 @@
 		tone: StatusFamily | 'plain';
 		fizzle?: boolean;
 		dur: number;
+		/** plain http: anyone on the wire can read it */
+		plain?: boolean;
 	}
 
 	// ---------- what is drawn ----------
@@ -110,6 +113,7 @@
 	let ran = $state(false);
 	let playing = $state(false);
 	let stoppedReason = $state<string | null>(null);
+	let xssClosed = $state(false);
 	let runToken = 0;
 	let packetKey = 0;
 	let logEl: HTMLDivElement | undefined = $state();
@@ -138,6 +142,7 @@
 		caption = '';
 		ran = false;
 		stoppedReason = null;
+		xssClosed = false;
 	}
 
 	/** Pending animation waits: cancelling ends them at once, so `play()` returns promptly. */
@@ -194,9 +199,10 @@
 		text: string,
 		tone: Packet['tone'],
 		dur: number,
-		fizzle = false
+		fizzle = false,
+		plain = false
 	) {
-		packet = { key: ++packetKey, seg, back, text, tone, dur, fizzle };
+		packet = { key: ++packetKey, seg, back, text, tone, dur, fizzle, plain };
 	}
 
 	const requestOf = (id: number | undefined) =>
@@ -257,10 +263,15 @@
 					}
 					active = 'client';
 					const what = `${ev.method} ${ev.path}`;
+					const wireOpen = ev.label === 'http' || !!spec.plainHttp;
+					const label = ev.label && ev.label !== 'http' ? ` (${ev.label})` : '';
 					caption = down
 						? `📦 Bit sets off with ${what}… but nobody is answering at the server.`
-						: `📦 Bit carries ${what} from the phone to the server${ev.label ? ` (${ev.label})` : ''}.`;
-					if (showPhone && showServer) send('ps', false, ev.method, 'plain', travel, down);
+						: wireOpen
+							? `📦 Bit carries ${what} to the server over plain http: anyone on the way can read it${label}.`
+							: `📦 Bit carries ${what} from the phone to the server${label}.`;
+					if (showPhone && showServer)
+						send('ps', false, ev.method, 'plain', travel, down, wireOpen);
 					if (!(await wait(step, token, instant))) return;
 					active = down ? null : 'server';
 					break;
@@ -343,7 +354,15 @@
 					}
 					caption = `📦 Bit brings the answer back to the phone: ${statusLabel(ev.status)}.`;
 					if (showPhone && showServer) {
-						send('ps', true, String(ev.status), statusFamily(ev.status), travel);
+						send(
+							'ps',
+							true,
+							String(ev.status),
+							statusFamily(ev.status),
+							travel,
+							false,
+							!!spec.plainHttp
+						);
 					}
 					active = 'server';
 					if (!(await wait(step, token, instant))) return;
@@ -424,6 +443,8 @@
 		return `${done.length} round trip${done.length === 1 ? '' : 's'}: ${ok} went well, ${done.length - ok} didn’t.`;
 	}
 
+	const scripted = $derived(screen.some((i) => i.kind === 'html' && i.scripted));
+
 	const emptyEndpoints = $derived(
 		role === 'server'
 			? 'No endpoints yet.'
@@ -463,6 +484,13 @@
 {#snippet screenItem(item: ScreenItem)}
 	{#if item.kind === 'text'}
 		<p class="s-text">{item.text}</p>
+	{:else if item.kind === 'html'}
+		<!-- Never injected: the tags are stripped and the rest is shown as text. -->
+		<p class="s-text" class:s-scripted={item.scripted}>
+			{htmlToText(item.raw)}{#if item.scripted}<span class="s-script-tag"
+					><span aria-hidden="true">⚠️</span> had a script in it</span
+				>{/if}
+		</p>
 	{:else if item.kind === 'error'}
 		<div class="s-error" role="alert">
 			<span class="s-error-icon" aria-hidden="true">{item.status === 0 ? '📵' : '⚠️'}</span>
@@ -471,7 +499,7 @@
 				<p>{item.text}</p>
 			</div>
 		</div>
-	{:else}
+	{:else if item.kind === 'json'}
 		{@const view = viewOfJson(item.value)}
 		{#if view.kind === 'text'}
 			<p class="s-text">{view.text}</p>
@@ -514,6 +542,9 @@
 				>
 					<span class="bit">📦</span>
 					<span class="tag">{packet.text}</span>
+					{#if packet.plain}<span class="wiretag" data-testid="web-plain-http"
+							><span aria-hidden="true">🔓</span> readable on the wire</span
+						>{/if}
 					{#if packet.fizzle}<span class="zap">⚡</span>{/if}
 				</span>
 			{/key}
@@ -647,6 +678,22 @@
 							{/if}
 						</div>
 						<div class="homebar" aria-hidden="true"></div>
+						{#if scripted && !xssClosed}
+							<div class="xss" role="alert" data-testid="web-xss">
+								<div class="xss-card">
+									<p class="xss-title">
+										<span aria-hidden="true">💥</span> A script just ran on every reader’s phone
+									</p>
+									<p class="xss-line">
+										It arrived as text, and the app ran it as code. On a real app it could act as
+										the reader: read their session, post as them.
+									</p>
+									<button type="button" class="xss-close" onclick={() => (xssClosed = true)}
+										>Show the screen</button
+									>
+								</div>
+							</div>
+						{/if}
 					</div>
 				</section>
 			{/if}
@@ -966,6 +1013,66 @@
 			left: 50%;
 			opacity: 0.25;
 		}
+	}
+
+	.wiretag {
+		font-size: 0.6rem;
+		font-weight: 800;
+		padding: 0.02rem 0.35rem;
+		border-radius: 999px;
+		background: var(--amber-soft);
+		border: 1.5px dashed #d7a536;
+		color: var(--amber);
+	}
+
+	/* ---------- simulated XSS ---------- */
+	.s-scripted {
+		box-shadow:
+			0 1px 0 var(--color-line),
+			inset 3px 0 0 var(--bad);
+	}
+	.s-script-tag {
+		display: block;
+		margin-top: 0.2rem;
+		font-size: 0.66rem;
+		font-weight: 800;
+		color: var(--bad);
+	}
+	.xss {
+		position: absolute;
+		inset: 3.3rem 0.45rem 1.3rem;
+		display: flex;
+		align-items: flex-end;
+		padding: 0.45rem;
+		border-radius: 0 0 1.2rem 1.2rem;
+		background: color-mix(in oklab, var(--bad) 30%, transparent);
+		animation: s-in 260ms ease-out both;
+	}
+	.xss-card {
+		width: 100%;
+		padding: 0.6rem 0.65rem;
+		border-radius: 0.85rem;
+		background: var(--bad);
+		color: white;
+		box-shadow: 0 8px 20px -8px rgb(0 0 0 / 0.5);
+	}
+	.xss-title {
+		font-weight: 900;
+		font-size: 0.82rem;
+		line-height: 1.25;
+	}
+	.xss-line {
+		margin-top: 0.25rem;
+		font-size: 0.72rem;
+		line-height: 1.35;
+		opacity: 0.95;
+	}
+	.xss-close {
+		margin-top: 0.4rem;
+		font-size: 0.7rem;
+		font-weight: 800;
+		text-decoration: underline;
+		text-underline-offset: 3px;
 	}
 
 	/* ---------- phone ---------- */

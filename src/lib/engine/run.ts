@@ -50,7 +50,7 @@ export function emptyWebResult(): WebResult {
 }
 
 /** The world-specific empty parts of a result, built straight from the spec. */
-function emptyWorldParts(spec: WorldSpec): Pick<RunResult, 'grid' | 'draws' | 'web'> {
+function emptyWorldParts(spec: WorldSpec): Pick<RunResult, 'grid' | 'draws' | 'web' | 'net'> {
 	if (spec?.kind === 'grid') {
 		try {
 			return { grid: gridStateFromSpec(spec) };
@@ -60,6 +60,17 @@ function emptyWorldParts(spec: WorldSpec): Pick<RunResult, 'grid' | 'draws' | 'w
 	}
 	if (spec?.kind === 'canvas') return { draws: [] };
 	if (spec?.kind === 'web') return { web: emptyWebResult() };
+	if (spec?.kind === 'net')
+		return {
+			net: {
+				nodes: spec.nodes ?? [],
+				links: spec.links ?? [],
+				dns: spec.dns ?? {},
+				calls: [],
+				routes: {},
+				traffic: { total: 0, ok: 0, failed: 0, byStatus: {} }
+			}
+		};
 	return {};
 }
 

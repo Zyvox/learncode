@@ -2,12 +2,7 @@
  * Reference for the UI cheat sheet: every command per world, and the JavaScript basics.
  * Summaries are ThemedText (render with renderText()) and written for absolute beginners.
  */
-import type {
-	NetWorldSpec,
-	ThemedText,
-	WebWorldSpec,
-	WorldKind
-} from '#lib/curriculum/types.ts';
+import type { NetWorldSpec, ThemedText, WebWorldSpec, WorldKind } from '#lib/curriculum/types.ts';
 
 export interface CommandDoc {
 	/** As the learner writes it, e.g. 'move()', 'say(text)' */
@@ -418,6 +413,99 @@ export function netCommandNames(flavour: NetFlavour): string[] {
 }
 
 /**
+ * The git world: a shell, one command per line (see docs/INFRA.md). `name` is exactly what
+ * lessons put in `newCommands`.
+ */
+const GIT_COMMANDS: CommandDoc[] = [
+	{
+		name: 'git init',
+		summary:
+			'Turn this folder into a repository, so git can start keeping its history. Once per project.',
+		example: 'git init'
+	},
+	{
+		name: 'git status',
+		summary:
+			'Ask git what is going on: which branch you are on, what is new, changed or ready to be saved.',
+		example: 'git status'
+	},
+	{
+		name: 'git add <file>',
+		summary:
+			'Put a file on the stage: the pile of changes the next commit will save. `git add .` adds everything.',
+		example: 'git add notes.txt'
+	},
+	{
+		name: 'git commit -m "message"',
+		summary:
+			'Save everything on the stage as a commit: a snapshot with a short note about what changed.',
+		example: 'git commit -m "Add notes"'
+	},
+	{
+		name: 'git log',
+		summary: 'List the commits, newest first: the id, which branches point there, and the note.',
+		example: 'git log'
+	},
+	{
+		name: 'git branch <name>',
+		summary:
+			'Make a new branch: a name for a line of work that starts where you are now. `git branch` on its own lists them.',
+		example: 'git branch ideas'
+	},
+	{
+		name: 'git switch <branch>',
+		summary: 'Move to another branch. The files in the folder change to match it.',
+		example: 'git switch main'
+	},
+	{
+		name: 'git switch -c <name>',
+		summary: 'Make a new branch and move onto it, in one go.',
+		example: 'git switch -c comments'
+	},
+	{
+		name: 'git merge <branch>',
+		summary:
+			'Bring the work from another branch into the one you are on. If both changed the same lines, git asks you to choose.',
+		example: 'git merge comments'
+	},
+	{
+		name: 'git diff',
+		summary: 'Show what changed since the last `git add`: `-` lines went away, `+` lines are new.',
+		example: 'git diff'
+	},
+	{
+		name: 'git restore <file>',
+		summary: 'Throw away the changes to a file and go back to the saved version.',
+		example: 'git restore notes.txt'
+	},
+	{
+		name: 'echo "text" > file',
+		summary: 'Write a line into a file. `>` replaces what was there (or makes a new file).',
+		example: 'echo "Hello" > notes.txt'
+	},
+	{
+		name: 'echo "text" >> file',
+		summary: 'Add a line to the end of a file, keeping what was already in it.',
+		example: 'echo "One more line" >> notes.txt'
+	},
+	{
+		name: 'cat file',
+		summary: 'Show what is inside a file.',
+		example: 'cat notes.txt'
+	},
+	{
+		name: 'ls',
+		summary: 'List the files in the folder.',
+		example: 'ls'
+	}
+];
+
+/** The git world's cheat-sheet names, exactly as lessons write them in `newCommands`. */
+export function gitCommandNames(): string[] {
+	return GIT_COMMANDS.map((c) => c.name);
+}
+
+/**
  * Cheat-sheet names for one role of the web world, without the bracket part:
  * client → ['get', 'post', …, 'res.status', …], server → ['app.get', …, 'db.all', …, 'SELECT', …],
  * sql → ['SELECT', 'WHERE', 'ORDER BY', …].
@@ -538,8 +626,7 @@ export const COMMANDS: Record<WorldKind, CommandDoc[]> = {
 	],
 	web: WEB_COMMANDS,
 	net: NET_COMMANDS,
-	// placeholder: filled by the git world (worlds/git.ts)
-	git: []
+	git: GIT_COMMANDS
 };
 
 /** Bare command names per world (no brackets), e.g. ['move', 'turnLeft', …] */

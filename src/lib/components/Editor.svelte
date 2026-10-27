@@ -3,7 +3,8 @@
   - No autocomplete popups, linting squiggles, folding or search panels: fewer surprises.
   - Bracket matching + auto-closing brackets/quotes, two-space Tab, big touch-friendly text.
   - `value` is bindable. `run` is called on Ctrl/Cmd+Enter. `errorLine` highlights a line.
-  - `language` switches the highlighter: 'js' (default) or 'sql'.
+  - `language` switches the highlighter: 'js' (default), 'sql' or 'shell' (one command per line,
+    with a `$` prompt in the gutter instead of line numbers).
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -43,6 +44,7 @@
 	import { javascript } from '@codemirror/lang-javascript';
 	import { tags as t } from '@lezer/highlight';
 	import { sqlLanguage } from './sql-lang.ts';
+	import { shellLanguage } from './shell-lang.ts';
 
 	let {
 		value = $bindable(''),
@@ -61,12 +63,17 @@
 		label?: string;
 		placeholder?: string;
 		minLines?: number;
-		language?: 'js' | 'sql';
+		language?: 'js' | 'sql' | 'shell';
 	} = $props();
 
+	type Lang = 'js' | 'sql' | 'shell';
 	const languageSlot = new Compartment();
-	const languageExtension = (lang: 'js' | 'sql'): Extension =>
-		lang === 'sql' ? sqlLanguage : javascript();
+	const gutterSlot = new Compartment();
+	const languageExtension = (lang: Lang): Extension =>
+		lang === 'sql' ? sqlLanguage : lang === 'shell' ? shellLanguage : javascript();
+	// Shell lessons read like a terminal: a `$` prompt on every line instead of a number.
+	const gutterExtension = (lang: Lang): Extension =>
+		lang === 'shell' ? lineNumbers({ formatNumber: () => '$' }) : lineNumbers();
 
 	let host: HTMLDivElement;
 	let view = $state<EditorView | undefined>();
@@ -104,6 +111,7 @@
 		{ tag: [t.number, t.bool, t.null, t.atom], color: '#b4590e' },
 		{ tag: [t.string, t.special(t.string)], color: '#2f8a4f' },
 		{ tag: t.comment, color: '#9a9088', fontStyle: 'italic' },
+		{ tag: t.meta, color: '#9a9088' },
 		{ tag: [t.operator, t.punctuation, t.bracket], color: '#6f665d' },
 		{ tag: t.definition(t.variableName), color: '#6b3fa0' },
 		{ tag: t.variableName, color: '#2b2521' },
@@ -161,7 +169,7 @@
 
 	function extensions(): Extension[] {
 		return [
-			lineNumbers(),
+			gutterSlot.of(gutterExtension(language)),
 			highlightActiveLineGutter(),
 			highlightActiveLine(),
 			history(),
@@ -228,7 +236,12 @@
 
 	$effect(() => {
 		const lang = language;
-		view?.dispatch({ effects: languageSlot.reconfigure(languageExtension(lang)) });
+		view?.dispatch({
+			effects: [
+				languageSlot.reconfigure(languageExtension(lang)),
+				gutterSlot.reconfigure(gutterExtension(lang))
+			]
+		});
 	});
 
 	$effect(() => {

@@ -84,9 +84,7 @@ export const serverMeetsDatabase: Module = {
 				"The SQL goes in quotes as the first thing in the brackets: `db.all('SELECT id, title, genre FROM series')`. Then answer with `res.json(rows)` instead of `res.json([])`.",
 				"Here's the whole handler:\n```js\napp.get('/series', (req, res) => {\n  const rows = db.all('SELECT id, title, genre FROM series');\n  res.json(rows);\n});\n```"
 			],
-			world: world([
-				{ method: 'GET', path: '/series', label: 'reader opens the series list' }
-			]),
+			world: world([{ method: 'GET', path: '/series', label: 'reader opens the series list' }]),
 			starterCode: `// The phone asks for the series list.
 // Ask the database for the rows first, then answer with them.
 app.get('/series', (req, res) => {
@@ -576,7 +574,11 @@ app.post('/episodes/:id/comments', (req, res) => {
 			world: world(
 				[
 					{ method: 'PUT', path: '/episodes/4/like', label: 'reader taps ♥ on The night market' },
-					{ method: 'PUT', path: '/episodes/8/like', label: 'another reader taps ♥ on Extra spicy' },
+					{
+						method: 'PUT',
+						path: '/episodes/8/like',
+						label: 'another reader taps ♥ on Extra spicy'
+					},
 					{ method: 'PUT', path: '/episodes/99/like', label: 'an old app taps ♥ on episode 99' },
 					{ method: 'GET', path: '/episodes/4/comments', label: 'reader opens the comments' }
 				],

@@ -158,6 +158,8 @@ export interface NetNode {
 	listens?: Record<number, string>;
 	/** Inbound ports this node (or firewall) lets through. undefined = everything. */
 	allow?: number[];
+	/** Ports explicitly blocked on a node that otherwise allows everything (set by `block()`) */
+	block?: number[];
 	/** The machine is switched off / crashed */
 	down?: boolean;
 	/** cloud: how many requests one container handles per traffic batch before it starts failing */

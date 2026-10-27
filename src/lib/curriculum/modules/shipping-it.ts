@@ -1,7 +1,13 @@
-import type { Module } from '#lib/curriculum/types.ts';
-import { clientWorld, serverWorld } from '#lib/curriculum/inkwell.ts';
+import type { Module, SimRequest, WebWorldSpec } from '#lib/curriculum/types.ts';
+import { INKWELL_AT, clientWorld, serverWorld } from '#lib/curriculum/inkwell.ts';
 
 const M = 'shipping-it';
+
+/** The test readers' comments and likes from last week are in the database. */
+const LIVE = INKWELL_AT('live');
+const server = (requests: SimRequest[], extra: Partial<WebWorldSpec> = {}) =>
+	serverWorld(requests, { schema: LIVE, ...extra });
+const client = (extra: Partial<WebWorldSpec> = {}) => clientWorld({ schema: LIVE, ...extra });
 
 /** Stands in for the reverse proxy when the Inkwell app behind it isn't running. */
 const PROXY_NOBODY_HOME = `
@@ -57,7 +63,7 @@ export const shippingIt: Module = {
 			code: `const res = get('/series');
 show(res.status);
 `,
-			world: clientWorld({ serverDown: true }),
+			world: client({ serverDown: true }),
 			question: 'What does the friend’s phone get when it asks for `/series`?',
 			choices: [
 				'200 and the series list, from the last time it worked',
@@ -123,7 +129,7 @@ show(res.status);
   res.json(db.get('SELECT title FROM series WHERE id = ?', [req.params.id]));
 });
 `,
-			world: serverWorld([
+			world: server([
 				{
 					method: 'GET',
 					path: '/series/3?lang=en',
@@ -191,7 +197,7 @@ show(res.status);
 				"Swap the typed-in text for the setting: `log('Using database at ' + env.DB_PATH);`. In `/health`, use `app: env.APP_NAME`.",
 				"The fixed code:\n```js\nlog('Using database at ' + env.DB_PATH);\n\napp.get('/health', (req, res) => {\n  res.json({ status: 'ok', app: env.APP_NAME });\n});\n```"
 			],
-			world: serverWorld(
+			world: server(
 				[{ method: 'GET', path: '/health', label: 'the receptionist checks the app is alive' }],
 				{
 					env: { APP_NAME: 'Inkwell', DB_PATH: '/var/data/inkwell.db', PORT: '3000' }
@@ -271,7 +277,7 @@ app.get('/health', (req, res) => {
 				'Compare the column names in the SQL with the ones the log suggests. One letter is missing.',
 				'`publised` should be `published`.'
 			],
-			world: serverWorld([
+			world: server([
 				{ method: 'GET', path: '/series/1/episodes', label: 'reader opens Moonlit Deliveries' },
 				{ method: 'GET', path: '/series/3/episodes', label: 'reader opens Night Shift Noodles' }
 			]),
@@ -297,9 +303,9 @@ app.get('/health', (req, res) => {
 					type: 'response-json',
 					request: 0,
 					mode: 'subset',
-					expected: [{ number: 1 }, { number: 2 }, { number: 3 }],
+					expected: [{ number: 1 }, { number: 2 }, { number: 3 }, { number: 4 }],
 					message:
-						'Moonlit Deliveries should list its three published episodes. The unpublished one (Sketches) stays hidden.'
+						'Moonlit Deliveries should list its four published episodes, The night market included.'
 				},
 				{
 					type: 'response-json',
@@ -321,7 +327,7 @@ app.get('/health', (req, res) => {
 			code: `const res = get('/series');
 show(res.status + ' ' + res.body.error);
 `,
-			world: clientWorld({ serverCode: PROXY_NOBODY_HOME }),
+			world: client({ serverCode: PROXY_NOBODY_HOME }),
 			question: 'The phone shows `502 Bad gateway`. Where is the problem most likely?',
 			choices: [
 				'The reader’s phone has no internet',
@@ -351,7 +357,7 @@ show(res.status + ' ' + res.body.error);
 				'503 means “service unavailable, on purpose, for now”. It tells the phone to try again later, unlike a 500.',
 				"The route:\n```js\napp.post('/episodes/:id/comments', (req, res) => {\n  if (env.READ_ONLY === 'yes') {\n    res.status(503).json({ error: 'Comments are paused for a few minutes. Try again soon.' });\n  } else {\n    const r = db.run('INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)', [req.params.id, req.body.author, req.body.text]);\n    res.status(201).json({ id: r.lastId });\n  }\n});\n```"
 			],
-			world: serverWorld(
+			world: server(
 				[
 					{ method: 'GET', path: '/series', label: 'reader opens the series list' },
 					{
@@ -407,9 +413,9 @@ app.post('/episodes/:id/comments', (req, res) => {
 				{
 					type: 'db-rows',
 					sql: 'SELECT COUNT(*) AS n FROM comments',
-					expected: [{ n: 5 }],
+					expected: [{ n: 8 }],
 					message:
-						'Nothing should be saved during the move: the comments table should still have 5 rows.'
+						'Nothing should be saved during the move: the comments table should still have its 8 rows.'
 				},
 				{
 					type: 'code-includes',
@@ -427,14 +433,37 @@ app.post('/episodes/:id/comments', (req, res) => {
 			xp: 45,
 			boss: true,
 			story:
-				'Launch is a week away, and Theo wants a dress rehearsal on the real machine. The ops person’s checklist: the startup log must say which port the app listens on (they set `PORT` to `8080`), the receptionist needs a `/health` endpoint to check the app is alive, and every request must come back in the 200s. Something in there is already broken, and once it isn’t, Inkwell is ready to live on the internet.',
+				'Launch is a week away, and Theo wants a dress rehearsal on the real machine. The ops person’s checklist: the startup log must say which port the app listens on (they set `PORT` to `8080`), the receptionist needs a `/health` endpoint to check the app is alive, and every request must come back in the 200s. Something in there is already broken.',
 			task: "1. Log `'Listening on port ' + env.PORT` instead of the typed-in port.\n2. Add `GET /health` answering `{ status: 'ok', app: env.APP_NAME }`.\n3. Run it, read the log, and fix the endpoint that answers 500.",
+			outro: {
+				panels: [
+					{
+						who: 'narrator',
+						scene: 'server',
+						text: 'Listening on port 8080. Health: ok. Three requests, three answers in the 200s.'
+					},
+					{
+						who: 'theo',
+						text: 'The ops person ticked every box and said “boring”. Apparently that’s the best thing they can say.'
+					},
+					{
+						who: 'mina',
+						scene: 'cloud',
+						text: 'So it lives on a machine that never sleeps now, and your laptop can finally go to lunch without taking the app with it.'
+					},
+					{
+						who: 'bit',
+						scene: 'wire',
+						text: 'DNS, door 443, the receptionist, the app. I know the way. See you on launch day.'
+					}
+				]
+			},
 			hints: [
 				'Run it first. The log tells you which port the code claims, and which request crashed and why.',
 				"For `/health`, copy the shape from the settings level: `app.get('/health', (req, res) => { res.json({ status: 'ok', app: env.APP_NAME }); });`. In the episodes SQL, the log points at a misspelled column.",
 				"The whole program:\n```js\nlog('Listening on port ' + env.PORT);\n\napp.get('/health', (req, res) => {\n  res.json({ status: 'ok', app: env.APP_NAME });\n});\n\napp.get('/series', (req, res) => {\n  res.json(db.all('SELECT id, title FROM series ORDER BY id'));\n});\n\napp.get('/series/:id/episodes', (req, res) => {\n  res.json(db.all('SELECT id, number, title FROM episodes WHERE series_id = ? AND published = 1 ORDER BY number', [req.params.id]));\n});\n```"
 			],
-			world: serverWorld(
+			world: server(
 				[
 					{ method: 'GET', path: '/health', label: 'the receptionist checks the app is alive' },
 					{ method: 'GET', path: '/series', label: 'Theo opens the series list' },

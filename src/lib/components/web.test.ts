@@ -101,3 +101,17 @@ describe('viewOfJson', () => {
 		expect(viewOfJson(['a', 2])).toEqual({ kind: 'list', items: ['a', '2'], more: 0 });
 	});
 });
+
+describe('htmlToText', () => {
+	it('drops scripts and tags, keeps the words', async () => {
+		const { htmlToText } = await import('./web.ts');
+		expect(htmlToText('Nice one<script>steal()</script>')).toBe('Nice one');
+		expect(htmlToText('<b>bold</b> move')).toBe('bold move');
+		expect(htmlToText('<script src="x.js"></script>hi')).toBe('hi');
+	});
+	it('shows escaped markup as harmless text', async () => {
+		const { htmlToText } = await import('./web.ts');
+		expect(htmlToText('&lt;script&gt;steal()&lt;/script&gt;')).toBe('<script>steal()</script>');
+		expect(htmlToText('Tom &amp; Mina')).toBe('Tom & Mina');
+	});
+});

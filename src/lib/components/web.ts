@@ -164,3 +164,28 @@ export function viewOfJson(value: unknown): ScreenView {
 	if (isPlainObject(value)) return { kind: 'cards', cards: [toCard(value)], more: 0 };
 	return { kind: 'text', text: cellText(value) };
 }
+
+const ENTITIES: Record<string, string> = {
+	'&lt;': '<',
+	'&gt;': '>',
+	'&quot;': '"',
+	'&#39;': "'",
+	'&#x27;': "'",
+	'&nbsp;': ' ',
+	'&amp;': '&'
+};
+
+/**
+ * What a phone that renders HTML would show for `raw`, as plain text: scripts and styles vanish
+ * (they run, they aren't shown), other tags are dropped, entities turn back into characters
+ * (so escaped text like `&lt;script&gt;` shows up as harmless `<script>` text). The UI puts the
+ * result in a text node: nothing here is ever injected as HTML.
+ */
+export function htmlToText(raw: string): string {
+	return String(raw ?? '')
+		.replace(/<(script|style)\b[^>]*>[\s\S]*?(<\/\1\s*>|$)/gi, '')
+		.replace(/<br\s*\/?>/gi, '\n')
+		.replace(/<\/?[a-z][^>]*>/gi, '')
+		.replace(/&(lt|gt|quot|#39|#x27|nbsp|amp);/g, (m) => ENTITIES[m] ?? m)
+		.trim();
+}

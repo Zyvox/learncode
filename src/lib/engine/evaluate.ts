@@ -17,6 +17,7 @@ import type {
 } from './types.ts';
 import { matchRoute, parseQuery, segmentsOf } from './worlds/web.ts';
 import { netCheckFails } from './worlds/net.ts';
+import { gitCheckFails } from './worlds/git.ts';
 
 export { stripComments };
 
@@ -659,6 +660,17 @@ export function checkFails(
 		case 'net-call-result':
 			return netCheckFails(check, result.net, msg);
 		// ---- end net world ----
+		// ---- git world: rules and messages live in worlds/git.ts ----
+		case 'git-commits':
+		case 'git-branch':
+		case 'git-head':
+		case 'git-file':
+		case 'git-clean':
+		case 'git-merged':
+		case 'git-message-includes':
+		case 'shell-output-includes':
+			return gitCheckFails(check, result.git, msg);
+		// ---- end git world ----
 		default:
 			return webCheckFails(check, result, msg, dbRowsIndex);
 	}

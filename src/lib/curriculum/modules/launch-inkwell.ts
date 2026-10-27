@@ -1,11 +1,16 @@
 import type { Module, SimRequest, WebWorldSpec } from '#lib/curriculum/types.ts';
-import { INKWELL_SCHEMA } from '#lib/curriculum/inkwell.ts';
+import { INKWELL_AT } from '#lib/curriculum/inkwell.ts';
 
 const M = 'launch-inkwell';
 
-/** All the Inkwell data, with Mina and Ravi both logged in. */
+/**
+ * Inkwell as the test readers left it (the 'live' stage: last week's comments and likes, Mina and
+ * Ravi logged in), plus Mina's next episode in progress. As usual she calls it Sketches until
+ * it's done, so the published-only rules have something to hide.
+ */
 const LAUNCH_SCHEMA =
-	INKWELL_SCHEMA + "\nINSERT INTO sessions (token, user_id) VALUES ('tok_ravi_456', 2);\n";
+	INKWELL_AT('live') +
+	"\nINSERT INTO episodes (id, series_id, number, title, published, likes) VALUES (9, 1, 5, 'Sketches', 0, 0);\n";
 
 const MINA = { token: 'tok_mina_123' };
 const RAVI = { token: 'tok_ravi_456' };
@@ -29,15 +34,25 @@ function currentUser(req) {
 }
 `;
 
-const SERIES_LIST = `
+/** Checkpoint 1: the plain front page. */
+const FRONT_PAGE = `
 app.get('/series', (req, res) => {
-  const rows = db.all(
-    'SELECT series.id, series.title, series.genre, COUNT(episodes.id) AS episodes ' +
+  res.json(db.all('SELECT id, title, genre FROM series ORDER BY title'));
+});
+`;
+
+/** The SQL that counts each series' published episodes (handed over in checkpoint 2). */
+const COUNT_SQL = `    'SELECT series.id, series.title, series.genre, COUNT(episodes.id) AS episodes ' +
     'FROM series JOIN episodes ON episodes.series_id = series.id ' +
     'WHERE episodes.published = 1 ' +
-    'GROUP BY series.id ORDER BY series.title'
-  );
-  res.json(rows);
+    'GROUP BY series.id ORDER BY series.title'`;
+
+/** Checkpoint 2: the front page with episode counts. */
+const SERIES_LIST = `
+app.get('/series', (req, res) => {
+  res.json(db.all(
+${COUNT_SQL}
+  ));
 });
 `;
 
@@ -125,7 +140,7 @@ app.get('/series/:id/episodes', (req, res) => {
 
 const CHECKPOINT = [
 	HEADER,
-	HEADER + SERIES_LIST,
+	HEADER + FRONT_PAGE,
 	HEADER + SERIES_LIST + EPISODE_PAGE,
 	HEADER + SERIES_LIST + EPISODE_PAGE + COMMENTS,
 	HEADER + SERIES_LIST + EPISODE_PAGE + COMMENTS + LIKES,
@@ -153,8 +168,8 @@ export const launchInkwell: Module = {
 			title: 'Checkpoint 1: the front page',
 			xp: 20,
 			story:
-				'Launch is Monday. Theo has cleared a wall for the plan, and you’re building the launch version of the Inkwell API in one clean file, each checkpoint starting where the last one finished. First up: the front page, the series list.',
-			task: 'Write `GET /series`. For each series, answer with its `id`, `title`, `genre` and how many **published** episodes it has, named `episodes`. Order them by title.\n\nYou’ll need `JOIN`, `WHERE episodes.published = 1`, `GROUP BY series.id`, `COUNT(episodes.id) AS episodes` and `ORDER BY series.title`. Long SQL can be split over lines with `+`. That’s fine, as long as nothing from the request gets glued in.',
+				'Launch is Monday. Theo has cleared a wall for the plan, and you’re building the launch version of the Inkwell API in one clean file, each checkpoint starting where the last one finished. The test readers’ comments and likes from last week are all in the database, and they’re coming with you. First up: the front page, the list of series.',
+			task: 'Write `GET /series`: every series with its `id`, `title` and `genre`, ordered by title. One `db.all` is enough. The clever bits come later.',
 			concept: {
 				title: 'The launch plan',
 				panels: [
@@ -186,9 +201,9 @@ export const launchInkwell: Module = {
 				]
 			},
 			hints: [
-				'Start from the SQL. In the SQL editor you would write `SELECT series.id, series.title, series.genre, COUNT(episodes.id) AS episodes FROM series JOIN episodes ON episodes.series_id = series.id …`.',
-				'After the JOIN: `WHERE episodes.published = 1 GROUP BY series.id ORDER BY series.title`. Put the whole thing in `db.all(…)` and send the rows with `res.json`.',
-				"The route:\n```js\napp.get('/series', (req, res) => {\n  const rows = db.all(\n    'SELECT series.id, series.title, series.genre, COUNT(episodes.id) AS episodes ' +\n    'FROM series JOIN episodes ON episodes.series_id = series.id ' +\n    'WHERE episodes.published = 1 ' +\n    'GROUP BY series.id ORDER BY series.title'\n  );\n  res.json(rows);\n});\n```"
+				'The SQL is the kind you wrote in “Where the data lives”: pick three columns `FROM series`, then `ORDER BY title`.',
+				'Put it in `db.all(…)` inside the handler and send the rows with `res.json(…)`, like the very first handler in “Server meets database”.',
+				"The route:\n```js\napp.get('/series', (req, res) => {\n  res.json(db.all('SELECT id, title, genre FROM series ORDER BY title'));\n});\n```"
 			],
 			world: world([{ method: 'GET', path: '/series', label: 'reader opens the app' }]),
 			starterCode: next(CHECKPOINT[0], 'Checkpoint 1: GET /series'),
@@ -198,14 +213,13 @@ export const launchInkwell: Module = {
 				{
 					type: 'response-json',
 					request: 0,
-					mode: 'subset',
 					expected: [
-						{ id: 2, title: 'Grove & Gear', genre: 'fantasy', episodes: 2 },
-						{ id: 1, title: 'Moonlit Deliveries', genre: 'slice of life', episodes: 3 },
-						{ id: 3, title: 'Night Shift Noodles', genre: 'comedy', episodes: 2 }
+						{ id: 2, title: 'Grove & Gear', genre: 'fantasy' },
+						{ id: 1, title: 'Moonlit Deliveries', genre: 'slice of life' },
+						{ id: 3, title: 'Night Shift Noodles', genre: 'comedy' }
 					],
 					message:
-						'The front page should list the three series ordered by title, each with `episodes`: the number of **published** episodes (Moonlit Deliveries has 3, not 4, because Sketches isn’t out yet).'
+						'The front page should list the three series with `id`, `title` and `genre`, ordered by title: Grove & Gear first.'
 				}
 			]
 		},
@@ -213,53 +227,65 @@ export const launchInkwell: Module = {
 			id: `${M}/02-episode-page`,
 			slug: '02-episode-page',
 			kind: 'code',
-			title: 'Checkpoint 2: the episode page',
-			xp: 20,
+			title: 'Checkpoint 2: counts and the episode page',
+			xp: 25,
 			story:
-				'The episode page shows the episode and, at the top, which series it belongs to. Mina reminds you that Sketches (episode 4) isn’t published: as far as readers are concerned, it doesn’t exist yet.',
-			task: "Add `GET /episodes/:id`. Answer with the episode's `id`, `number`, `title`, `likes`, and the series title as `series` (join `series`). Only published episodes. Not found, or not published: `404`.",
+				'Theo wants every series on the front page to say how many episodes it has. Readers who tap an episode need a page for it, with the series name at the top. And Mina has started her next episode: as usual, the database calls it Sketches (episode 9) until it’s finished, and as far as readers are concerned it doesn’t exist yet.',
+			task:
+				'1. In `GET /series`, swap the SQL for this one. It joins the tables, keeps the published episodes, and counts them per series:\n```js\n' +
+				COUNT_SQL.trim() +
+				"\n```\n2. Add `GET /episodes/:id`: the episode's `id`, `number`, `title`, `likes`, and the series title as `series` (join `series`). Only published episodes. Not found, or not published: `404`.",
 			hints: [
-				'Use `db.get` with a JOIN: `SELECT episodes.id, episodes.number, episodes.title, episodes.likes, series.title AS series FROM episodes JOIN series ON series.id = episodes.series_id WHERE episodes.id = ? AND episodes.published = 1`.',
-				'Then the familiar pattern: `if (!ep) { 404 } else { res.json(ep) }`.',
-				"The route:\n```js\napp.get('/episodes/:id', (req, res) => {\n  const ep = db.get(\n    'SELECT episodes.id, episodes.number, episodes.title, episodes.likes, series.title AS series ' +\n    'FROM episodes JOIN series ON series.id = episodes.series_id ' +\n    'WHERE episodes.id = ? AND episodes.published = 1',\n    [req.params.id]\n  );\n  if (!ep) {\n    res.status(404).json({ error: 'No such episode' });\n  } else {\n    res.json(ep);\n  }\n});\n```"
+				'For the front page, replace the text inside `db.all(…)` with the four lines from the task. Nothing else in that handler changes.',
+				'For the episode page, use `db.get` with a JOIN: `SELECT episodes.id, episodes.number, episodes.title, episodes.likes, series.title AS series FROM episodes JOIN series ON series.id = episodes.series_id WHERE episodes.id = ? AND episodes.published = 1`. Then the familiar `if (!ep) { 404 } else { res.json(ep) }`.',
+				"The episode page:\n```js\napp.get('/episodes/:id', (req, res) => {\n  const ep = db.get(\n    'SELECT episodes.id, episodes.number, episodes.title, episodes.likes, series.title AS series ' +\n    'FROM episodes JOIN series ON series.id = episodes.series_id ' +\n    'WHERE episodes.id = ? AND episodes.published = 1',\n    [req.params.id]\n  );\n  if (!ep) {\n    res.status(404).json({ error: 'No such episode' });\n  } else {\n    res.json(ep);\n  }\n});\n```"
 			],
 			world: world([
-				{ method: 'GET', path: '/episodes/3', label: 'reader opens The locked gate' },
-				{ method: 'GET', path: '/episodes/4', label: 'someone guesses the link to episode 4' },
-				{ method: 'GET', path: '/episodes/99', label: 'reader follows a broken link' },
-				{ method: 'GET', path: '/series', label: 'reader goes back to the front page' }
+				{ method: 'GET', path: '/series', label: 'reader opens the app' },
+				{ method: 'GET', path: '/episodes/4', label: 'reader opens The night market' },
+				{ method: 'GET', path: '/episodes/9', label: 'someone guesses the link to episode 9' },
+				{ method: 'GET', path: '/episodes/99', label: 'reader follows a broken link' }
 			]),
-			starterCode: next(CHECKPOINT[1], 'Checkpoint 2: GET /episodes/:id'),
+			starterCode: next(
+				CHECKPOINT[1],
+				'Checkpoint 2: count the episodes in GET /series, then add GET /episodes/:id'
+			),
 			solution: CHECKPOINT[2],
 			checks: [
 				{
 					type: 'response-json',
 					request: 0,
 					mode: 'subset',
+					expected: [
+						{ id: 2, title: 'Grove & Gear', episodes: 2 },
+						{ id: 1, title: 'Moonlit Deliveries', episodes: 4 },
+						{ id: 3, title: 'Night Shift Noodles', episodes: 2 }
+					],
+					message:
+						'Each series on the front page should have `episodes`: its number of **published** episodes. Moonlit Deliveries has 4: The night market counts, the new Sketches doesn’t. Use the SQL from the task.'
+				},
+				{
+					type: 'response-json',
+					request: 1,
+					mode: 'subset',
 					expected: {
-						id: 3,
-						number: 3,
-						title: 'The locked gate',
-						likes: 143,
+						id: 4,
+						number: 4,
+						title: 'The night market',
+						likes: 1,
 						series: 'Moonlit Deliveries'
 					},
 					message:
-						"Episode 3 should come back with its number, title and likes, plus `series: 'Moonlit Deliveries'` from the joined `series` table (`series.title AS series`)."
+						"The night market should come back with its number, title and likes, plus `series: 'Moonlit Deliveries'` from the joined `series` table (`series.title AS series`)."
 				},
 				{
 					type: 'response-status',
-					request: 1,
+					request: 2,
 					status: 404,
 					message:
-						'Episode 4 exists but isn’t published. Add `AND episodes.published = 1` so it answers 404 like a missing one.'
+						'Episode 9 exists but isn’t published. Add `AND episodes.published = 1` so it answers 404 like a missing one.'
 				},
-				{ type: 'response-status', request: 2, status: 404 },
-				{
-					type: 'response-status',
-					request: 3,
-					status: 200,
-					message: 'The front page from checkpoint 1 should still work.'
-				},
+				{ type: 'response-status', request: 3, status: 404 },
 				{ type: 'queries-parameterized' }
 			]
 		},
@@ -324,7 +350,7 @@ export const launchInkwell: Module = {
 					type: 'response-json',
 					request: 1,
 					mode: 'subset',
-					expected: { id: 6, author: 'mina', text: 'The cat says thank you.' },
+					expected: { id: 9, author: 'mina', text: 'The cat says thank you.' },
 					message:
 						'Answer with `{ id, author, text }` for the new comment. The author comes from the session: `user.name`.'
 				},
@@ -357,7 +383,7 @@ export const launchInkwell: Module = {
 			title: 'Checkpoint 4: the ♥ button',
 			xp: 20,
 			story:
-				'Theo’s favourite feature. He’s already planning a “most loved episodes” banner. Likes only count on published episodes, of course: nobody gets to like Sketches before it’s finished.',
+				'Theo’s favourite feature. He’s already planning a “most loved episodes” banner. Likes only count on published episodes, of course: nobody gets to like Mina’s new Sketches (episode 9) before it’s finished.',
 			task: 'Add `PUT /episodes/:id/like`: add one like to a **published** episode and answer with `{ id, likes }`. If nothing changed (missing or unpublished), answer `404`.',
 			hints: [
 				"`db.run('UPDATE episodes SET likes = likes + 1 WHERE id = ? AND published = 1', [req.params.id])` gives a receipt with `changes`.",
@@ -366,7 +392,7 @@ export const launchInkwell: Module = {
 			],
 			world: world([
 				{ method: 'PUT', path: '/episodes/7/like', label: 'reader taps ♥ on Opening night' },
-				{ method: 'PUT', path: '/episodes/4/like', label: 'someone tries to ♥ Sketches early' },
+				{ method: 'PUT', path: '/episodes/9/like', label: 'someone tries to ♥ Sketches early' },
 				{ method: 'PUT', path: '/episodes/99/like', label: 'an old link taps ♥ on episode 99' },
 				{ method: 'GET', path: '/episodes/7', label: 'reader reloads Opening night' }
 			]),
@@ -396,7 +422,7 @@ export const launchInkwell: Module = {
 				},
 				{
 					type: 'db-rows',
-					sql: 'SELECT likes FROM episodes WHERE id = 4',
+					sql: 'SELECT likes FROM episodes WHERE id = 9',
 					expected: [{ likes: 0 }],
 					message: 'Sketches should still have 0 likes.'
 				}
@@ -466,11 +492,12 @@ export const launchInkwell: Module = {
 					expected: [
 						{ title: 'The first parcel' },
 						{ title: 'The locked gate' },
+						{ title: 'The night market' },
 						{ title: 'A seed in the gears' },
 						{ title: 'The clockwork fox' }
 					],
 					message:
-						'Searching “the” should find four episodes, in `id` order. `LIKE` ignores capitals, so “The” counts, and so does “gears” in A seed in the gears.'
+						'Searching “the” should find five episodes, in `id` order. `LIKE` ignores capitals, so “The” counts, and so does “gears” in A seed in the gears.'
 				},
 				{
 					type: 'response-json',
@@ -498,40 +525,34 @@ export const launchInkwell: Module = {
 			xp: 50,
 			boss: true,
 			story:
-				'Monday, 8:59. Theo is refreshing the app store page, and Mina has made coffee for everyone and is pretending not to be nervous. Two things never made it onto the wall: the `/health` check the receptionist wants before it lets anyone in, and the series page, where a reader taps a series and sees its episodes. At 9:00 the doors open, and everything those readers touch is something you built.',
-			task: "Add the last two routes, then let launch day run. Every request has to come back in the 200s.\n\n**`GET /health`**: `{ status: 'ok', app: env.APP_NAME }`.\n\n**`GET /series/:id/episodes`**: the series' published episodes (`id`, `number`, `title`, `likes`), in `number` order.",
-			concept: {
-				title: 'Look how far you’ve come',
+				'Monday, 8:59. Theo is refreshing the app store page, and Mina has made coffee for everyone and is pretending not to be nervous. Two things never made it onto the wall: the `/health` check the receptionist wants before it lets anyone in, and the series page, where a reader taps a series and sees its episodes. At 9:00 the doors open, and the readers won’t all be polite.',
+			task: "Add the last two routes, then let launch day run.\n\n**`GET /health`**: `{ status: 'ok', app: env.APP_NAME }`.\n\n**`GET /series/:id/episodes`**: the series' published episodes (`id`, `number`, `title`, `likes`), in `number` order.\n\nNot every answer should be a 200. A comment with no token should still get its 401, an empty one its 400, and a guessed link to Sketches its 404. The checks look at each request on its own.",
+			outro: {
 				panels: [
 					{
-						who: 'bit',
-						text: 'Remember my first trip? Phone to server and back with a 200, and none of us knew what a 200 was.',
-						scene: 'wire'
-					},
-					{
-						who: 'mina',
-						text: 'Now I know where an episode comes from when I tap it: phone, server, database, and back.',
-						scene: 'phone'
+						who: 'narrator',
+						scene: 'phone',
+						text: '9:00. Then 9:01. The front page loads, The night market gets its second like, Ravi is first in the comments, and a stranger searches “spicy” and stays for both episodes.'
 					},
 					{
 						who: 'theo',
-						text: 'And when someone says “it’s a 502”, I know who to call. Mostly you.',
-						scene: 'cloud'
+						scene: 'cloud',
+						text: 'Fifteen requests in the first minute and not one of them was our fault. Someone even got a 401, and it was the right 401. I’m framing the log.'
 					},
 					{
-						who: 'narrator',
-						text: 'What you built: endpoints, a real SQL database behind them, a phone that calls them, logins with tokens, and settings that live in the environment.',
-						scene: 'none'
+						who: 'mina',
+						scene: 'phone',
+						text: 'My note from publish day is still the first thing under The night market. And now I know the whole trip it takes: phone, server, database, and back.'
 					},
 					{
 						who: 'you',
-						text: 'And the things people say at work, like “the endpoint 404s”, “check the logs” or “that UPDATE had no WHERE”: I can read every one of them now.',
-						scene: 'server'
+						scene: 'server',
+						text: 'Endpoints, a real database behind them, a phone that calls them, logins, settings in the environment. “The endpoint 404s”, “check the logs”, “that UPDATE had no WHERE”: I can read every one of those now.'
 					},
 					{
 						who: 'bit',
-						text: 'One last check, and then the doors open. Ready when you are.',
-						scene: 'server'
+						scene: 'wire',
+						text: 'Remember my first trip? Phone to server and back with a 200, and none of us knew what a 200 was. Doors are open. I’ve got readers to carry.'
 					}
 				]
 			},
@@ -545,19 +566,35 @@ export const launchInkwell: Module = {
 					{ method: 'GET', path: '/health', label: '8:59, the receptionist checks the app' },
 					{ method: 'GET', path: '/series', label: '9:00, the first reader opens the app' },
 					{ method: 'GET', path: '/series/1/episodes', label: 'reader taps Moonlit Deliveries' },
-					{ method: 'GET', path: '/episodes/3', label: 'reader opens The locked gate' },
-					{ method: 'GET', path: '/episodes/3/comments', label: 'reader scrolls to the comments' },
-					{ method: 'PUT', path: '/episodes/3/like', label: 'reader taps ♥' },
+					{ method: 'GET', path: '/episodes/4', label: 'reader opens The night market' },
+					{ method: 'GET', path: '/episodes/4/comments', label: 'reader scrolls to the comments' },
+					{ method: 'PUT', path: '/episodes/4/like', label: 'reader taps ♥' },
 					{
 						method: 'POST',
-						path: '/episodes/3/comments',
+						path: '/episodes/4/comments',
 						headers: RAVI,
-						body: { text: 'Launch day! Still calling it about the gate.' },
+						body: { text: 'Launch day. Reading it all again from the start.' },
 						label: 'Ravi leaves the first launch-day comment'
 					},
+					{
+						method: 'POST',
+						path: '/episodes/4/comments',
+						body: { text: 'how do i comment??' },
+						label: 'a reader with no account tries to comment'
+					},
+					{
+						method: 'POST',
+						path: '/episodes/4/comments',
+						headers: MINA,
+						body: { text: '' },
+						label: 'Mina taps Send by accident (again)'
+					},
 					{ method: 'GET', path: '/search?q=spicy', label: 'a new reader searches “spicy”' },
-					{ method: 'GET', path: '/series/3/episodes', label: 'reader taps Night Shift Noodles' },
-					{ method: 'GET', path: '/episodes/3/comments', label: 'Mina checks the comments' }
+					{ method: 'GET', path: '/series/3/episodes', label: 'they tap Night Shift Noodles' },
+					{ method: 'PUT', path: '/episodes/8/like', label: 'they ♥ Extra spicy' },
+					{ method: 'GET', path: '/episodes/9', label: 'someone guesses the link to episode 9' },
+					{ method: 'GET', path: '/search', label: 'someone taps Search with an empty box' },
+					{ method: 'GET', path: '/episodes/4/comments', label: 'Mina checks the comments' }
 				],
 				{ env: { APP_NAME: 'Inkwell', PORT: '8080' } }
 			),
@@ -572,43 +609,91 @@ export const launchInkwell: Module = {
 						"The receptionist checks `/health` first. It should answer `{ status: 'ok', app: env.APP_NAME }`."
 				},
 				{
-					type: 'all-responses-ok',
-					message:
-						'On launch day every request should come back in the 200s. Look at which one didn’t, and read the log if it says 500.'
+					type: 'response-status',
+					request: 1,
+					status: 200,
+					message: 'The front page from checkpoint 2 should still answer 200.'
 				},
 				{
 					type: 'response-json',
 					request: 2,
-					mode: 'subset',
 					expected: [
-						{ number: 1, title: 'The first parcel' },
-						{ number: 2, title: 'Rain on Pine Street' },
-						{ number: 3, title: 'The locked gate' }
+						{ id: 1, number: 1, title: 'The first parcel', likes: 120 },
+						{ id: 2, number: 2, title: 'Rain on Pine Street', likes: 98 },
+						{ id: 3, number: 3, title: 'The locked gate', likes: 143 },
+						{ id: 4, number: 4, title: 'The night market', likes: 1 }
 					],
 					message:
-						'The Moonlit Deliveries page should list its three published episodes, by `number`. Sketches stays hidden.'
+						'The Moonlit Deliveries page should list its four published episodes by `number`, with `id`, `number`, `title` and `likes`. The new Sketches stays hidden.'
 				},
 				{
 					type: 'response-json',
+					request: 5,
+					expected: { id: 4, likes: 2 },
+					message: 'The ♥ on The night market should take it from 1 like to 2.'
+				},
+				{
+					type: 'response-status',
+					request: 6,
+					status: 201,
+					message: 'Ravi is logged in and wrote something: his comment should be saved with a 201.'
+				},
+				{
+					type: 'response-status',
 					request: 7,
+					status: 401,
+					message:
+						'A reader with no token can’t comment yet: that’s a 401, and it’s the right answer. Don’t let it through.'
+				},
+				{
+					type: 'response-status',
+					request: 8,
+					status: 400,
+					message: 'An empty comment gets a 400 and isn’t saved, launch day or not.'
+				},
+				{
+					type: 'response-json',
+					request: 9,
 					expected: [{ id: 8, title: 'Extra spicy' }],
 					message: 'Searching “spicy” should find Extra spicy.'
 				},
 				{
 					type: 'response-json',
-					request: 9,
+					request: 10,
+					mode: 'subset',
+					expected: [{ title: 'Opening night' }, { title: 'Extra spicy' }],
+					message: 'The Night Shift Noodles page should list Opening night and Extra spicy.'
+				},
+				{
+					type: 'response-status',
+					request: 12,
+					status: 404,
+					message: 'Episode 9 isn’t published yet. Guessing its link should get a 404.'
+				},
+				{
+					type: 'response-status',
+					request: 13,
+					status: 400,
+					message: 'A search with nothing in the box should get a 400.'
+				},
+				{
+					type: 'response-json',
+					request: 14,
 					mode: 'subset',
 					expected: [
-						{ author: 'ravi', text: 'Called it. The gate was never locked.' },
-						{ author: 'ravi', text: 'Launch day! Still calling it about the gate.' }
+						{ author: 'mina', text: 'Finally out. Thank you for waiting.' },
+						{ author: 'ravi', text: 'Worth the wait. The lantern panel.' },
+						{ author: 'ravi', text: 'Launch day. Reading it all again from the start.' }
 					],
-					message: 'Ravi’s launch-day comment should be under episode 3, signed by him.'
+					message:
+						'Under The night market: Mina’s note from publish day, Ravi’s from last week, and his launch-day comment, in that order.'
 				},
 				{
 					type: 'db-rows',
-					sql: 'SELECT likes FROM episodes WHERE id = 3',
-					expected: [{ likes: 144 }],
-					message: 'The ♥ from launch day should be saved: episode 3 at 144 likes.'
+					sql: 'SELECT (SELECT COUNT(*) FROM comments) AS comments, (SELECT likes FROM episodes WHERE id = 4) AS night_market, (SELECT likes FROM episodes WHERE id = 8) AS extra_spicy, (SELECT likes FROM episodes WHERE id = 9) AS sketches',
+					expected: [{ comments: 9, night_market: 2, extra_spicy: 190, sketches: 0 }],
+					message:
+						'At the end of the wave the database should hold exactly one new comment (9 in all), The night market at 2 likes, Extra spicy at 190, and Sketches untouched at 0.'
 				}
 			]
 		}

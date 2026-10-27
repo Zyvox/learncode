@@ -11,13 +11,7 @@
  * The routing rules live in pure functions (`canReach`, `findRoute`, `portAllowed`) so the
  * checks in evaluate.ts judge the final state with exactly the rules the run used.
  */
-import type {
-	Check,
-	NetLink,
-	NetNode,
-	NetWorldSpec,
-	ThemedText
-} from '#lib/curriculum/types.ts';
+import type { Check, NetLink, NetNode, NetWorldSpec, ThemedText } from '#lib/curriculum/types.ts';
 import type { NetResult, TraceEvent } from '../types.ts';
 import { closestName } from '../errors.ts';
 import { CommandError, SpecError, createBase, formatArgs, type World } from '../core.ts';
@@ -211,7 +205,9 @@ export function pathLatency(view: NetView, path: string[]): number {
 	for (let i = 1; i < path.length; i++) {
 		const a = path[i - 1];
 		const b = path[i];
-		const ls = view.links.filter((l) => (l.from === a && l.to === b) || (l.from === b && l.to === a));
+		const ls = view.links.filter(
+			(l) => (l.from === a && l.to === b) || (l.from === b && l.to === a)
+		);
 		ms += Math.min(...ls.map((l) => l.latencyMs ?? DEFAULT_LATENCY_MS));
 	}
 	return ms;
@@ -245,7 +241,11 @@ export function canReach(view: NetView, from: string, to: string, port: number):
 	const target = nodeForHost(view, to);
 	if (!target) return { result: 'unknown host', path: [] };
 	if ('address' in target) {
-		return { result: 'no route', path: view.nodes.some((n) => n.id === from) ? [from] : [], address: target.address };
+		return {
+			result: 'no route',
+			path: view.nodes.some((n) => n.id === from) ? [from] : [],
+			address: target.address
+		};
 	}
 	return reachNode(view, from, target.node.id, port);
 }
@@ -338,7 +338,9 @@ export function matchingRoute(routes: Record<string, string>, path: string): str
 
 export function validateNetSpec(spec: NetWorldSpec): void {
 	if (spec.flavour !== 'network' && spec.flavour !== 'cloud') {
-		throw new SpecError(`net flavour must be network or cloud, got ${JSON.stringify(spec.flavour)}`);
+		throw new SpecError(
+			`net flavour must be network or cloud, got ${JSON.stringify(spec.flavour)}`
+		);
 	}
 	if (!Array.isArray(spec.nodes) || !Array.isArray(spec.links)) {
 		throw new SpecError('net world needs nodes and links arrays');
@@ -694,7 +696,8 @@ export function createNetWorld(spec: NetWorldSpec): NetWorld {
 			const usage = `${tick('listen()')} needs a node id, a port number and a name for the service, like ${tick("listen('inkwell-web', 443, 'reader')")}.`;
 			const n = nodeArg(id, usage, 'listen');
 			const p = portArg(port, usage, 'listen');
-			if (name !== undefined && typeof name !== 'string') fail(usage, 'listen(): name is not a string');
+			if (name !== undefined && typeof name !== 'string')
+				fail(usage, 'listen(): name is not a string');
 			const service = (name as string | undefined)?.trim() || `port ${p}`;
 			(n.listens ??= {})[p] = service;
 			nodeEvent(n, `${service} on ${p}`);
@@ -774,7 +777,8 @@ export function createNetWorld(spec: NetWorldSpec): NetWorld {
 	}
 
 	function countArg(n: unknown, min: number, usage: string, cmd: string): number {
-		if (typeof n !== 'number' || !Number.isInteger(n)) fail(usage, `${cmd}(): count ${sourceOf(n)}`);
+		if (typeof n !== 'number' || !Number.isInteger(n))
+			fail(usage, `${cmd}(): count ${sourceOf(n)}`);
 		if ((n as number) < min || (n as number) > MAX_REPLICAS) {
 			fail(
 				`${tick(`${cmd}()`)} can run between ${min} and ${MAX_REPLICAS} copies of a service. ${tick(String(n))} is outside that.`,
@@ -806,7 +810,14 @@ export function createNetWorld(spec: NetWorldSpec): NetWorld {
 	function removeContainer(c: NetNode) {
 		state.nodes = state.nodes.filter((n) => n !== c);
 		state.links = state.links.filter((l) => l.from !== c.id && l.to !== c.id);
-		push({ t: 'node', id: c.id, state: 'removed', kind: 'container', service: c.service, label: c.image });
+		push({
+			t: 'node',
+			id: c.id,
+			state: 'removed',
+			kind: 'container',
+			service: c.service,
+			label: c.image
+		});
 	}
 
 	const cloudApi = {
@@ -872,13 +883,36 @@ export function createNetWorld(spec: NetWorldSpec): NetWorld {
 			const fresh = images[img];
 			for (const c of containersOf(state.nodes, n)) {
 				if (state.health[n] && fresh.unhealthy) {
-					push({ t: 'node', id: c.id, state: 'unhealthy', kind: 'container', service: n, label: img });
+					push({
+						t: 'node',
+						id: c.id,
+						state: 'unhealthy',
+						kind: 'container',
+						service: n,
+						label: img
+					});
 					note(`${c.id}: new version failed its health check, keeping the old one`);
-					push({ t: 'node', id: c.id, state: c.down ? 'down' : 'up', kind: 'container', service: n, label: c.image });
-					note(`The release of ${tick(img)} stopped there, so ${tick(n)} keeps running ${tick(old)}.`);
+					push({
+						t: 'node',
+						id: c.id,
+						state: c.down ? 'down' : 'up',
+						kind: 'container',
+						service: n,
+						label: c.image
+					});
+					note(
+						`The release of ${tick(img)} stopped there, so ${tick(n)} keeps running ${tick(old)}.`
+					);
 					return 'kept the old version';
 				}
-				push({ t: 'node', id: c.id, state: 'removed', kind: 'container', service: n, label: c.image });
+				push({
+					t: 'node',
+					id: c.id,
+					state: 'removed',
+					kind: 'container',
+					service: n,
+					label: c.image
+				});
 				c.image = img;
 				c.capacity = fresh.capacity ?? DEFAULT_CAPACITY;
 				if (fresh.unhealthy) c.unhealthy = true;
@@ -896,7 +930,14 @@ export function createNetWorld(spec: NetWorldSpec): NetWorld {
 			state.health[n] = path as string;
 			for (const c of containersOf(state.nodes, n)) {
 				if (c.unhealthy && !c.down) {
-					push({ t: 'node', id: c.id, state: 'unhealthy', kind: 'container', service: n, label: c.image });
+					push({
+						t: 'node',
+						id: c.id,
+						state: 'unhealthy',
+						kind: 'container',
+						service: n,
+						label: c.image
+					});
 				}
 			}
 		}),
@@ -971,7 +1012,14 @@ export function createNetWorld(spec: NetWorldSpec): NetWorld {
 							dropAt = c.id;
 							if (!busy.has(c.id)) {
 								busy.add(c.id);
-								push({ t: 'node', id: c.id, state: 'busy', kind: 'container', service, label: c.image });
+								push({
+									t: 'node',
+									id: c.id,
+									state: 'busy',
+									kind: 'container',
+									service,
+									label: c.image
+								});
 							}
 						} else if (c.unhealthy) {
 							served.set(c.id, used + 1);
@@ -1054,8 +1102,7 @@ export function batchSummary(
 	const bad = Object.entries(statuses)
 		.filter(([s]) => s !== '200')
 		.sort((a, b) => b[1] - a[1]);
-	const why =
-		bad.length === 1 ? bad[0][0] : bad.map(([s, n]) => `${n} × ${s}`).join(', ');
+	const why = bad.length === 1 ? bad[0][0] : bad.map(([s, n]) => `${n} × ${s}`).join(', ');
 	return `${head}, ${ok} ok, ${count - ok} failed (${why})`;
 }
 
@@ -1181,7 +1228,9 @@ export function netCheckFails(
 			const n = view.nodes.find((x) => x.id === check.id);
 			if (!n) return msg(`There's no ${tick(check.id)} in the picture.`);
 			if (check.up === undefined || !n.down === check.up) return null;
-			return msg(check.up ? `${tick(check.id)} is still down.` : `${tick(check.id)} is still running.`);
+			return msg(
+				check.up ? `${tick(check.id)} is still down.` : `${tick(check.id)} is still running.`
+			);
 		}
 		case 'net-allows': {
 			const n = view.nodes.find((x) => x.id === check.id);
@@ -1197,7 +1246,9 @@ export function netCheckFails(
 			const all = containersOf(view.nodes, check.service);
 			const healthy = all.filter(isHealthy).length;
 			const sick = all.length - healthy;
-			const extra = sick ? ` (${sick} more ${plural(sick, "is", 'are')} down or failing ${plural(sick, 'its', 'their')} health check)` : '';
+			const extra = sick
+				? ` (${sick} more ${plural(sick, 'is', 'are')} down or failing ${plural(sick, 'its', 'their')} health check)`
+				: '';
 			if (healthy < check.min) {
 				return msg(
 					all.length === 0
