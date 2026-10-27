@@ -104,7 +104,7 @@ export interface GitState {
 	previous: string | null;
 }
 
-export type GitWorld = World & {
+export type GitWorld = Omit<World, 'finish' | 'executeSource'> & {
 	kind: 'git';
 	state: GitState;
 	/** Runs the learner's script: one command per line. */
@@ -374,7 +374,7 @@ export function createGitWorld(spec: GitWorldSpec): GitWorld {
 		return best;
 	}
 
-	function changedCount(before: Files, after: Files): string[] {
+	function changedPaths(before: Files, after: Files): string[] {
 		return sorted([...Object.keys(before), ...Object.keys(after)]).filter(
 			(p) => before[p] !== after[p]
 		);
@@ -404,7 +404,7 @@ export function createGitWorld(spec: GitWorldSpec): GitWorld {
 	function moveTo(target: string | null | undefined): string[] {
 		const h = headTree();
 		const t = treeOf(target);
-		const changed = changedCount(h, t);
+		const changed = changedPaths(h, t);
 		const blocked = changed.filter((p) => state.index[p] !== h[p] || state.files[p] !== h[p]);
 		if (blocked.length) return blocked;
 		for (const p of changed) {
@@ -666,7 +666,7 @@ export function createGitWorld(spec: GitWorldSpec): GitWorld {
 		state.branches[branchName()] = id;
 		state.head = { branch: branchName(), commit: id };
 		state.merging = null;
-		const n = changedCount(before, state.index).length;
+		const n = changedPaths(before, state.index).length;
 		const first = message.split('\n')[0];
 		return done(`[${branchName()}${root} ${id}] ${first}` + (n ? '\n' + filesChanged(n) : ''));
 	}
@@ -884,7 +884,7 @@ export function createGitWorld(spec: GitWorldSpec): GitWorld {
 		}
 
 		if (ff && isAncestor(state.commits, ours, theirs)) {
-			const changed = changedCount(headTree(), treeOf(theirs));
+			const changed = changedPaths(headTree(), treeOf(theirs));
 			const blocked = moveTo(theirs);
 			if (blocked.length) return fail(blockedMessage(blocked, 'merging'));
 			state.branches[branchName()] = theirs;
@@ -925,7 +925,7 @@ export function createGitWorld(spec: GitWorldSpec): GitWorld {
 		const clobbered = untrackedPaths().filter((p) => p in result && result[p] !== state.files[p]);
 		if (clobbered.length) return fail(blockedMessage(clobbered, 'merging'));
 
-		for (const p of changedCount(o, result)) {
+		for (const p of changedPaths(o, result)) {
 			if (result[p] === undefined) {
 				delete state.files[p];
 				delete state.index[p];
@@ -961,7 +961,7 @@ export function createGitWorld(spec: GitWorldSpec): GitWorld {
 		const id = addCommit([ours, theirs], message ?? `Merge branch '${name}'`, dict(state.index));
 		state.branches[branchName()] = id;
 		state.head = { branch: branchName(), commit: id };
-		const n = changedCount(before, state.index).length;
+		const n = changedPaths(before, state.index).length;
 		return done(
 			[
 				...autoMerged.map((p) => `Auto-merging ${p}`),

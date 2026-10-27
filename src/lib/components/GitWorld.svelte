@@ -203,19 +203,17 @@
 			row.done = true;
 			scrollDown();
 
-			if (ev.ok !== false) {
-				let fresh: string | undefined;
-				if (makesCommit(cmd, row.output, true) && shown < all.length) {
-					fresh = all[shown].id;
-					shown++;
-					commits = all.slice(0, shown);
-				}
-				try {
-					applyCommand(live, cmd, row.output, fresh);
-					show(live);
-				} catch {
-					// A guess went wrong; the final picture will put it right.
-				}
+			let fresh: string | undefined;
+			if (makesCommit(cmd, row.output, row.ok) && shown < all.length) {
+				fresh = all[shown].id;
+				shown++;
+				commits = all.slice(0, shown);
+			}
+			try {
+				applyCommand(live, cmd, row.output, fresh, row.ok);
+				show(live);
+			} catch {
+				// A guess went wrong; the final picture will put it right.
 			}
 			if (!(await wait(step * 1.4, token, instant))) return;
 		}

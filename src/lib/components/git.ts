@@ -148,11 +148,22 @@ export function makesCommit(cmd: string, output: string, ok: boolean): boolean {
 }
 
 /**
- * Applies one successful command to the live picture. Only file statuses, branches and HEAD;
- * new commits are revealed by the caller from the final result. Unknown commands do nothing.
+ * Applies one command to the live picture. Only file statuses, branches and HEAD; new commits
+ * are revealed by the caller from the final result. Unknown commands do nothing, and failed
+ * ones too, except a merge that stopped on a conflict (its files need fixing).
  */
-export function applyCommand(state: LiveState, cmd: string, output: string, newCommit?: string) {
+export function applyCommand(
+	state: LiveState,
+	cmd: string,
+	output: string,
+	newCommit?: string,
+	ok = true
+) {
 	const { args, redirect } = tokenize(cmd);
+	if (!ok) {
+		if (args[0] === 'git' && args[1] === 'merge') markConflicts(state, output);
+		return;
+	}
 	const tracked = (s: FileStatus | undefined) => !!s && s !== 'untracked';
 	const touch = (path: string) => {
 		const cur = state.files.get(path);
@@ -227,10 +238,17 @@ export function applyCommand(state: LiveState, cmd: string, output: string, newC
 			else if (other && /fast[- ]forward/i.test(output) && state.branches[other]) {
 				moveHead(state, state.branches[other]);
 			}
-			const conflicted = [...output.matchAll(/conflict[^\n]*?\bin\s+([^\s]+)/gi)].map((m) => m[1]);
-			for (const p of conflicted) state.files.set(p, 'conflict');
+			markConflicts(state, output);
 			break;
 		}
+	}
+}
+
+/** "CONFLICT (content): Merge conflict in story.md" → story.md needs fixing. */
+function markConflicts(state: LiveState, output: string) {
+	for (const m of output.matchAll(/CONFLICT \([^)]*\): (?:Merge conflict in (\S+)|(\S+) was deleted)/g)) {
+		const p = m[1] ?? m[2];
+		if (p) state.files.set(p, 'conflict');
 	}
 }
 

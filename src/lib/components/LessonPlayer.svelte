@@ -176,11 +176,8 @@
 	}
 
 	/** Net commands exist in one flavour (network or cloud) or both. */
-	function inFlavour(c: CommandDoc, flavour: string): boolean {
-		const d = c as CommandDoc & { flavours?: string[]; flavour?: string };
-		const list = d.flavours ?? (d.flavour ? [d.flavour] : (d.roles as string[] | undefined));
-		return !list || list.includes(flavour);
-	}
+	const inFlavour = (c: CommandDoc, flavour: 'network' | 'cloud') =>
+		!c.flavours || c.flavours.includes(flavour);
 
 	const cheatItems = $derived.by((): CheatItem[] => {
 		const w = world;
