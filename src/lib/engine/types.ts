@@ -60,12 +60,81 @@ export type TraceEvent =
 	/** The server answered request `id` */
 	| { t: 'response'; id: number; status: number; body: unknown }
 	/** The phone screen shows something (show() on the client, or the auto-rendered response) */
-	| { t: 'screen'; item: ScreenItem };
+	| { t: 'screen'; item: ScreenItem }
+	/* ---- net world ---- */
+	/** Something travelled from one node to another. `hops` is the path taken; ok=false means it was dropped at `at`. */
+	| {
+			t: 'packet';
+			from: string;
+			to: string;
+			label: string;
+			ok: boolean;
+			hops: string[];
+			at?: string;
+			status?: number;
+	  }
+	/** A node changed: came up, went down, got busy, was added (cloud deploy) or removed */
+	| {
+			t: 'node';
+			id: string;
+			state: 'up' | 'down' | 'busy' | 'added' | 'removed' | 'unhealthy';
+			label?: string;
+			kind?: string;
+			service?: string;
+	  }
+	/** The learner's call and what it returned, e.g. "connect('10.0.0.5', 443)" → "open" */
+	| { t: 'call'; call: string; result: string }
+	/* ---- git world ---- */
+	/** One shell line ran. `output` is what the terminal printed. */
+	| { t: 'shell'; cmd: string; output: string; ok: boolean };
+
+export interface NetResult {
+	/** Final nodes (after allow/block/deploy/scale), same shape as the spec's */
+	nodes: import('#lib/curriculum/types.ts').NetNode[];
+	links: import('#lib/curriculum/types.ts').NetLink[];
+	dns: Record<string, string>;
+	/** Every call the learner made and its stringified result, in order */
+	calls: { call: string; result: string }[];
+	/** cloud: routes on the load balancer, path -> service */
+	routes: Record<string, string>;
+	/** cloud: traffic outcome */
+	traffic: { total: number; ok: number; failed: number; byStatus: Record<number, number> };
+}
+
+export interface GitCommit {
+	id: string;
+	message: string;
+	parents: string[];
+	author: string;
+	/** Snapshot of files at this commit */
+	files: Record<string, string>;
+}
+
+export interface GitResult {
+	/** Working folder */
+	files: Record<string, string>;
+	staged: string[];
+	modified: string[];
+	untracked: string[];
+	commits: GitCommit[];
+	/** branch name -> commit id */
+	branches: Record<string, string>;
+	head: { branch: string | null; commit: string | null };
+	/** Every command and its output, in order (also in trace) */
+	terminal: { cmd: string; output: string; ok: boolean }[];
+	initialized: boolean;
+}
 
 export type ScreenItem =
 	| { kind: 'text'; text: string }
 	| { kind: 'json'; value: unknown }
-	| { kind: 'error'; status: number; text: string };
+	| { kind: 'error'; status: number; text: string }
+	/**
+	 * renderHtml lessons: the phone "rendered" this text as HTML. `scripted` means a <script>
+	 * tag was in it: the simulated XSS. The UI shows the text with tags stripped and, when
+	 * scripted, a "a script just ran on the reader's phone" overlay. Never inject the raw text.
+	 */
+	| { kind: 'html'; raw: string; scripted: boolean };
 
 export interface SimResponse {
 	id: number;
@@ -126,6 +195,10 @@ export interface RunResult {
 	draws?: DrawOp[];
 	/** Everything the web world produced, when the world is 'web' */
 	web?: WebResult;
+	/** net world (networks and cloud) */
+	net?: NetResult;
+	/** git world */
+	git?: GitResult;
 	/** Number of world commands executed */
 	steps: number;
 	timedOut: boolean;

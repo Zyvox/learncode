@@ -121,9 +121,93 @@ export interface WebWorldSpec {
 	show?: ('client' | 'server' | 'database')[];
 	/** Simulated conditions for predict/story levels */
 	serverDown?: boolean;
+	/** Security lessons: the server's database connection may only read (db.run on writes fails) */
+	dbReadOnly?: boolean;
+	/**
+	 * Security lessons: the phone renders text as HTML, like a careless app would. Text that
+	 * contains a <script> tag produces a 'scripted' screen item (the simulated XSS).
+	 */
+	renderHtml?: boolean;
+	/** Security lessons: requests arrive over plain http (headers can be read on the wire) */
+	plainHttp?: boolean;
 }
 
-export type WorldSpec = GridWorldSpec | ConsoleWorldSpec | CanvasWorldSpec | WebWorldSpec;
+/* ------------------------------------------------------------------------------------------ */
+/* net world: a small network (or a cloud region) drawn as nodes and wires. See docs/INFRA.md  */
+/* ------------------------------------------------------------------------------------------ */
+
+export type NetNodeKind =
+	| 'laptop'
+	| 'phone'
+	| 'router'
+	| 'dns'
+	| 'server'
+	| 'firewall'
+	| 'lb'
+	| 'db'
+	| 'cloud'
+	| 'container';
+
+export interface NetNode {
+	id: string;
+	kind: NetNodeKind;
+	/** Shown under the icon; defaults to id */
+	label?: string;
+	ip?: string;
+	/** Services listening: port -> name, e.g. { 443: 'inkwell reader', 22: 'ssh' } */
+	listens?: Record<number, string>;
+	/** Inbound ports this node (or firewall) lets through. undefined = everything. */
+	allow?: number[];
+	/** The machine is switched off / crashed */
+	down?: boolean;
+	/** cloud: how many requests one container handles per traffic batch before it starts failing */
+	capacity?: number;
+	/** cloud: the image a container runs */
+	image?: string;
+	/** cloud: the service name a container belongs to */
+	service?: string;
+	/** cloud: fails health checks */
+	unhealthy?: boolean;
+}
+
+export interface NetLink {
+	from: string;
+	to: string;
+	latencyMs?: number;
+}
+
+export interface NetWorldSpec {
+	kind: 'net';
+	/** 'network': lookup/ping/connect/trace/allow… ; 'cloud': deploy/scale/route/traffic… */
+	flavour: 'network' | 'cloud';
+	nodes: NetNode[];
+	links: NetLink[];
+	/** DNS records the dns node knows: name -> ip */
+	dns?: Record<string, string>;
+	/** The node the learner's code runs on (network flavour), or the client that sends traffic (cloud) */
+	at: string;
+	/** cloud: images that can be deployed. capacity = requests per batch one container handles */
+	images?: Record<string, { port: number; capacity?: number; unhealthy?: boolean }>;
+	/** cloud: traffic fired after the learner's code: batches of requests to a path via the lb */
+	traffic?: { count: number; path: string; label?: string }[];
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* git world: a working folder, a staging area and a history, driven by a tiny shell           */
+/* ------------------------------------------------------------------------------------------ */
+
+export interface GitWorldSpec {
+	kind: 'git';
+	/** Files in the working folder before anything runs */
+	files?: Record<string, string>;
+	/** Shell lines run before the learner's (e.g. 'git init', 'git add .', 'git commit -m "start"') */
+	setup?: string;
+	/** Name used as the commit author */
+	user?: string;
+}
+
+export type WorldSpec =
+	GridWorldSpec | ConsoleWorldSpec | CanvasWorldSpec | WebWorldSpec | NetWorldSpec | GitWorldSpec;
 export type WorldKind = WorldSpec['kind'];
 
 /**
@@ -194,7 +278,54 @@ export type Check =
 	/** Every db query that ran used bound parameters (no user-derived values glued into SQL). Approximated: no query text contains a value from req.params/query/body. */
 	| { type: 'queries-parameterized'; message?: ThemedText }
 	/** At most N queries ran in total (nudges away from N+1) */
-	| { type: 'max-queries'; count: number; message?: ThemedText };
+	| { type: 'max-queries'; count: number; message?: ThemedText }
+	/* ---- web world: security ---- */
+	/** No screen item was rendered with a script in it (renderHtml lessons) */
+	| { type: 'screen-no-script'; message?: ThemedText }
+	/** No log line contains this text (secrets in logs) */
+	| { type: 'log-excludes'; text: string; message?: ThemedText }
+	/** A response body contains no raw <script (the server escaped/stripped it) */
+	| { type: 'response-no-script'; request: number; message?: ThemedText }
+	/* ---- net world ---- */
+	/** At the end, `from` can reach `to` on `port` (route exists, not blocked, service listening) */
+	| { type: 'net-reachable'; from: string; to: string; port: number; message?: ThemedText }
+	| { type: 'net-unreachable'; from: string; to: string; port: number; message?: ThemedText }
+	/** The dns node resolves `name` to `ip` */
+	| { type: 'net-resolves'; name: string; ip: string; message?: ThemedText }
+	/** A node ended in this state */
+	| { type: 'net-node'; id: string; up?: boolean; message?: ThemedText }
+	/** A firewall/node allows (or does not allow) a port */
+	| { type: 'net-allows'; id: string; port: number; allowed: boolean; message?: ThemedText }
+	/** cloud: a service has at least N (healthy) running containers */
+	| { type: 'cloud-replicas'; service: string; min: number; max?: number; message?: ThemedText }
+	/** cloud: the load balancer routes `path` to `service` */
+	| { type: 'cloud-route'; path: string; service: string; message?: ThemedText }
+	/** cloud: share of traffic requests that got a 200, e.g. min 0.95 */
+	| { type: 'cloud-success-rate'; min: number; message?: ThemedText }
+	/** One of the learner's calls returned this (stringified) result, e.g. lookup -> '10.0.0.5' */
+	| { type: 'net-call-result'; call: string; result: string; message?: ThemedText }
+	/* ---- git world ---- */
+	| { type: 'git-commits'; min?: number; max?: number; message?: ThemedText }
+	| { type: 'git-branch'; name: string; exists?: boolean; message?: ThemedText }
+	| { type: 'git-head'; branch: string; message?: ThemedText }
+	/** A file in the working folder (committed: in HEAD's tree) contains/equals text */
+	| {
+			type: 'git-file';
+			path: string;
+			includes?: string;
+			equals?: string;
+			committed?: boolean;
+			exists?: boolean;
+			message?: ThemedText;
+	  }
+	/** Nothing unstaged, nothing untracked */
+	| { type: 'git-clean'; message?: ThemedText }
+	/** `branch` has been merged into `into` (its tip is an ancestor of `into`) */
+	| { type: 'git-merged'; branch: string; into: string; message?: ThemedText }
+	/** Some commit message contains this text */
+	| { type: 'git-message-includes'; text: string; message?: ThemedText }
+	/** Output of some shell command contained this text */
+	| { type: 'shell-output-includes'; text: string; message?: ThemedText };
 
 export type LessonKind =
 	/** Write code from a starter to satisfy checks */
@@ -243,8 +374,16 @@ export interface LessonBase {
 		/** Webtoon-style strip. When present the UI shows it instead of (or above) `body`. */
 		panels?: Panel[];
 	};
-	/** Language in the editor. Default 'js'. 'sql' lessons use the web world in the sql role. */
-	language?: 'js' | 'sql';
+	/**
+	 * Language in the editor. Default 'js'. 'sql' lessons use the web world in the sql role;
+	 * 'shell' lessons use the git world (one command per line).
+	 */
+	language?: 'js' | 'sql' | 'shell';
+	/**
+	 * Shown after the level is cleared (bosses especially): the story beat that happens
+	 * because of what the learner just did. Panels render as a strip, text as prose.
+	 */
+	outro?: { text?: ThemedText; panels?: Panel[] };
 	/** Progressive hints. Last hint may be the full solution with a nudge to retry next time. */
 	hints: ThemedText[];
 	/** Commands introduced here (shown in the cheat sheet from now on), e.g. ['move()', 'turnLeft()'] */

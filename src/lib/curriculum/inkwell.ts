@@ -75,6 +75,40 @@ INSERT INTO sessions (token, user_id) VALUES
   ('tok_mina_123', 1);
 `;
 
+/* ------------------------------------------------------------------------------------------ */
+/* Story stages: the seeds move with the story (see docs/INFRA.md, "Inkwell remembers").       */
+/* ------------------------------------------------------------------------------------------ */
+
+/** After the module 7 boss: episode 4 is published as "The night market", with the learner's comment. */
+export const STAGE_PUBLISHED = `
+UPDATE episodes SET published = 1, title = 'The night market' WHERE id = 4;
+INSERT INTO comments (id, episode_id, author, text, created_at) VALUES
+  (6, 4, 'mina', 'Finally out. Thank you for waiting.', '2026-10-08');
+`;
+
+/** After module 9: readers have been commenting and liking through the learner's endpoints. */
+export const STAGE_LIVE = `
+INSERT INTO comments (id, episode_id, author, text, created_at) VALUES
+  (7, 4, 'ravi', 'Worth the wait. The lantern panel.', '2026-10-09'),
+  (8, 8, 'june_b', 'Extra spicy, as promised.', '2026-10-09');
+UPDATE episodes SET likes = likes + 1 WHERE id IN (4, 8);
+INSERT INTO sessions (token, user_id) VALUES ('tok_ravi_456', 2);
+`;
+
+export type InkwellStage = 'start' | 'published' | 'live';
+
+/**
+ * The reading-side schema at a point in the story. Modules 1–7 use 'start', 8–9 'published',
+ * 10+ 'live'. Every stage includes the stages before it.
+ */
+export function INKWELL_AT(stage: InkwellStage, withUsers = false): string {
+	const parts = [CREATE_TABLES, SEED_SERIES, SEED_EPISODES, SEED_COMMENTS];
+	if (withUsers || stage === 'live') parts.push(SEED_USERS);
+	if (stage === 'published' || stage === 'live') parts.push(STAGE_PUBLISHED);
+	if (stage === 'live') parts.push(STAGE_LIVE);
+	return parts.join('\n');
+}
+
 /** Everything: tables and all seed rows. */
 export const INKWELL_SCHEMA = [
 	CREATE_TABLES,

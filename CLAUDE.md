@@ -30,6 +30,14 @@ and the contracts between them.
 - Keep dependencies minimal. Prefer inline SVG / emoji over icon packages.
 - Tests: `*.test.ts` next to the code. `npm test` must stay green.
 
+## Suggestions from contributors and agents
+
+If you notice an improvement outside your task (a better abstraction, a lesson that would land
+better, a UI rough edge, a missing test), do not implement it. Put it in a **Suggestions** section
+at the end of your report: what, why, and what it would cost. The orchestrator compares it with
+what exists and decides; many good suggestions are declined because the current thing is good
+enough. Never widen your scope because a suggestion felt obvious.
+
 ## Commands
 
 ```
