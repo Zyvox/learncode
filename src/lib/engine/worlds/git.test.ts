@@ -936,7 +936,7 @@ describe('git checks', () => {
 		const c: Check = { type: 'git-clean' };
 		expect(await check('ls', committed(), c)).toEqual([]);
 		expect(await check('echo x > a.txt\necho y > b.txt', committed(), c)).toEqual([
-			"`a.txt` (and 1 more) aren't in the history yet: `git add` then `git commit` put it there."
+			"`a.txt` (and 1 more) aren't in the history yet: `git add` then `git commit` put them there."
 		]);
 		expect(await check('echo x >> notes.txt', committed(), c)).toEqual([
 			"`notes.txt` has changes that aren't committed. `git add notes.txt` then `git commit` saves them (or `git restore notes.txt` throws them away)."
