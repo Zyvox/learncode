@@ -1,9 +1,24 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
+// `Locals` is the contract from docs/ARCHITECTURE.md; it is set in src/hooks.server.ts.
+import type { ThemeId } from '#lib/curriculum/types.ts';
+
 declare global {
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			user: null | {
+				id: number;
+				email: string;
+				displayName: string;
+				themeId: ThemeId;
+				xp: number;
+				/** Current streak: 0 if the last active day is older than yesterday (UTC). */
+				streak: number;
+				createdAt: string;
+			};
+			/** `id` is the hashed session id (not the cookie token). */
+			session: null | { id: string; expiresAt: Date };
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
