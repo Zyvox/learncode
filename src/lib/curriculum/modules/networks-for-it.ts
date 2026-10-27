@@ -70,7 +70,7 @@ export const networksForIt: Module = {
 			title: 'A name is not an address',
 			xp: 15,
 			story:
-				'Mina has typed `inkwell.app` into her browser a thousand times. This morning she asks the question nobody in the studio can answer: how does her laptop know where that *is*? Her laptop is on the left of the picture. Inkwell’s server is far over on the right.',
+				'Mina has typed `inkwell.app` into her browser a thousand times. This morning she asks the question nobody in the studio can answer: how does her laptop know where that is? Her laptop is on the left of the picture. Inkwell’s server is far over on the right.',
 			task: 'Ask the DNS server for the address behind `inkwell.app` and log it. Then look up `inkwel.app` (one `l`, the way Mina types it before coffee) and log that too.',
 			concept: {
 				title: 'The phone book of the internet',
@@ -186,7 +186,7 @@ log(ping('inkwell.app'))
 			task: 'Knock on door 443 and door 8080 of `inkwell.app`, and log both answers.',
 			concept: {
 				title: 'One machine, many doors',
-				body: 'A server runs several programs that talk to the network, and each one waits behind its own numbered door: a **port**. Door 443 is HTTPS, where the reader app lives. Door 22 is SSH, how admins like Jun log in to the machine from far away. Door 5432 is usually a Postgres database.\n\n`connect(host, port)` knocks on one door. `\'open\'` means a program answered. `\'closed\'` means you got all the way to the machine, but nobody is behind that door.'
+				body: "A server runs several programs that talk to the network, and each one waits behind its own numbered door: a **port**. Door 443 is HTTPS, where the reader app lives. Door 22 is SSH, how admins like Jun log in to the machine from far away. Door 5432 is usually a Postgres database.\n\n`connect(host, port)` knocks on one door. `'open'` means a program answered. `'closed'` means you got all the way to the machine, but nobody is behind that door."
 			},
 			newCommands: ['connect(host, port)'],
 			hints: [
@@ -278,7 +278,7 @@ log(connect('inkwell-db', 5432))
 			],
 			answer: 2,
 			explanation:
-				'`inkwell-fw` only has 443 on its list. The knocks on 22 and 5432 are dropped right there, without a reply: `filtered`. Not `closed`, because something *is* listening behind both doors; Mina’s knock just never got near them. That’s the firewall doing its job: Jun’s admin door and the database are for Inkwell’s own machines, not for anyone with a laptop. When a door you *need* comes back `filtered`, the fix is on a firewall’s list, not on the server.',
+				'`inkwell-fw` only has 443 on its list. The knocks on 22 and 5432 are dropped right there, without a reply: `filtered`. Not `closed`, because something **is** listening behind both doors; Mina’s knock just never got near them. That’s the firewall doing its job: Jun’s admin door and the database are for Inkwell’s own machines, not for anyone with a laptop. When a door you **need** comes back `filtered`, the fix is on a firewall’s list, not on the server.',
 			hints: [
 				'Look at `inkwell-fw` in the picture. Which ports are on its list?',
 				'A firewall that says no doesn’t send anything back. Which answer means “dropped on the way”?'
@@ -422,7 +422,7 @@ log(ping('office-fw'))
 			task: 'Point `inkwell.app` at the new server, and check that door 443 answers.',
 			newCommands: ['addRecord(name, ip)'],
 			hints: [
-				'Run it and look at the two answers. The name turns into *an* address, and that address has a door 443 with nobody behind it. Whose address is `203.0.113.1`? Find it in the picture.',
+				'Run it and look at the two answers. The name turns into **an** address, and that address has a door 443 with nobody behind it. Whose address is `203.0.113.1`? Find it in the picture.',
 				'`203.0.113.1` is `inkwell-fw`, the firewall, not the server. The server is `203.0.113.10`: one digit, one very different machine.',
 				"```js\naddRecord('inkwell.app', '203.0.113.10')\n\nlog(lookup('inkwell.app'))\nlog(connect('inkwell.app', 443))\n```"
 			],
@@ -443,7 +443,14 @@ log(connect('inkwell.app', 443))
 `,
 			checks: [
 				{ type: 'net-resolves', name: 'inkwell.app', ip: '203.0.113.10' },
-				{ type: 'net-reachable', from: 'laptop', to: 'inkwell.app', port: 443 }
+				{
+					type: 'net-reachable',
+					from: 'laptop',
+					to: 'inkwell.app',
+					port: 443,
+					message:
+						'Door 443 still doesn’t answer at the address `inkwell.app` leads to. The reader app runs on `inkwell-web`: that’s the address the name needs.'
+				}
 			]
 		},
 		{

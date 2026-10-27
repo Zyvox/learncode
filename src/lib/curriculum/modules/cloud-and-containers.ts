@@ -169,7 +169,7 @@ route('/', 'reader')
 			newCommands: ['scale(name, count)'],
 			hints: [
 				'Run it and read the log: ten readers get in, thirty get `503`. One copy serves ten at a time.',
-				'Forty readers, ten each. How many copies is that? Add `scale(\'reader\', …)` after the `deploy`.',
+				"Forty readers, ten each. How many copies is that? Add `scale('reader', …)` after the `deploy`.",
 				"```js\ndeploy('reader', { image: 'reader:1.0', replicas: 1 })\nscale('reader', 4)\nroute('/', 'reader')\n```"
 			],
 			world: region({ traffic: [{ count: 40, path: '/episodes/5', label: 'episode 5 drops' }] }),
@@ -202,7 +202,7 @@ route('/', 'reader')
 			task: 'Deploy `comments:1.0` as a service called `comments`, and send `/comments` to it. Reading (`/episodes/…`) stays with `reader`.',
 			concept: {
 				title: 'The longest match wins',
-				body: 'The load balancer looks at the start of each path. `/comments/5` starts with `/`, and it also starts with `/comments`. When more than one route fits, the **longest one wins**, so `/comments/5` goes to `comments` and everything else falls through to `/`.\n\nThat makes `route(\'/\', …)` the catch-all: whatever no other route claims ends up there.'
+				body: "The load balancer looks at the start of each path. `/comments/5` starts with `/`, and it also starts with `/comments`. When more than one route fits, the **longest one wins**, so `/comments/5` goes to `comments` and everything else falls through to `/`.\n\nThat makes `route('/', …)` the catch-all: whatever no other route claims ends up there."
 			},
 			hints: [
 				'Two lines, in the same shape as the reader’s: a `deploy` with the comments image, then a `route` for `/comments`.',
@@ -267,7 +267,7 @@ route('/', 'reader')
 			],
 			answer: 1,
 			explanation:
-				'A crashed container is easy to spot: nothing answers at all, so the load balancer stops sending readers there and shares them between `reader-2` and `reader-3`, five each, well inside their ten. Nobody notices. With only one copy, that same crash means every reader gets `503`, because there’s nobody left to answer. That’s the other reason to run more than one copy: not just for crowds, but so one crash isn’t an outage. (A copy that is up but *broken* is harder to spot. That’s next.)',
+				'A crashed container is easy to spot: nothing answers at all, so the load balancer stops sending readers there and shares them between `reader-2` and `reader-3`, five each, well inside their ten. Nobody notices. With only one copy, that same crash means every reader gets `503`, because there’s nobody left to answer. That’s the other reason to run more than one copy: not just for crowds, but so one crash isn’t an outage. (A copy that is up but **broken** is harder to spot. That’s next.)',
 			hints: [
 				'Would a receptionist keep sending visitors to an empty office?',
 				'Two copies are left, ten readers arrive, and each copy serves ten. Is that enough?'
@@ -318,7 +318,7 @@ route('/', 'reader')
 			newCommands: ['release(name, image)', 'health(name, path)'],
 			hints: [
 				'Run it. Every reader gets `500`: the release swapped all three copies to 1.2, and 1.2 is broken.',
-				"Add `health('reader', '/health')` somewhere *before* the `release` line. Order matters: a check set after the release is too late to stop it.",
+				"Add `health('reader', '/health')` somewhere **before** the `release` line. Order matters: a check set after the release is too late to stop it.",
 				"```js\ndeploy('reader', { image: 'reader:1.1', replicas: 3 })\nroute('/', 'reader')\nhealth('reader', '/health')\n\nrelease('reader', 'reader:1.2')\n```"
 			],
 			world: region({ traffic: [{ count: 20, path: '/episodes/5', label: 'readers' }] }),
@@ -338,7 +338,7 @@ release('reader', 'reader:1.2')
 					type: 'cloud-success-rate',
 					min: 0.95,
 					message:
-						'Readers still aren’t getting the app. The health check has to be in place *before* the release, so the broken version is caught at the first container.'
+						'Readers still aren’t getting the app. The health check has to be in place **before** the release, so the broken version is caught at the first container.'
 				},
 				{
 					type: 'log-includes',
@@ -355,11 +355,11 @@ release('reader', 'reader:1.2')
 			title: 'Settings live outside the box',
 			xp: 20,
 			story:
-				'For a test, Jun built `reader:1.1-local` on his laptop, with the database address typed right into the code: `postgres://localhost:5432/inkwell`. On his laptop the database *is* `localhost`. In the cloud, `localhost` means “this very container”, and there’s no database in there.',
+				'For a test, Jun built `reader:1.1-local` on his laptop, with the database address typed right into the code: `postgres://localhost:5432/inkwell`. On his laptop the database **is** `localhost`. In the cloud, `localhost` means “this very container”, and there’s no database in there.',
 			task: 'Deploy the plain `reader:1.1` image instead, and give the `reader` service its database address from the outside: `DB_URL` should be `postgres://inkwell-db:5432/inkwell`.',
 			concept: {
 				title: 'Same box, different settings',
-				body: 'Remember `env.DB_PATH` from Shipping it? Same idea, one level up. An image should be identical everywhere: on Jun’s laptop, in a test region, in `eu-west`. Whatever changes from place to place, like where the database is, goes in from the outside as a setting:\n```js\nenv(\'reader\', \'DB_URL\', \'postgres://inkwell-db:5432/inkwell\')\n```\nThe service has to exist before it can get settings, so `env()` comes after `deploy()`.'
+				body: "Remember `env.DB_PATH` from Shipping it? Same idea, one level up. An image should be identical everywhere: on Jun’s laptop, in a test region, in `eu-west`. Whatever changes from place to place, like where the database is, goes in from the outside as a setting:\n```js\nenv('reader', 'DB_URL', 'postgres://inkwell-db:5432/inkwell')\n```\nThe service has to exist before it can get settings, so `env()` comes after `deploy()`."
 			},
 			newCommands: ['env(name, key, value)'],
 			hints: [
@@ -393,7 +393,8 @@ route('/', 'reader')
 				},
 				{
 					type: 'code-includes',
-					pattern: 'env\\s*\\(\\s*[\'"]reader[\'"]\\s*,\\s*[\'"]DB_URL[\'"]\\s*,\\s*[\'"][^\'"]*inkwell-db',
+					pattern:
+						'env\\s*\\(\\s*[\'"]reader[\'"]\\s*,\\s*[\'"]DB_URL[\'"]\\s*,\\s*[\'"][^\'"]*inkwell-db',
 					message:
 						"Give `reader` its database address from the outside: `env('reader', 'DB_URL', 'postgres://inkwell-db:5432/inkwell')`."
 				},
