@@ -454,7 +454,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 				'Mina restored the comments from last night’s backup (phew). Now the endpoint needs fixing before anyone tries that again. Run it first: june_b’s perfectly normal comment already breaks it, because of one apostrophe.',
 			task: 'Rewrite the INSERT with three `?` blanks and pass `[req.params.id, req.body.author, req.body.text]` as a list. Both comments must be saved, the odd one as plain harmless text, and nothing deleted.',
 			hints: [
-				'Look at the server log for the first request: the apostrophe in “Can’t” ends the quoted text early, so the SQL no longer makes sense.',
+				'Look at the server log for the first request. SQLite got confused near `t`: that’s the t in “Can’t”. The apostrophe ended the quoted text early, so the rest no longer made sense as SQL.',
 				"You don't need the `sql` variable with all the `+` pieces. Write the SQL in one piece with `?` where the values go: `'INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)'`.",
 				"The fixed handler:\n```js\napp.post('/episodes/:id/comments', (req, res) => {\n  db.run(\n    'INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)',\n    [req.params.id, req.body.author, req.body.text]\n  );\n  res.status(201).json({ saved: true });\n});\n```"
 			],
@@ -463,7 +463,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 					{
 						method: 'POST',
 						path: '/episodes/7/comments',
-						body: { author: 'june_b', text: "Can't wait for episode 3" },
+						body: { author: 'june_b', text: "Can't stop laughing" },
 						label: 'june_b comments on episode 7'
 					},
 					{
@@ -509,7 +509,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 					expected: [
 						{ author: 'noodlefan', text: 'I can smell this episode' },
 						{ author: 'june_b', text: 'Extra spicy next, please' },
-						{ author: 'june_b', text: "Can't wait for episode 3" },
+						{ author: 'june_b', text: "Can't stop laughing" },
 						{ author: 'troll', text: TRICK }
 					],
 					message:
