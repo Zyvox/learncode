@@ -85,9 +85,9 @@ show(first.body);
 				},
 				{
 					type: 'code-includes',
-					pattern: "'/episodes/'\\s*\\+|\"/episodes/\"\\s*\\+",
+					pattern: '\'/episodes/\'\\s*\\+|"/episodes/"\\s*\\+',
 					message:
-						'Build the path from the list, like `\'/episodes/\' + episodes[0].id`, instead of typing the number. Then it works for whichever episode comes first.'
+						"Build the path from the list, like `'/episodes/' + episodes[0].id`, instead of typing the number. Then it works for whichever episode comes first."
 				}
 			]
 		},
@@ -99,7 +99,7 @@ show(first.body);
 			xp: 20,
 			story:
 				'Mina tapped an old link to episode 4, the one she pulled back to redraw. The phone proudly shows the word **undefined**. “That’s not a word I want readers to see,” she says, fairly.',
-			task: 'Run it and look at the phone. Then make the second episode check `b.ok` first: if it isn’t OK, `show(\'Episode not found\')`, otherwise show the title as before.',
+			task: "Run it and look at the phone. Then make the second episode check `b.ok` first: if it isn’t OK, `show('Episode not found')`, otherwise show the title as before.",
 			hints: [
 				'Episode 4 isn’t published, so the server answers 404 with `{ error: … }`. That body has no `title`, so `b.body.title` is `undefined`.',
 				'`b.ok` is `true` for answers in the 200s. Wrap the last `show` in `if (!b.ok) { … } else { … }`.',
@@ -150,7 +150,7 @@ if (!b.ok) {
 			xp: 20,
 			story:
 				'Mina wants to thank her readers under episode 3. After she taps Send, the comments under the episode should include hers, straight away, like any app would.',
-			task: "First `post` the `comment` to `/episodes/3/comments`. Then `get` `/episodes/3/comments` again and `show` the body, so the list on screen is fresh.",
+			task: 'First `post` the `comment` to `/episodes/3/comments`. Then `get` `/episodes/3/comments` again and `show` the body, so the list on screen is fresh.',
 			hints: [
 				"Sending is `post(path, body)`: `post('/episodes/3/comments', comment)`.",
 				'Order matters: send first, fetch the list afterwards. Otherwise the list you show was made before the comment existed.',
@@ -174,7 +174,7 @@ show(list.body);
 					request: 0,
 					status: 201,
 					message:
-						'The first trip should send the comment: `post(\'/episodes/3/comments\', comment)`. The server answers 201 when it’s saved.'
+						"The first trip should send the comment: `post('/episodes/3/comments', comment)`. The server answers 201 when it’s saved."
 				},
 				{
 					type: 'response-json',
@@ -257,7 +257,7 @@ show(before.body.length);
 				]
 			},
 			hints: [
-				'Line by line: `const res = get(\'/episodes/7\');`, then `const episode = res.json();`, then `show(episode.title);`.',
+				"Line by line: `const res = get('/episodes/7');`, then `const episode = res.json();`, then `show(episode.title);`.",
 				"For the comments do the same with `'/episodes/7/comments'` and `show` the whole list.",
 				"The whole translation:\n```js\nconst res = get('/episodes/7');\nconst episode = res.json();\nshow(episode.title);\n\nconst res2 = get('/episodes/7/comments');\nconst comments = res2.json();\nshow(comments);\n```"
 			],
@@ -316,7 +316,7 @@ show(comments);
 			task: 'Fix `openEpisode(id)`:\n\n1. If the episode answer isn’t OK, show `Episode not found` and don’t fetch its comments.\n2. Otherwise show the title, fetch the comments, and show `No comments yet` when the list is empty (`length === 0`), or the list when it isn’t.',
 			hints: [
 				'Put an `if (!res.ok) { … } else { … }` around everything after the first `get`. The comments trip goes inside the `else` part, so it only happens for real episodes.',
-				'Inside the else: after fetching the comments, `if (comments.body.length === 0) { show(\'No comments yet\'); } else { show(comments.body); }`.',
+				"Inside the else: after fetching the comments, `if (comments.body.length === 0) { show('No comments yet'); } else { show(comments.body); }`.",
 				"The whole function:\n```js\nfunction openEpisode(id) {\n  const res = get('/episodes/' + id);\n  if (!res.ok) {\n    show('Episode not found');\n  } else {\n    show(res.body.title);\n    const comments = get('/episodes/' + id + '/comments');\n    if (comments.body.length === 0) {\n      show('No comments yet');\n    } else {\n      show(comments.body);\n    }\n  }\n}\n```"
 			],
 			world: clientWorld(),

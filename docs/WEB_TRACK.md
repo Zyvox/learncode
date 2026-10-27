@@ -2,15 +2,15 @@
 
 ## Who it's for and what it promises
 
-People who work *around* tech (IT support, ops, admins, product, QA, analysts) and keep hearing
+People who work _around_ tech (IT support, ops, admins, product, QA, analysts) and keep hearing
 "the endpoint is down", "the server queries the database", "it's a 500", without a working picture
 of what those things are. By the end they will have **built** a working (simulated) web app
 backend themselves: endpoints, a real SQL database, a client that calls them, logins, and a
 deployment picture — and they will be able to read API docs, logs and error codes with
 understanding.
 
-The running example is a **webtoon studio**: *Inkwell*. The studio's artists make vertical-scroll
-comics; readers use the *Inkwell Reader* app on their phone. The learner is the new "tech person"
+The running example is a **webtoon studio**: _Inkwell_. The studio's artists make vertical-scroll
+comics; readers use the _Inkwell Reader_ app on their phone. The learner is the new "tech person"
 who has to make the reader app actually work: series list, episodes, comments, likes, logins.
 Every level is a small, concrete job from the studio.
 
@@ -18,7 +18,7 @@ Cast (defined in `src/lib/curriculum/cast.ts`, used in webtoon-style concept pan
 
 - **You** — the learner. Curious, no background assumed.
 - **Mina** 🎨 — lead artist. Asks the questions a smart non-technical person asks ("Where does the
-  episode actually *come from* when I tap it?").
+  episode actually _come from_ when I tap it?").
 - **Theo** 🧢 — runs the studio. Business framing, impatience, "can readers comment yet?"
 - **Bit** 📦 — a small packet that travels the wire. Comic relief and the camera: when we follow a
   request, we follow Bit.
@@ -46,22 +46,22 @@ The learner's code runs in **one role per lesson** (`WebWorldSpec.role`):
 Globals available to the learner's JavaScript:
 
 ```js
-get(path)             // -> Response     e.g. get('/episodes')
-post(path, body)      // -> Response     e.g. post('/comments', { episodeId: 3, text: 'wow' })
-put(path, body)       // -> Response
-del(path)             // -> Response
-show(value)           // puts something on the phone screen: a string, an object (card) or an array (list of cards)
-log(...values)        // writes to the client log (like console.log)
+get(path); // -> Response     e.g. get('/episodes')
+post(path, body); // -> Response     e.g. post('/comments', { episodeId: 3, text: 'wow' })
+put(path, body); // -> Response
+del(path); // -> Response
+show(value); // puts something on the phone screen: a string, an object (card) or an array (list of cards)
+log(...values); // writes to the client log (like console.log)
 ```
 
 `Response`:
 
 ```js
-res.status   // 200, 404, ...
-res.ok       // true when status is 200–299
-res.body     // the parsed JSON body (or a string for text responses)
-res.json()   // same as res.body (exists so real `fetch` feels familiar)
-res.text()   // body as a string
+res.status; // 200, 404, ...
+res.ok; // true when status is 200–299
+res.body; // the parsed JSON body (or a string for text responses)
+res.json(); // same as res.body (exists so real `fetch` feels familiar)
+res.text(); // body as a string
 ```
 
 Calls are **synchronous** in the simulation on purpose (no `await` until the learner has the
@@ -87,17 +87,17 @@ env                        // object from spec.env, e.g. env.DB_PATH (configurat
 Handler signature `(req, res)`:
 
 ```js
-req.method    // 'GET'
-req.path      // '/episodes/12'      (no query string)
-req.params    // { id: '12' }        from ':id' in the route pattern — ALWAYS strings
-req.query     // { page: '2' }       from '?page=2' — strings
-req.body      // parsed JSON body (POST/PUT) or undefined
-req.headers   // { token: 'abc' }    lower-cased keys
+req.method; // 'GET'
+req.path; // '/episodes/12'      (no query string)
+req.params; // { id: '12' }        from ':id' in the route pattern — ALWAYS strings
+req.query; // { page: '2' }       from '?page=2' — strings
+req.body; // parsed JSON body (POST/PUT) or undefined
+req.headers; // { token: 'abc' }    lower-cased keys
 
-res.status(code)   // sets the status, returns res (chainable)
-res.json(value)    // sends JSON, status defaults to 200
-res.send(value)    // sends text (strings) or JSON (objects/arrays)
-res.end()          // sends an empty body
+res.status(code); // sets the status, returns res (chainable)
+res.json(value); // sends JSON, status defaults to 200
+res.send(value); // sends text (strings) or JSON (objects/arrays)
+res.end(); // sends an empty body
 ```
 
 Rules of the simulation (teachable moments, each has a lesson):
@@ -146,21 +146,21 @@ Lesson counts are targets. Kinds: `code` (write), `fix` (broken starter), `predi
 choose). Roles in brackets. Every module ends in a boss level. Modules 1–3 need no programming at
 all beyond typing a line; from module 4 on, a `prereq` note points at "Learn to code" parts 1–5.
 
-| # | id | title | role | levels | the one idea |
-|---|----|-------|------|--------|--------------|
-| 1 | `what-happens-when-you-tap` | What happens when you tap | client | 6 | A phone *asks*, a server *answers*. The answer has a status and a body. |
-| 2 | `requests-and-responses` | Requests and responses | client | 7 | Method + path = the question. Status code families. Query strings and path parameters. |
-| 3 | `endpoints` | Endpoints: the server's menu | client | 6 | An endpoint is a path the server knows how to answer; the list of them is the API. Reading docs. |
-| 4 | `your-first-server` | Your first server | server | 8 | `app.get(path, handler)`. Routes, params, query, status codes, the handler that never answers. Data from an in-memory array. |
-| 5 | `sending-data-in` | Sending data in | server | 6 | POST bodies, 201, validation → 400, PUT/DELETE. |
-| 6 | `where-the-data-lives` | Where the data lives | sql | 7 | Tables, rows, columns. SELECT, WHERE, ORDER BY, LIMIT, COUNT. |
-| 7 | `changing-data` | Changing data | sql | 6 | INSERT, UPDATE, DELETE, the UPDATE without WHERE, primary keys. |
-| 8 | `connecting-tables` | Connecting tables | sql | 6 | Foreign keys, JOIN, GROUP BY. |
-| 9 | `server-meets-database` | Server meets database | server | 8 | Handlers that query. `?` placeholders. The comment that deleted the comments (injection). INSERT → 201 with the new id. |
-| 10 | `the-reader-app` | The reader app | client | 6 | Calling your own API from the phone, handling 404/500, posting a comment, the whole trip. `await fetch` shown. |
-| 11 | `who-are-you` | Who are you? | server | 6 | Logins: hashed passwords (concept), session tokens in a table, 401 vs 403, protecting an endpoint. |
-| 12 | `shipping-it` | Shipping it | mixed | 7 | Where a server lives, ports, domains/DNS, HTTPS, reverse proxy, environment variables, logs, "it's down" triage. |
-| 13 | `launch-inkwell` | Launch Inkwell | server+client | 6 | Capstone checkpoints: series list → episode page → comments → likes → search → launch day. |
+| #   | id                          | title                        | role          | levels | the one idea                                                                                                                 |
+| --- | --------------------------- | ---------------------------- | ------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `what-happens-when-you-tap` | What happens when you tap    | client        | 6      | A phone _asks_, a server _answers_. The answer has a status and a body.                                                      |
+| 2   | `requests-and-responses`    | Requests and responses       | client        | 7      | Method + path = the question. Status code families. Query strings and path parameters.                                       |
+| 3   | `endpoints`                 | Endpoints: the server's menu | client        | 6      | An endpoint is a path the server knows how to answer; the list of them is the API. Reading docs.                             |
+| 4   | `your-first-server`         | Your first server            | server        | 8      | `app.get(path, handler)`. Routes, params, query, status codes, the handler that never answers. Data from an in-memory array. |
+| 5   | `sending-data-in`           | Sending data in              | server        | 6      | POST bodies, 201, validation → 400, PUT/DELETE.                                                                              |
+| 6   | `where-the-data-lives`      | Where the data lives         | sql           | 7      | Tables, rows, columns. SELECT, WHERE, ORDER BY, LIMIT, COUNT.                                                                |
+| 7   | `changing-data`             | Changing data                | sql           | 6      | INSERT, UPDATE, DELETE, the UPDATE without WHERE, primary keys.                                                              |
+| 8   | `connecting-tables`         | Connecting tables            | sql           | 6      | Foreign keys, JOIN, GROUP BY.                                                                                                |
+| 9   | `server-meets-database`     | Server meets database        | server        | 8      | Handlers that query. `?` placeholders. The comment that deleted the comments (injection). INSERT → 201 with the new id.      |
+| 10  | `the-reader-app`            | The reader app               | client        | 6      | Calling your own API from the phone, handling 404/500, posting a comment, the whole trip. `await fetch` shown.               |
+| 11  | `who-are-you`               | Who are you?                 | server        | 6      | Logins: hashed passwords (concept), session tokens in a table, 401 vs 403, protecting an endpoint.                           |
+| 12  | `shipping-it`               | Shipping it                  | mixed         | 7      | Where a server lives, ports, domains/DNS, HTTPS, reverse proxy, environment variables, logs, "it's down" triage.             |
+| 13  | `launch-inkwell`            | Launch Inkwell               | server+client | 6      | Capstone checkpoints: series list → episode page → comments → likes → search → launch day.                                   |
 
 Coming-soon stubs on the map (`comingSoon: true`, no lessons): `networks-for-it`,
 `command-line`, `git-and-versions`, `security-basics`, `reading-logs`, `cloud-and-containers`,
@@ -185,5 +185,5 @@ phone screen. Content files export the shared schema/seed from `src/lib/curricul
 ## Voice
 
 Same rules as the rest of the app (`CLAUDE.md`): plain, warm, a bit funny, no jargon before the
-learner has met the thing. Here the learner *is* an adult professional: don't talk down. Name
+learner has met the thing. Here the learner _is_ an adult professional: don't talk down. Name
 things properly once they've been used ("that list of paths is the API").

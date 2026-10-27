@@ -4,7 +4,8 @@ import { INKWELL_SCHEMA } from '#lib/curriculum/inkwell.ts';
 const M = 'who-are-you';
 
 /** Everything, plus a session for Ravi so two people can be logged in at once. */
-const TWO_SESSIONS = INKWELL_SCHEMA + "\nINSERT INTO sessions (token, user_id) VALUES ('tok_ravi_456', 2);\n";
+const TWO_SESSIONS =
+	INKWELL_SCHEMA + "\nINSERT INTO sessions (token, user_id) VALUES ('tok_ravi_456', 2);\n";
 
 function world(requests: SimRequest[], extra: Partial<WebWorldSpec> = {}): WebWorldSpec {
 	return { kind: 'web', role: 'server', schema: INKWELL_SCHEMA, requests, ...extra };
@@ -100,7 +101,9 @@ export const whoAreYou: Module = {
   res.json(db.all('SELECT name, password_hash FROM users'));
 });
 `,
-			world: world([{ method: 'GET', path: '/debug/users', label: 'a developer opens the debug page' }]),
+			world: world([
+				{ method: 'GET', path: '/debug/users', label: 'a developer opens the debug page' }
+			]),
 			question: 'What is in Mina’s `password_hash`?',
 			choices: [
 				'Her password, `inkwell-mina`, so the server can compare it',
@@ -201,7 +204,7 @@ app.post('/login', (req, res) => {
 					type: 'response-includes',
 					request: 0,
 					text: 'tok_ravi_',
-					message: 'Ravi should get his new token back, like `{ token: \'tok_ravi_…\' }`.'
+					message: "Ravi should get his new token back, like `{ token: 'tok_ravi_…' }`."
 				},
 				{
 					type: 'response-status',
@@ -308,7 +311,7 @@ app.get('/me', (req, res) => {
 					request: 0,
 					expected: { name: 'mina' },
 					message:
-						'Mina’s token is `tok_mina_123`. Looking it up in `sessions` (joined with `users`) should find her, so `/me` answers `{ name: \'mina\' }`.'
+						"Mina’s token is `tok_mina_123`. Looking it up in `sessions` (joined with `users`) should find her, so `/me` answers `{ name: 'mina' }`."
 				},
 				{
 					type: 'response-status',
@@ -330,7 +333,7 @@ app.get('/me', (req, res) => {
 				},
 				{
 					type: 'code-excludes',
-					pattern: "\\+\\s*(token|req\\.headers)",
+					pattern: '\\+\\s*(token|req\\.headers)',
 					message:
 						'Don’t glue the token into the SQL. A token comes from outside, just like a comment does. Use `?` and pass `[token]`.'
 				}
@@ -475,15 +478,19 @@ app.post('/episodes/:id/comments', (req, res) => {
 			boss: true,
 			story:
 				'Theo’s list for logins: “People must be able to delete their own comments, nobody else’s, and log out.” Mina adds: “And if a comment doesn’t exist, say so.” The phones are lined up.',
-			task: "Write two routes, using `currentUser(req)`.\n\n**`DELETE /comments/:id`**: no user → `401`. No such comment → `404`. Someone else’s comment → `403`. Otherwise delete it and answer `204` with `res.status(204).end()`.\n\n**`DELETE /session`** (log out): no user → `401`. Otherwise delete the row from `sessions` whose token is `req.headers.token`, and answer `204`.",
+			task: 'Write two routes, using `currentUser(req)`.\n\n**`DELETE /comments/:id`**: no user → `401`. No such comment → `404`. Someone else’s comment → `403`. Otherwise delete it and answer `204` with `res.status(204).end()`.\n\n**`DELETE /session`** (log out): no user → `401`. Otherwise delete the row from `sessions` whose token is `req.headers.token`, and answer `204`.',
 			hints: [
-				'For the comment, fetch both first: `const user = currentUser(req);` and `const comment = db.get(\'SELECT * FROM comments WHERE id = ?\', [req.params.id]);`. Then one chain: `if (!user) … else if (!comment) … else if (comment.author !== user.name) … else …`.',
+				"For the comment, fetch both first: `const user = currentUser(req);` and `const comment = db.get('SELECT * FROM comments WHERE id = ?', [req.params.id]);`. Then one chain: `if (!user) … else if (!comment) … else if (comment.author !== user.name) … else …`.",
 				"Logging out is just deleting the ticket: `db.run('DELETE FROM sessions WHERE token = ?', [req.headers.token])`. After that, the token finds nobody, so `/me` says 401.",
 				"Both routes:\n```js\napp.delete('/comments/:id', (req, res) => {\n  const user = currentUser(req);\n  const comment = db.get('SELECT * FROM comments WHERE id = ?', [req.params.id]);\n  if (!user) {\n    res.status(401).json({ error: 'Who are you? Please log in.' });\n  } else if (!comment) {\n    res.status(404).json({ error: 'No such comment' });\n  } else if (comment.author !== user.name) {\n    res.status(403).json({ error: 'Only the author can delete this' });\n  } else {\n    db.run('DELETE FROM comments WHERE id = ?', [req.params.id]);\n    res.status(204).end();\n  }\n});\n\napp.delete('/session', (req, res) => {\n  const user = currentUser(req);\n  if (!user) {\n    res.status(401).json({ error: 'Who are you? Please log in.' });\n  } else {\n    db.run('DELETE FROM sessions WHERE token = ?', [req.headers.token]);\n    res.status(204).end();\n  }\n});\n```"
 			],
 			world: world(
 				[
-					{ method: 'DELETE', path: '/comments/3', label: 'a phone with no token deletes comment 3' },
+					{
+						method: 'DELETE',
+						path: '/comments/3',
+						label: 'a phone with no token deletes comment 3'
+					},
 					{
 						method: 'DELETE',
 						path: '/comments/3',

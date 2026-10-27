@@ -39,7 +39,7 @@ export const serverMeetsDatabase: Module = {
 			xp: 15,
 			story:
 				'Your server can answer requests, and you can talk to the database in SQL. Right now they’ve never met. The series list on the phone comes back empty, because the handler answers before it has asked anyone anything.',
-			task: 'In the `GET /series` handler, get every series from the database with `db.all(\'SELECT id, title, genre FROM series\')` and answer with those rows using `res.json(rows)`.',
+			task: "In the `GET /series` handler, get every series from the database with `db.all('SELECT id, title, genre FROM series')` and answer with those rows using `res.json(rows)`.",
 			concept: {
 				title: 'The handler asks the database',
 				panels: [
@@ -75,10 +75,12 @@ export const serverMeetsDatabase: Module = {
 			newCommands: ['db.all(sql, params)'],
 			hints: [
 				'Inside the handler, before `res.json`, make a variable that holds the rows: `const rows = db.all(…)`.',
-				'The SQL goes in quotes as the first thing in the brackets: `db.all(\'SELECT id, title, genre FROM series\')`. Then answer with `res.json(rows)` instead of `res.json([])`.',
+				"The SQL goes in quotes as the first thing in the brackets: `db.all('SELECT id, title, genre FROM series')`. Then answer with `res.json(rows)` instead of `res.json([])`.",
 				"Here's the whole handler:\n```js\napp.get('/series', (req, res) => {\n  const rows = db.all('SELECT id, title, genre FROM series');\n  res.json(rows);\n});\n```"
 			],
-			world: serverWorld([{ method: 'GET', path: '/series', label: 'reader opens the series list' }]),
+			world: serverWorld([
+				{ method: 'GET', path: '/series', label: 'reader opens the series list' }
+			]),
 			starterCode: `// The phone asks for the series list.
 // Ask the database for the rows first, then answer with them.
 app.get('/series', (req, res) => {
@@ -155,7 +157,7 @@ app.get('/series', (req, res) => {
 			newCommands: ['db.get(sql, params)'],
 			hints: [
 				'Start with `const row = db.get(…);` using the SQL and the list from the task.',
-				'Then `if (!row) { … } else { … }`. `!row` is true when the database found nothing. Put `res.status(404).json({ error: \'No such series\' })` in the first part and `res.json(row)` in the second.',
+				"Then `if (!row) { … } else { … }`. `!row` is true when the database found nothing. Put `res.status(404).json({ error: 'No such series' })` in the first part and `res.json(row)` in the second.",
 				"The whole handler:\n```js\napp.get('/series/:id', (req, res) => {\n  const row = db.get('SELECT * FROM series WHERE id = ?', [req.params.id]);\n  if (!row) {\n    res.status(404).json({ error: 'No such series' });\n  } else {\n    res.json(row);\n  }\n});\n```"
 			],
 			world: serverWorld([
@@ -184,7 +186,8 @@ app.get('/series', (req, res) => {
 					request: 0,
 					mode: 'subset',
 					expected: { id: 2, title: 'Grove & Gear', genre: 'fantasy' },
-					message: 'Asking for `/series/2` should bring back the Grove & Gear row from the database.'
+					message:
+						'Asking for `/series/2` should bring back the Grove & Gear row from the database.'
 				},
 				{
 					type: 'response-status',
@@ -277,7 +280,7 @@ app.get('/series', (req, res) => {
 			],
 			answer: 1,
 			explanation:
-				'Finding no rows isn’t an error for the database; it calmly hands back `undefined`. The crash comes one line later: `ep.title` asks for the title of nothing. The handler throws, the phone gets `500 Server error`, and the server log says `Cannot read properties of undefined (reading \'title\')`. You’ll meet that exact sentence in real logs. The first request is untouched: every request gets its own run of the handler. The fix is the `if (!ep)` check from earlier, with a 404 of your own choosing.',
+				"Finding no rows isn’t an error for the database; it calmly hands back `undefined`. The crash comes one line later: `ep.title` asks for the title of nothing. The handler throws, the phone gets `500 Server error`, and the server log says `Cannot read properties of undefined (reading 'title')`. You’ll meet that exact sentence in real logs. The first request is untouched: every request gets its own run of the handler. The fix is the `if (!ep)` check from earlier, with a 404 of your own choosing.",
 			hints: [
 				'What does `db.get` give back when no row matches?',
 				'Then what happens when the next line reads `.title` from it?'
@@ -364,9 +367,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 				{
 					type: 'db-rows',
 					sql: 'SELECT episode_id, author, text FROM comments WHERE id = 6',
-					expected: [
-						{ episode_id: 3, author: 'noodlefan', text: 'Ravi was right about the gate' }
-					],
+					expected: [{ episode_id: 3, author: 'noodlefan', text: 'Ravi was right about the gate' }],
 					message:
 						'The comment should be saved in the `comments` table for episode 3, with the author and text from `req.body`.'
 				},
@@ -391,7 +392,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 				panels: [
 					{
 						who: 'bit',
-						text: 'I’m carrying a comment. Its text is: `\'); DELETE FROM comments; --`',
+						text: "I’m carrying a comment. Its text is: `'); DELETE FROM comments; --`",
 						scene: 'wire'
 					},
 					{
@@ -438,7 +439,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 			],
 			answer: 2,
 			explanation:
-				'Glued in, the SQL becomes `INSERT INTO comments (…) VALUES (7, \'troll\', \'\'); DELETE FROM comments; --\')`. The `\')` closes the text early, the `;` starts a brand-new statement, and `--` turns the leftover into a comment. The database sees two instructions and does both: it saves an empty comment, then deletes every comment in the table. This is called **SQL injection**, and it’s one of the oldest attacks on the web. Even an innocent “can’t wait” would break this code, because of the apostrophe. The fix is the `?` blank you already know, and that’s the next level.',
+				"Glued in, the SQL becomes `INSERT INTO comments (…) VALUES (7, 'troll', ''); DELETE FROM comments; --')`. The `')` closes the text early, the `;` starts a brand-new statement, and `--` turns the leftover into a comment. The database sees two instructions and does both: it saves an empty comment, then deletes every comment in the table. This is called **SQL injection**, and it’s one of the oldest attacks on the web. Even an innocent “can’t wait” would break this code, because of the apostrophe. The fix is the `?` blank you already know, and that’s the next level.",
 			hints: [
 				'Write out the SQL string by hand for the second request, with the odd text pasted in where `req.body.text` goes.',
 				'Look at what comes after the `;` in the result.'
@@ -535,7 +536,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 				'Theo wants two things before Friday: the ♥ button should work, and comments should show newest first, “like every other app on earth”. Readers are already tapping.',
 			task: "Write two endpoints.\n\n**`PUT /episodes/:id/like`**: add one like with `db.run('UPDATE episodes SET likes = likes + 1 WHERE id = ?', …)`. If the receipt says `changes` is `0`, no such episode: answer `404`. Otherwise answer with `{ id, likes }` for that episode, fresh from the database.\n\n**`GET /episodes/:id/comments`**: the episode's comments with `author`, `text` and `created_at`, newest first (`ORDER BY created_at DESC`).",
 			hints: [
-				'For the like: `const r = db.run(…)`, then `if (r.changes === 0) { 404 } else { … }`. In the else part, fetch the episode again with `db.get(\'SELECT id, likes FROM episodes WHERE id = ?\', [req.params.id])` and send it.',
+				"For the like: `const r = db.run(…)`, then `if (r.changes === 0) { 404 } else { … }`. In the else part, fetch the episode again with `db.get('SELECT id, likes FROM episodes WHERE id = ?', [req.params.id])` and send it.",
 				"For the comments: `db.all('SELECT author, text, created_at FROM comments WHERE episode_id = ? ORDER BY created_at DESC', [req.params.id])`, then `res.json(…)` with the rows.",
 				"Both endpoints:\n```js\napp.put('/episodes/:id/like', (req, res) => {\n  const r = db.run('UPDATE episodes SET likes = likes + 1 WHERE id = ?', [req.params.id]);\n  if (r.changes === 0) {\n    res.status(404).json({ error: 'No such episode' });\n  } else {\n    res.json(db.get('SELECT id, likes FROM episodes WHERE id = ?', [req.params.id]));\n  }\n});\n\napp.get('/episodes/:id/comments', (req, res) => {\n  res.json(db.all('SELECT author, text, created_at FROM comments WHERE episode_id = ? ORDER BY created_at DESC', [req.params.id]));\n});\n```"
 			],
