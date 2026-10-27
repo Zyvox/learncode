@@ -1,18 +1,52 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import { replaceState } from '$app/navigation';
 	import { APP_NAME } from '#lib/config.ts';
-	import { getModules, getTheme, renderText, totalLessonCount } from '#lib/curriculum/index.ts';
+	import { getModules, getTheme, renderText } from '#lib/curriculum/index.ts';
+	import type { TrackId } from '#lib/curriculum/types.ts';
 	import ModuleCard from '#lib/components/ModuleCard.svelte';
 	import XpBar from '#lib/components/XpBar.svelte';
 	import { guest } from '#lib/stores/guest.svelte.ts';
-	import { buildMap, type StatusMap } from '#lib/stores/map.ts';
+	import { buildTrackMap, type StatusMap } from '#lib/stores/map.ts';
+	import { allTracks, isTrackId, loadTrackChoice, saveTrackChoice } from '#lib/stores/tracks.ts';
 	import { currentThemeId } from '#lib/stores/viewer.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	const modules = getModules();
+	const tracks = allTracks(modules);
 	const theme = $derived(getTheme(currentThemeId()));
 	const user = $derived(data.user);
+
+	// Which track tab is open: ?track=… wins, then the remembered choice, then the first track.
+	const fromUrl = page.url.searchParams.get('track');
+	let trackId = $state<TrackId>(
+		isTrackId(fromUrl) && tracks.some((t) => t.id === fromUrl) ? fromUrl : tracks[0].id
+	);
+	onMount(() => {
+		if (isTrackId(fromUrl)) return;
+		const saved = loadTrackChoice();
+		if (saved && tracks.some((t) => t.id === saved)) trackId = saved;
+	});
+
+	function pickTrack(id: TrackId) {
+		trackId = id;
+		saveTrackChoice(id);
+		const url = new URL(page.url.href);
+		url.searchParams.set('track', id);
+		replaceState(url, page.state);
+	}
+
+	function onTabKey(e: KeyboardEvent) {
+		if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+		const i = tracks.findIndex((t) => t.id === trackId);
+		const next = tracks[(i + (e.key === 'ArrowRight' ? 1 : tracks.length - 1)) % tracks.length];
+		pickTrack(next.id);
+		document.getElementById(`track-tab-${next.id}`)?.focus();
+		e.preventDefault();
+	}
 
 	const status = $derived.by((): StatusMap => {
 		if (user) return data.status;
@@ -21,10 +55,16 @@
 		return s;
 	});
 
-	const map = $derived(buildMap(modules, status));
-	const doneTotal = $derived(Object.values(status).filter((s) => s === 'done').length);
-	const total = totalLessonCount();
+	const maps = $derived(
+		Object.fromEntries(tracks.map((t) => [t.id, buildTrackMap(modules, status, t.id)]))
+	);
+	const map = $derived(maps[trackId] ?? maps[tracks[0].id]);
+	const track = $derived(tracks.find((t) => t.id === trackId) ?? tracks[0]);
+	const doneTotal = $derived(map.done);
+	const total = $derived(map.total);
 	const firstVisit = $derived(doneTotal === 0);
+	const anyDone = $derived(Object.values(status).some((s) => s === 'done'));
+	const isWeb = $derived(trackId === 'web');
 	const currentModule = $derived(
 		map.current
 			? map.modules.find((m) => m.lessons.some((l) => l.lesson.id === map.current?.id))
@@ -37,18 +77,48 @@
 </svelte:head>
 
 <div class="mx-auto max-w-5xl px-4 pt-8 pb-20 sm:px-6 sm:pt-10">
+	{#if tracks.length > 1}
+		<div class="tabs mb-6" role="tablist" aria-label="Tracks">
+			{#each tracks as t (t.id)}
+				{@const m = maps[t.id]}
+				<button
+					type="button"
+					role="tab"
+					id="track-tab-{t.id}"
+					class="tab"
+					class:selected={t.id === trackId}
+					aria-selected={t.id === trackId}
+					aria-controls="track-panel"
+					tabindex={t.id === trackId ? 0 : -1}
+					onclick={() => pickTrack(t.id)}
+					onkeydown={onTabKey}
+					data-testid="track-tab-{t.id}"
+				>
+					<span class="text-2xl leading-none" aria-hidden="true">{t.emoji}</span>
+					<span class="flex min-w-0 flex-col items-start text-left">
+						<span class="leading-tight font-extrabold">{renderText(t.title, theme)}</span>
+						<span class="text-muted text-xs font-bold">{m.done} of {m.total}</span>
+					</span>
+				</button>
+			{/each}
+		</div>
+	{/if}
 	<div class="mb-8 grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
 		<div>
-			<p class="eyebrow mb-1">{theme.emoji} {theme.name} vibe</p>
+			<p class="eyebrow mb-1">
+				{#if isWeb}✒️ The Inkwell story{:else}{theme.emoji} {theme.name} vibe{/if}
+			</p>
 			<h1 class="text-3xl font-black tracking-tight sm:text-4xl">
 				{#if user}
-					{firstVisit ? `Welcome, ${user.displayName}.` : `Welcome back, ${user.displayName}.`}
+					{anyDone ? `Welcome back, ${user.displayName}.` : `Welcome, ${user.displayName}.`}
 				{:else}
-					{firstVisit ? 'Your map' : 'Nice, you’re on your way.'}
+					{anyDone ? 'Nice, you’re on your way.' : 'Your map'}
 				{/if}
 			</h1>
 			<p class="text-ink-soft mt-2">
-				{#if firstVisit}
+				{#if firstVisit && isWeb}
+					{renderText(track.blurb, theme)} Start at the first dot; the next opens when you finish it.
+				{:else if firstVisit}
 					Each dot is a tiny level. Start at the first one; the next opens when you finish it.
 				{:else}
 					{doneTotal} of {total} levels done. Pick up where you left off.
@@ -97,9 +167,53 @@
 		</div>
 	{/if}
 
-	<div class="space-y-5">
+	<div
+		id="track-panel"
+		class="space-y-5"
+		role={tracks.length > 1 ? 'tabpanel' : undefined}
+		aria-labelledby={tracks.length > 1 ? `track-tab-${trackId}` : undefined}
+		data-track={trackId}
+	>
 		{#each map.modules as entry, i (entry.module.id)}
-			<ModuleCard {entry} {theme} index={i} />
+			<ModuleCard {entry} {theme} index={i} ink={isWeb} />
 		{/each}
 	</div>
 </div>
+
+<style>
+	.tabs {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.35rem;
+		padding: 0.35rem;
+		border-radius: 1.1rem;
+		background: var(--color-sand);
+		border: 1px solid var(--color-line);
+	}
+	.tab {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
+		min-height: 3.4rem;
+		padding: 0.5rem 0.85rem;
+		border-radius: 0.85rem;
+		color: var(--color-ink-soft);
+		transition:
+			background-color 120ms ease,
+			box-shadow 120ms ease;
+	}
+	.tab:hover:not(.selected) {
+		background: color-mix(in oklab, white 60%, transparent);
+	}
+	.tab.selected {
+		background: white;
+		color: var(--color-ink);
+		box-shadow: var(--shadow-soft);
+	}
+	@media (max-width: 420px) {
+		.tab {
+			padding: 0.45rem 0.55rem;
+			gap: 0.45rem;
+		}
+	}
+</style>

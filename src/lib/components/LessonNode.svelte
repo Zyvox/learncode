@@ -71,6 +71,7 @@
 		role="img"
 		aria-label={label}
 		title="Finish the level before this one to open it"
+		data-lesson-href={href}
 	>
 		{@render dot()}
 		<span class="caption">{title}</span>

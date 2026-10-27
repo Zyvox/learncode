@@ -5,8 +5,9 @@
  *  - A module unlocks when the previous playable module's boss level (or its last level) is done.
  *  - Anything the learner already started or finished stays open, whatever the rules say.
  *  - `comingSoon` modules are shown but never playable.
+ *  - Each track has its own map: the first module of every track is open (`buildTrackMap`).
  */
-import type { Lesson, Module } from '#lib/curriculum/types.ts';
+import type { Lesson, Module, TrackId } from '#lib/curriculum/types.ts';
 
 export type LessonStatus = 'done' | 'started';
 export type StatusMap = Record<string, LessonStatus>;
@@ -71,6 +72,34 @@ export function buildMap(
 		}
 	}
 	return { modules: out, current };
+}
+
+export interface TrackMap {
+	track: TrackId;
+	modules: MapModule[];
+	/** The first not-done lesson that is open in this track */
+	current: Lesson | null;
+	/** Lessons done / playable lessons in this track */
+	done: number;
+	total: number;
+}
+
+/** The map for one track. Modules without `track` belong to 'code'. */
+export function buildTrackMap(
+	modules: readonly Module[],
+	status: StatusMap,
+	track: TrackId
+): TrackMap {
+	const own = modules.filter((m) => (m.track ?? 'code') === track);
+	const map = buildMap(own, status);
+	let done = 0;
+	let total = 0;
+	for (const m of map.modules) {
+		if (m.comingSoon) continue;
+		total += m.total;
+		done += m.lessons.filter((l) => status[l.lesson.id] === 'done').length;
+	}
+	return { track, modules: map.modules, current: map.current, done, total };
 }
 
 /** Commands introduced by every lesson up to and including `lessonId`, in curriculum order. */

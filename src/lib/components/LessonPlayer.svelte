@@ -2,24 +2,29 @@
   The play page body for one lesson. Mounted inside {#key lessonId} so every lesson starts fresh.
   Code lessons: story/task/concept/hints/cheat sheet · world · editor + Run/Reset/Hint · result.
   Predict lessons: read-only code + choices → explanation (and the world replays the code).
+  Web lessons ("Behind the app"): the WebWorld picture, webtoon concept panels, and SQL mode
+  (`lesson.language === 'sql'`) for the editor, the run button and the cheat sheet.
 -->
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { getAllLessons, getModule, renderText } from '#lib/curriculum/index.ts';
 	import type { Lesson, Module, Theme, ThemedText, WorldSpec } from '#lib/curriculum/types.ts';
-	import type { RunResult, TraceEvent } from '#lib/engine/types.ts';
-	import { evaluate } from '#lib/engine/evaluate.ts';
-	import { COMMANDS, SYNTAX } from '#lib/engine/commands.ts';
+	import type { RunResult, SqlResultSet, TraceEvent, WebResult } from '#lib/engine/types.ts';
+	import { evaluate, verifySqlFor } from '#lib/engine/evaluate.ts';
+	import { COMMANDS, SQL_COMMANDS, SYNTAX } from '#lib/engine/commands.ts';
 	import { completionXp, levelForXp } from '#lib/game/xp.ts';
 	import type { Badge } from '#lib/game/badges.ts';
 	import { guest } from '#lib/stores/guest.svelte.ts';
 	import { commandsUnlockedThrough, syntaxUnlockedThrough } from '#lib/stores/map.ts';
+	import { lessonsOfTrack, trackOf } from '#lib/stores/tracks.ts';
 	import type { SessionUser } from '#lib/stores/viewer.svelte.ts';
 	import Editor from './Editor.svelte';
 	import GridWorld from './GridWorld.svelte';
 	import ConsoleWorld from './ConsoleWorld.svelte';
 	import CanvasWorld from './CanvasWorld.svelte';
+	import WebWorld from './WebWorld.svelte';
+	import ComicStrip from './ComicStrip.svelte';
 	import RichText from './RichText.svelte';
 	import HintPanel from './HintPanel.svelte';
 	import CheatSheet, { type CheatItem } from './CheatSheet.svelte';
@@ -51,13 +56,39 @@
 		doneIds: string[];
 	} = $props();
 
-	type WorldHandle = { play(trace: TraceEvent[]): Promise<void>; reset(): void };
+	type WorldHandle = { play(trace: TraceEvent[], web?: WebResult): Promise<void>; reset(): void };
 
 	// ---------- static-ish derived bits ----------
 	const r = (t: ThemedText) => renderText(t, theme);
 	const isPredict = $derived(lesson.kind === 'predict');
 	const starter = $derived(lesson.kind === 'predict' ? lesson.code : lesson.starterCode);
 	const world: WorldSpec | undefined = $derived(lesson.world);
+	const isSql = $derived(lesson.language === 'sql');
+	const isWeb = $derived(world?.kind === 'web');
+	const trackId = $derived(trackOf(module));
+	/** Lessons of this lesson's track, in order: what the learner has met so far. */
+	const trackLessons = $derived(lessonsOfTrack(trackId));
+	const storyEmoji = $derived(trackId === 'web' ? module.emoji : theme.hero.emoji);
+	const worldTitle = $derived(
+		world?.kind === 'grid'
+			? 'The world'
+			: world?.kind === 'console'
+				? 'Output'
+				: world?.kind === 'canvas'
+					? 'Canvas'
+					: world?.role === 'sql'
+						? 'The database'
+						: 'Behind the app'
+	);
+	const roleChip = $derived(
+		world?.kind !== 'web'
+			? null
+			: world.role === 'client'
+				? { icon: '📱', text: 'You are: the phone' }
+				: world.role === 'server'
+					? { icon: '🖥️', text: 'You are: the server' }
+					: { icon: '🗄️', text: 'You are: talking to the database' }
+	);
 
 	const title = $derived(r(lesson.title));
 	const hints = $derived(lesson.hints.map(r));
@@ -69,7 +100,8 @@
 		if (!next) return null;
 		const nextModuleId = next.id.split('/')[0];
 		const m = getModule(nextModuleId);
-		return m && !m.comingSoon ? next : null;
+		// Never hop into the other track: the end of a track goes back to the map.
+		return m && !m.comingSoon && trackOf(m) === trackId ? next : null;
 	});
 	const nextHref = $derived(nextPlayable ? `/learn/${nextPlayable.id}` : '/learn');
 	const nextLabel = $derived(
@@ -82,11 +114,18 @@
 
 	const cheatItems = $derived.by((): CheatItem[] => {
 		const kind = world?.kind ?? 'grid';
-		const unlocked = commandsUnlockedThrough(getAllLessons(), lesson.id);
+		const pool = trackLessons.some((l) => l.id === lesson.id) ? trackLessons : getAllLessons();
+		const unlocked = commandsUnlockedThrough(pool, lesson.id);
 		const norm = (s: string) => s.replace(/\(.*$/, '').trim().toLowerCase();
 		const unlockedSet = new Set(unlocked.map(norm));
 		const fresh = new Set((lesson.newCommands ?? []).map(norm));
-		return COMMANDS[kind]
+		// Web world: only what exists in this lesson's role (the phone has no `app.get`).
+		const docs = isSql
+			? SQL_COMMANDS
+			: world?.kind === 'web'
+				? COMMANDS.web.filter((c) => !c.roles || c.roles.includes(world.role))
+				: (COMMANDS[kind] ?? []);
+		return docs
 			.filter((c) => unlockedSet.has(norm(c.name)))
 			.map((c) => ({
 				name: c.name,
@@ -97,7 +136,8 @@
 	});
 
 	const syntaxItems = $derived.by((): CheatItem[] => {
-		const all = getAllLessons();
+		if (isSql) return [];
+		const all = trackLessons.some((l) => l.id === lesson.id) ? trackLessons : getAllLessons();
 		const here = syntaxUnlockedThrough(all, lesson.id);
 		const before = new Set<string>();
 		const idx = all.findIndex((l) => l.id === lesson.id);
@@ -125,6 +165,8 @@
 	let showNudge = $state(false);
 	let chosen = $state<number | null>(null);
 	let lastPassCode = '';
+	/** The database before any learner code ran, for the web world's database panel */
+	let baseTables = $state<Record<string, SqlResultSet> | undefined>();
 
 	let worldRef: WorldHandle | undefined = $state();
 	let hintPanel: ReturnType<typeof HintPanel> | undefined = $state();
@@ -136,6 +178,7 @@
 	const edited = $derived(code !== starter);
 
 	onMount(() => {
+		peekDatabase();
 		if (!user && !isPredict) {
 			guest.load();
 			const saved = guest.entries[lesson.id]?.code;
@@ -179,7 +222,27 @@
 	async function execute(source: string): Promise<RunResult | null> {
 		if (!world) return null;
 		const { runInWorker } = await import('#lib/engine/worker.ts');
-		return runInWorker(source, world, { timeoutMs: 3000 });
+		// db-rows checks need their SQL run after the learner's code, inside the worker.
+		const verifySql = lesson.kind === 'predict' ? [] : verifySqlFor(lesson.checks);
+		return runInWorker(source, world, { timeoutMs: 3000, verifySql });
+	}
+
+	/**
+	 * Web world: run nothing (no learner code, no requests) once, just to show what the database
+	 * holds before the first Run. Best effort; the panel falls back to the schema's table names.
+	 */
+	async function peekDatabase() {
+		const spec = world;
+		if (spec?.kind !== 'web' || !spec.schema) return;
+		if (spec.show && !spec.show.includes('database')) return;
+		try {
+			const { runInWorker } = await import('#lib/engine/worker.ts');
+			const result = await runInWorker('', { ...spec, requests: [] }, { timeoutMs: 3000 });
+			const tables = result.web?.tables;
+			if (tables && Object.keys(tables).length) baseTables = tables;
+		} catch {
+			// Not important enough to bother the learner with.
+		}
 	}
 
 	function stop() {
@@ -217,7 +280,7 @@
 			busy = false;
 			return;
 		}
-		await worldRef?.play(result.trace);
+		await worldRef?.play(result.trace, result.web);
 		if (id !== runId) return;
 		busy = false;
 
@@ -376,7 +439,7 @@
 			busy = true;
 			const id = ++runId;
 			const result = await execute(l.code).catch(() => null);
-			if (result && id === runId) await worldRef?.play(result.trace);
+			if (result && id === runId) await worldRef?.play(result.trace, result.web);
 			if (id === runId) busy = false;
 		}
 	}
@@ -419,6 +482,8 @@
 		}
 	}
 
+	const runLabel = $derived(isSql ? 'Run query' : 'Run');
+
 	const kindChip = $derived(
 		lesson.kind === 'fix'
 			? { icon: '🐞', text: 'Something’s broken here' }
@@ -456,12 +521,12 @@
 		</div>
 	</div>
 
-	<div class="play-grid" class:no-world={!world}>
+	<div class="play-grid" class:no-world={!world} class:wide-world={isWeb}>
 		<!-- TEXT -->
 		<div class="area-text space-y-5">
 			<section class="card p-5" aria-label="Story and task">
 				<div class="flex gap-3">
-					<span class="text-3xl leading-none" aria-hidden="true">{theme.hero.emoji}</span>
+					<span class="text-3xl leading-none" aria-hidden="true">{storyEmoji}</span>
 					<RichText text={r(lesson.story)} class="text-ink-soft" />
 				</div>
 				<div class="bg-accent-soft mt-4 rounded-2xl px-4 py-3">
@@ -493,8 +558,13 @@
 							/></svg
 						>
 					</summary>
-					<div class="px-5 pb-5">
-						<RichText text={r(lesson.concept.body)} class="text-ink-soft" />
+					<div class="space-y-4 px-5 pb-5">
+						{#if lesson.concept.panels?.length}
+							<ComicStrip panels={lesson.concept.panels} {theme} />
+						{/if}
+						{#if lesson.concept.body}
+							<RichText text={r(lesson.concept.body)} class="text-ink-soft" />
+						{/if}
 					</div>
 				</details>
 			{/if}
@@ -506,7 +576,11 @@
 			{/if}
 
 			{#if cheatItems.length}
-				<CheatSheet items={cheatItems} id="cheat-commands" />
+				<CheatSheet
+					items={cheatItems}
+					id="cheat-commands"
+					title={isSql ? 'SQL so far' : 'Your commands'}
+				/>
 			{/if}
 			{#if syntaxItems.length}
 				<CheatSheet items={syntaxItems} title="JavaScript so far" id="cheat-syntax" />
@@ -517,9 +591,14 @@
 		{#if world}
 			<section class="area-world card p-4 sm:p-5" aria-label="The world">
 				<div class="mb-3 flex items-center justify-between gap-2">
-					<h2 class="eyebrow">
-						{world.kind === 'grid' ? 'The world' : world.kind === 'console' ? 'Output' : 'Canvas'}
-					</h2>
+					<div class="flex min-w-0 flex-col gap-1">
+						<h2 class="eyebrow">{worldTitle}</h2>
+						{#if roleChip}
+							<span class="chip bg-sand text-ink-soft self-start" data-testid="role-chip"
+								><span aria-hidden="true">{roleChip.icon}</span>{roleChip.text}</span
+							>
+						{/if}
+					</div>
 					<button
 						type="button"
 						class="btn btn-ghost min-h-0 px-2.5 py-1 text-xs"
@@ -535,8 +614,10 @@
 					<GridWorld spec={world} {theme} {stepMs} bind:this={worldRef} />
 				{:else if world.kind === 'console'}
 					<ConsoleWorld spec={world} {stepMs} bind:this={worldRef} />
-				{:else}
+				{:else if world.kind === 'canvas'}
 					<CanvasWorld spec={world} {stepMs} bind:this={worldRef} />
+				{:else if world.kind === 'web'}
+					<WebWorld spec={world} {stepMs} {baseTables} bind:this={worldRef} />
 				{/if}
 			</section>
 		{/if}
@@ -549,7 +630,13 @@
 			{#if lesson.kind === 'predict'}
 				<div class="card space-y-4 p-4 sm:p-5">
 					<h2 class="eyebrow">Read this code</h2>
-					<Editor value={lesson.code} readonly label="Code to read" minLines={3} />
+					<Editor
+						value={lesson.code}
+						readonly
+						label="Code to read"
+						minLines={3}
+						language={isSql ? 'sql' : 'js'}
+					/>
 					<p class="text-lg font-extrabold"><RichText text={r(lesson.question)} inline /></p>
 					<div class="grid gap-2" role="group" aria-label="Choices">
 						{#each lesson.choices as choice, i (i)}
@@ -582,10 +669,17 @@
 			{:else}
 				<div class="card p-3 sm:p-4">
 					<div class="mb-2 flex items-center justify-between px-1">
-						<h2 class="eyebrow">Your code</h2>
+						<h2 class="eyebrow">{isSql ? 'Your SQL' : 'Your code'}</h2>
 						<span class="text-muted hidden text-xs sm:inline">Ctrl/⌘ + Enter runs it</span>
 					</div>
-					<Editor bind:value={code} {run} {errorLine} label="Your code" minLines={7} />
+					<Editor
+						bind:value={code}
+						{run}
+						{errorLine}
+						label={isSql ? 'Your SQL' : 'Your code'}
+						minLines={7}
+						language={isSql ? 'sql' : 'js'}
+					/>
 					<div class="mt-3 hidden flex-wrap items-center gap-2 lg:flex">
 						<button
 							type="button"
@@ -595,7 +689,8 @@
 						>
 							{#if busy}<span aria-hidden="true">■</span> Stop{:else}<span aria-hidden="true"
 									>▶</span
-								> Run{/if}
+								>
+								{runLabel}{/if}
 						</button>
 						<button type="button" class="btn btn-quiet" onclick={reset} aria-live="polite">
 							{confirmReset ? 'Sure? Click again to reset' : 'Reset'}
@@ -616,7 +711,7 @@
 						boss={lesson.boss}
 						{nextHref}
 						{nextLabel}
-						heroEmoji={theme.hero.emoji}
+						heroEmoji={trackId === 'web' ? '📦' : theme.hero.emoji}
 						onretry={pickAgain}
 						onretrysave={() =>
 							saveCompletion(
@@ -677,7 +772,8 @@
 				onclick={run}
 				data-testid="run-button-mobile"
 			>
-				{#if busy}<span aria-hidden="true">■</span> Stop{:else}<span aria-hidden="true">▶</span> Run{/if}
+				{#if busy}<span aria-hidden="true">■</span> Stop{:else}<span aria-hidden="true">▶</span>
+					{runLabel}{/if}
 			</button>
 		</div>
 	</div>
@@ -732,6 +828,17 @@
 		.area-world {
 			position: sticky;
 			top: 5rem;
+		}
+		/* The web picture is wide: give it two columns and put the editor under it. */
+		.play-grid.wide-world {
+			grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+			grid-template-areas:
+				'text world'
+				'text editor';
+			grid-template-rows: auto 1fr;
+		}
+		.play-grid.wide-world .area-world {
+			position: static;
 		}
 	}
 	.choice {

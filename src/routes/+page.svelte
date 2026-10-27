@@ -1,19 +1,21 @@
 <script lang="ts">
 	import { APP_NAME } from '#lib/config.ts';
-	import { THEMES, getModules, getTheme } from '#lib/curriculum/index.ts';
+	import { THEMES, getModules, getTheme, renderText } from '#lib/curriculum/index.ts';
 	import ThemePicker from '#lib/components/ThemePicker.svelte';
 	import { guest } from '#lib/stores/guest.svelte.ts';
 	import { currentThemeId } from '#lib/stores/viewer.svelte.ts';
 	import { lessonHref } from '#lib/stores/map.ts';
+	import { allTracks, firstLessonOfTrack, trackInfo } from '#lib/stores/tracks.ts';
 	import type { ThemeId } from '#lib/curriculum/types.ts';
 
-	const firstLesson = (() => {
-		const mod = [...getModules()]
-			.sort((a, b) => a.order - b.order)
-			.find((m) => !m.comingSoon && m.lessons.length);
-		return mod?.lessons[0];
-	})();
+	const firstLesson = firstLessonOfTrack('code', getModules());
 	const startHref = firstLesson ? lessonHref(firstLesson) : '/learn';
+
+	// "Behind the app": straight into its first level, or to its map tab while it has none.
+	const hasWebTrack = allTracks(getModules()).some((t) => t.id === 'web');
+	const firstWebLesson = firstLessonOfTrack('web', getModules());
+	const webHref = firstWebLesson ? lessonHref(firstWebLesson) : '/learn?track=web';
+	const webTrack = trackInfo('web');
 
 	const themeId = $derived(currentThemeId());
 	const theme = $derived(getTheme(themeId));
@@ -86,6 +88,43 @@
 		</div>
 	</section>
 
+	<!-- Two ways in -->
+	<section class="pb-16" aria-labelledby="paths-heading">
+		<div class="mb-6 max-w-2xl">
+			<h2 id="paths-heading" class="text-2xl font-black tracking-tight sm:text-3xl">
+				Pick your path
+			</h2>
+			<p class="text-ink-soft mt-2">Two ways in. Same small levels, same patient pace.</p>
+		</div>
+		<div class="grid gap-4 md:grid-cols-2">
+			<a href={startHref} class="path card group p-6" data-testid="path-code">
+				<span class="mb-3 block text-4xl" aria-hidden="true">{theme.hero.emoji}</span>
+				<span class="block text-xl font-extrabold">I want to learn to code</span>
+				<span class="text-ink-soft mt-1.5 block">
+					Start from zero. Tell a little character what to do, then draw, make choices and build a
+					tiny game, all in real JavaScript.
+				</span>
+				<span class="text-accent-ink mt-4 inline-flex items-center gap-1 font-bold">
+					Start the first level <span aria-hidden="true" class="arrow">→</span>
+				</span>
+			</a>
+			<a href={webHref} class="path path-ink card group p-6" data-testid="path-web">
+				<span class="mb-3 block text-4xl" aria-hidden="true">{webTrack.emoji}</span>
+				<span class="block text-xl font-extrabold">
+					I work around tech and want to understand how apps actually work
+				</span>
+				<span class="text-ink-soft mt-1.5 block">
+					Servers, endpoints, databases, status codes and logs, built by you for a small webtoon
+					studio’s reader app. {renderText(webTrack.audience, theme)}
+				</span>
+				<span class="text-accent-ink mt-4 inline-flex items-center gap-1 font-bold">
+					{hasWebTrack ? 'Open Behind the app' : 'See what’s coming'}
+					<span aria-hidden="true" class="arrow">→</span>
+				</span>
+			</a>
+		</div>
+	</section>
+
 	<!-- Vibe picker -->
 	<section class="pb-16" aria-labelledby="vibe-heading">
 		<div class="mb-6 max-w-2xl">
@@ -93,6 +132,10 @@
 			<p class="text-ink-soft mt-2">
 				It changes your character, what you collect and how the story is told. The puzzles are the
 				same either way, so pick whatever makes you smile. You can switch any time.
+			</p>
+			<p class="text-muted mt-2 text-sm">
+				Vibes are for Learn to code. Behind the app has its own story, the same for everyone: a
+				webtoon studio called Inkwell.
 			</p>
 		</div>
 		<ThemePicker themes={THEMES} value={themeId} onpick={pick} legend="Pick a vibe" />
@@ -155,6 +198,50 @@
 </footer>
 
 <style>
+	.path {
+		display: block;
+		transition:
+			transform 140ms ease,
+			box-shadow 140ms ease;
+	}
+	.path:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-lift);
+	}
+	.path:hover .arrow {
+		transform: translateX(3px);
+	}
+	.arrow {
+		display: inline-block;
+		transition: transform 140ms ease;
+	}
+	.path-ink {
+		isolation: isolate;
+		position: relative;
+		overflow: hidden;
+		border: 2px solid #2b2521;
+		box-shadow: 3px 3px 0 #2b2521;
+	}
+	.path-ink:hover {
+		box-shadow: 5px 5px 0 #2b2521;
+	}
+	.path-ink::after {
+		content: '';
+		position: absolute;
+		z-index: -1;
+		top: 0;
+		right: 0;
+		width: 10rem;
+		height: 7rem;
+		pointer-events: none;
+		background: radial-gradient(
+				circle at 1.5px 1.5px,
+				rgb(43 37 33 / 0.14) 1.3px,
+				transparent 1.8px
+			)
+			0 0 / 8px 8px;
+		mask-image: linear-gradient(225deg, black, transparent 70%);
+	}
 	.preview-strip {
 		position: relative;
 		display: grid;

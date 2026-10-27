@@ -2,11 +2,13 @@
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { APP_NAME } from '#lib/config.ts';
-	import { THEMES, getModules, totalLessonCount } from '#lib/curriculum/index.ts';
+	import { THEMES, getModules, renderText, totalLessonCount } from '#lib/curriculum/index.ts';
 	import type { ThemeId } from '#lib/curriculum/types.ts';
 	import { allBadges } from '#lib/game/badges.ts';
 	import ThemePicker from '#lib/components/ThemePicker.svelte';
 	import XpBar from '#lib/components/XpBar.svelte';
+	import { allTracks, lessonsOfTrack } from '#lib/stores/tracks.ts';
+	import { currentTheme } from '#lib/stores/viewer.svelte.ts';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -17,6 +19,16 @@
 	const earnedAt = $derived(new Map(data.earned.map((b) => [b.badgeId, b.earnedAt])));
 	const earnedCount = $derived(badges.filter((b) => earnedAt.has(b.id)).length);
 	const total = totalLessonCount();
+	const tracks = allTracks(getModules());
+	const trackStats = $derived(
+		tracks.map((t) => ({
+			id: t.id,
+			emoji: t.emoji,
+			title: renderText(t.title, currentTheme()),
+			done: data.trackDone?.[t.id] ?? 0,
+			total: lessonsOfTrack(t.id, getModules()).length
+		}))
+	);
 
 	let themeId = $state<ThemeId>(untrack(() => data.user?.themeId ?? 'games'));
 	let displayName = $state(untrack(() => data.user?.displayName ?? ''));
@@ -72,6 +84,17 @@
 			</div>
 		</div>
 	</section>
+
+	{#if trackStats.length > 1}
+		<ul class="-mt-2 flex flex-wrap gap-2" aria-label="Levels done per track">
+			{#each trackStats as t (t.id)}
+				<li class="chip bg-sand text-ink-soft" data-testid="profile-track-{t.id}">
+					<span aria-hidden="true">{t.emoji}</span>
+					{t.title}: <strong class="text-ink">{t.done}</strong> of {t.total}
+				</li>
+			{/each}
+		</ul>
+	{/if}
 
 	<section class="card p-5 sm:p-6" aria-labelledby="badges-heading">
 		<div class="mb-4 flex items-baseline justify-between gap-2">

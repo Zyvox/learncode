@@ -3,10 +3,17 @@
   - No autocomplete popups, linting squiggles, folding or search panels: fewer surprises.
   - Bracket matching + auto-closing brackets/quotes, two-space Tab, big touch-friendly text.
   - `value` is bindable. `run` is called on Ctrl/Cmd+Enter. `errorLine` highlights a line.
+  - `language` switches the highlighter: 'js' (default) or 'sql'.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { EditorState, StateEffect, StateField, type Extension } from '@codemirror/state';
+	import {
+		Compartment,
+		EditorState,
+		StateEffect,
+		StateField,
+		type Extension
+	} from '@codemirror/state';
 	import {
 		EditorView,
 		Decoration,
@@ -35,6 +42,7 @@
 	import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 	import { javascript } from '@codemirror/lang-javascript';
 	import { tags as t } from '@lezer/highlight';
+	import { sqlLanguage } from './sql-lang.ts';
 
 	let {
 		value = $bindable(''),
@@ -43,7 +51,8 @@
 		errorLine = null,
 		label = 'Code editor',
 		placeholder = '',
-		minLines = 6
+		minLines = 6,
+		language = 'js'
 	}: {
 		value?: string;
 		readonly?: boolean;
@@ -52,7 +61,12 @@
 		label?: string;
 		placeholder?: string;
 		minLines?: number;
+		language?: 'js' | 'sql';
 	} = $props();
+
+	const languageSlot = new Compartment();
+	const languageExtension = (lang: 'js' | 'sql'): Extension =>
+		lang === 'sql' ? sqlLanguage : javascript();
 
 	let host: HTMLDivElement;
 	let view = $state<EditorView | undefined>();
@@ -87,7 +101,7 @@
 			fontWeight: '600'
 		},
 		{ tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#1f6fb2' },
-		{ tag: [t.number, t.bool, t.null], color: '#b4590e' },
+		{ tag: [t.number, t.bool, t.null, t.atom], color: '#b4590e' },
 		{ tag: [t.string, t.special(t.string)], color: '#2f8a4f' },
 		{ tag: t.comment, color: '#9a9088', fontStyle: 'italic' },
 		{ tag: [t.operator, t.punctuation, t.bracket], color: '#6f665d' },
@@ -157,7 +171,7 @@
 			closeBrackets(),
 			indentUnit.of('  '),
 			EditorState.tabSize.of(2),
-			javascript(),
+			languageSlot.of(languageExtension(language)),
 			syntaxHighlighting(calmHighlight),
 			calmTheme,
 			errorLineField,
@@ -213,6 +227,11 @@
 	});
 
 	$effect(() => {
+		const lang = language;
+		view?.dispatch({ effects: languageSlot.reconfigure(languageExtension(lang)) });
+	});
+
+	$effect(() => {
 		const n = errorLine;
 		view?.dispatch({ effects: setErrorLine.of(n) });
 	});
@@ -228,6 +247,7 @@
 	style:--min-lines={minLines}
 	bind:this={host}
 	data-testid="code-editor"
+	data-language={language}
 >
 	{#if !view}
 		<!-- Shown until CodeMirror mounts (and without JS) so the code is never invisible. -->
