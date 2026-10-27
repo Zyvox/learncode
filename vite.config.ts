@@ -51,6 +51,8 @@ export default defineConfig(({ command }) => ({
 	},
 	test: {
 		include: ['src/**/*.{test,spec}.ts'],
-		environment: 'node'
+		environment: 'node',
+		// The curriculum registry uses import.meta.glob; the module cache would hide new files
+		fsModuleCache: false
 	}
 }));

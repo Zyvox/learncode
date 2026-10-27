@@ -135,10 +135,7 @@ app.post('/comments', (req, res) => {
 				{
 					type: 'response-json',
 					request: 1,
-					expected: [
-						...SEED_COMMENTS,
-						{ id: 3, author: 'noodlefan', text: 'Need episode 3 now' }
-					],
+					expected: [...SEED_COMMENTS, { id: 3, author: 'noodlefan', text: 'Need episode 3 now' }],
 					mode: 'subset',
 					message:
 						'After the POST, `GET /comments` should list three comments. Did you `comments.push(...)` the new one?'
@@ -505,7 +502,11 @@ app.delete('/comments/:id', (req, res) => {
 				"The delete:\n```js\napp.delete('/comments/:id', (req, res) => {\n  const id = Number(req.params.id)\n  if (!comments.find((c) => c.id === id)) {\n    res.status(404).json({ error: 'No comment with id ' + id })\n  } else {\n    comments = comments.filter((c) => c.id !== id)\n    res.status(204).end()\n  }\n})\n```"
 			],
 			world: server([
-				{ method: 'GET', path: '/episodes/1/comments', label: 'reader opens comments on episode 1' },
+				{
+					method: 'GET',
+					path: '/episodes/1/comments',
+					label: 'reader opens comments on episode 1'
+				},
 				{
 					method: 'POST',
 					path: '/episodes/1/comments',

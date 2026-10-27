@@ -139,7 +139,7 @@ export const whereTheDataLives: Module = {
 					},
 					{
 						who: 'narrator',
-						text: 'Tests work like in JavaScript: `>`, `<`, `>=`. One difference: “equals” is a single `=` in SQL. Text goes in single quotes: `WHERE genre = \'comedy\'`.'
+						text: "Tests work like in JavaScript: `>`, `<`, `>=`. One difference: “equals” is a single `=` in SQL. Text goes in single quotes: `WHERE genre = 'comedy'`."
 					}
 				]
 			},
@@ -314,7 +314,7 @@ SELECT * FROM episodes;
 					type: 'sql-result',
 					expected: [{ total: 7 }],
 					message:
-						'Inkwell has 7 published episodes. Count only the rows `WHERE published = 1`.'
+						'The answer should be one row with `total` = 7: name the column with `AS total`, and count only the rows `WHERE published = 1`.'
 				},
 				{
 					type: 'code-includes',

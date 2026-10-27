@@ -163,7 +163,8 @@ ${LIST_ROUTE}`,
 					type: 'response-json',
 					request: 0,
 					expected: ALL_SERIES,
-					message: 'The phone should get the whole `series` list, all three of them, with `res.json(series)`.'
+					message:
+						'The phone should get the whole `series` list, all three of them, with `res.json(series)`.'
 				}
 			]
 		},
@@ -237,7 +238,7 @@ ${LIST_ROUTE}
 					},
 					{
 						who: 'you',
-						text: 'It’s the text `\'2\'`. Everything in a path is text. `Number(req.params.id)` turns it into the number 2, so it can match the ids in the list.'
+						text: "It’s the text `'2'`. Everything in a path is text. `Number(req.params.id)` turns it into the number 2, so it can match the ids in the list."
 					},
 					{
 						who: 'you',
@@ -270,7 +271,7 @@ ${BY_ID_ROUTE}`,
 					request: 0,
 					expected: ALL_SERIES[1],
 					message:
-						'`GET /series/2` should get back Grove & Gear’s card. If the answer is empty (`null`), nothing matched: `req.params.id` is the text `\'2\'`, and the ids in the list are numbers. Compare with `Number(req.params.id)`.'
+						"`GET /series/2` should get back Grove & Gear’s card. If the answer is empty (`null`), nothing matched: `req.params.id` is the text `'2'`, and the ids in the list are numbers. Compare with `Number(req.params.id)`."
 				},
 				{
 					type: 'response-json',

@@ -180,6 +180,8 @@ function lessonTexts(lesson: Lesson): [string, ThemedText][] {
 }
 
 function bareName(command: string): string {
+	// 'COUNT(*)' is a name in its own right; 'move()' and 'get(path)' are not
+	if (command.endsWith('(*)')) return command;
 	return command.replace(/\(.*$/, '').trim();
 }
 
