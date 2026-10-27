@@ -5,7 +5,7 @@ import { loadSqlInNode, runInNode, runProgramInNode } from '../node.ts';
 import { DB_LOAD_MESSAGE, SPEC_ERROR_MESSAGE, functionExecutor, runProgram } from '../run.ts';
 import type { RunResult, TraceEvent } from '../types.ts';
 import { INKWELL_TEST_SCHEMA as INKWELL_SCHEMA } from './web.fixtures.ts';
-import { createWebWorld, matchRoute, parseQuery, segmentsOf } from './web.ts';
+import { MAX_ROWS, createWebWorld, matchRoute, parseQuery, segmentsOf } from './web.ts';
 
 const server = (extra: Partial<WebWorldSpec> = {}): WebWorldSpec => ({
 	kind: 'web',
@@ -609,6 +609,112 @@ UPDATE episodes SET likes = likes + 1;`,
 		);
 		expect((r.web!.responses[0].body as unknown[]).at(-1)).toEqual({ title: 'New one' });
 		expect(kinds(r)).toEqual(['query', 'request', 'route', 'query', 'response', 'screen']);
+	});
+});
+
+describe('web world: learner mistakes stay friendly', () => {
+	const get = (path = '/x') => [{ method: 'GET' as const, path }];
+
+	it('handler mistakes become a 500 with a log line, never a crashed run', async () => {
+		const cases: [string, RegExp][] = [
+			[
+				"app.get('/x', (req, res) => res.json(db.all(123)))",
+				/`db\.all\(\)` needs an SQL statement/
+			],
+			["app.get('/x', (req, res) => res.json(db.get()))", /`db\.get\(\)` needs an SQL statement/],
+			// the phone's get() doesn't exist on the server
+			["app.get('/x', (req, res) => res.json(get('/y')))", /get is not defined/],
+			[
+				"function f() { return f() }\napp.get('/x', (req, res) => { f(); res.json(1) })",
+				/call stack/
+			],
+			["app.get('/x', (req, res) => { throw undefined })", /^Error in GET \/x: undefined$/]
+		];
+		for (const [code, log] of cases) {
+			const r = await runInNode(code, server({ requests: get() }));
+			expect(r.ok, code).toBe(true);
+			expect(r.web!.responses[0], code).toMatchObject({ status: 500 });
+			expect(of(r, 'log')[0]?.text, code).toMatch(log);
+		}
+	});
+
+	it('odd but legal handler code still answers', async () => {
+		const r = await runInNode(
+			`app.get('/a', (req, res) => res.json(undefined))
+app.get('/b', (req, res) => res.json(db.run('SELECT * FROM series')))
+app.get('/c', (req, res) => { app.get('/c', (q, s) => s.json('new')); res.json('old') })
+app.get('/e/:id', (req, res) => res.json(db.get('SELECT title FROM episodes WHERE id = ?', [req.params.id])))`,
+			server({ requests: [...get('/a'), ...get('/b'), ...get('/c'), ...get('/c'), ...get('/e/2')] })
+		);
+		expect(r.web!.responses.map((x) => [x.status, x.body])).toEqual([
+			[200, null],
+			// lastId is SQLite's last_insert_rowid(): the last insert on the connection (the seed)
+			[200, { changes: 0, lastId: 2 }],
+			[200, 'old'],
+			[200, 'old'],
+			[200, { title: 'Rain on the roofs' }]
+		]);
+	});
+
+	it('an async handler gets a hint, and late sends after the answer change nothing', async () => {
+		for (const code of [
+			"app.get('/x', async (req, res) => { const rows = await db.all('SELECT * FROM series'); res.json(rows) })",
+			// the SQL error is swallowed by the promise: the hint is all the learner gets
+			"app.get('/x', async (req, res) => { res.json(db.all('SELEC * FROM series')) })"
+		]) {
+			const r = await runInNode(code, server({ requests: get() }));
+			expect(r.web!.responses[0]).toMatchObject({ status: 500 });
+			const logs = of(r, 'log').map((e) => e.text);
+			expect(logs, code).toHaveLength(1);
+			expect(logs[0]).toMatch(
+				/^The handler for GET \/x finished without sending a response\. It's an `async` function.*Leave out `async` and `await`\.$/
+			);
+		}
+	});
+
+	it('client: show() with a command, a circular value, and get() without a path', async () => {
+		const client = (code: string) =>
+			runInNode(code, { kind: 'web', role: 'client', schema: INKWELL_SCHEMA });
+		let r = await client("show(get('/x').json)");
+		expect(r.error?.message).toMatch(/^`show\(\)` got a command instead of a value/);
+		r = await client('const a = {}\na.self = a\nshow(a)');
+		expect(r.error?.message).toMatch(/^`show\(\)` can't put this value on the screen/);
+		expect(r.error?.line).toBe(3);
+		r = await client('get()');
+		expect(r.error?.message).toMatch(/^`get\(\)` needs a path in quotes/);
+	});
+
+	it('repeated column names (a JOIN with two ids) keep every value', async () => {
+		const r = await runInNode(
+			'SELECT e.id, e.title, s.id, s.title FROM episodes e JOIN series s ON s.id = e.series_id WHERE e.id = 3',
+			{ kind: 'web', role: 'sql', schema: INKWELL_SCHEMA }
+		);
+		expect(r.web!.sqlResult).toEqual({
+			columns: ['id', 'title', 'id:1', 'title:1'],
+			rows: [{ id: 3, title: 'Sprockets', 'id:1': 2, 'title:1': 'Grove & Gear' }]
+		});
+	});
+
+	it('big results are capped; odd SQL fails friendly instead of crashing', async () => {
+		const sql = (code: string) =>
+			runInNode(code, { kind: 'web', role: 'sql', schema: INKWELL_SCHEMA });
+		let r = await sql(
+			'WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c LIMIT 10000) SELECT x FROM c'
+		);
+		expect(r.ok).toBe(true);
+		expect(r.web!.sqlResult!.rows).toHaveLength(MAX_ROWS);
+		for (const code of [
+			"ATTACH DATABASE '/etc/passwd' AS x",
+			'.load something',
+			`SELECT ${'1 + '.repeat(5000)}1`
+		]) {
+			r = await sql(code);
+			expect(r.ok, code).toBe(false);
+			expect(r.error?.message, code).toBeTruthy();
+			expect(r.error?.line, code).toBe(1);
+		}
+		r = await sql("PRAGMA table_info(series); SELECT '日本語 🎨' AS t");
+		expect(r.web!.sqlResult).toEqual({ columns: ['t'], rows: [{ t: '日本語 🎨' }] });
 	});
 });
 

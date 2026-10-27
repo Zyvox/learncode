@@ -8,7 +8,7 @@
   Narrow containers stack the boxes vertically and the wires turn vertical.
 -->
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import type { WebWorldSpec } from '#lib/curriculum/types.ts';
 	import type { ScreenItem, SqlResultSet, TraceEvent, WebResult } from '#lib/engine/types.ts';
 	import {
@@ -136,16 +136,27 @@
 		stoppedReason = null;
 	}
 
+	/** Pending animation waits: cancelling ends them at once, so `play()` returns promptly. */
+	const pending = new Set<() => void>();
+
+	/** Stops the current replay (its `play()` promise resolves right away). */
+	function cancel() {
+		runToken++;
+		for (const end of [...pending]) end();
+	}
+
 	// New lesson → fresh picture.
 	$effect(() => {
 		void spec;
-		runToken++;
+		cancel();
 		playing = false;
 		untrack(resetState);
 	});
 
+	onDestroy(cancel);
+
 	export function reset() {
-		runToken++;
+		cancel();
 		playing = false;
 		resetState();
 	}
@@ -154,8 +165,16 @@
 		typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 	function wait(ms: number, token: number, instant: boolean) {
-		if (instant) return Promise.resolve(token === runToken);
-		return new Promise<boolean>((resolve) => setTimeout(() => resolve(token === runToken), ms));
+		if (instant || token !== runToken) return Promise.resolve(token === runToken);
+		return new Promise<boolean>((resolve) => {
+			const end = () => {
+				clearTimeout(timer);
+				pending.delete(end);
+				resolve(token === runToken);
+			};
+			const timer = setTimeout(end, ms);
+			pending.add(end);
+		});
 	}
 
 	function scrollDown() {
@@ -183,14 +202,31 @@
 		return pattern === null ? `miss ${method} ${path}` : `${method} ${pattern}`;
 	}
 
+	/** Replays a run. Always resolves (never rejects), also when cancelled or given odd data. */
 	export async function play(trace: TraceEvent[], web?: WebResult): Promise<void> {
-		const token = ++runToken;
+		cancel();
+		const token = runToken;
 		resetState();
 		ran = true;
 		playing = true;
+		try {
+			await animate(token, Array.isArray(trace) ? trace : [], web);
+		} catch {
+			// A replay problem must never leave the Run button hanging: show the final picture.
+			if (token !== runToken) return;
+			try {
+				finishPicture(web);
+			} catch {
+				finishPicture();
+			}
+		}
+	}
+
+	async function animate(token: number, trace: TraceEvent[], web?: WebResult): Promise<void> {
 		const instant = reduced();
-		const events = trace.filter((e) =>
-			['request', 'route', 'log', 'query', 'response', 'screen', 'stopped'].includes(e.t)
+		const events = trace.filter(
+			(e) =>
+				!!e && ['request', 'route', 'log', 'query', 'response', 'screen', 'stopped'].includes(e.t)
 		);
 		// Long runs speed up so nobody waits forever.
 		const step = events.length > 40 ? Math.max(35, 7000 / events.length) : Math.max(stepMs, 60);
@@ -204,13 +240,13 @@
 					const existing = trips.find((t) => t.id === ev.id);
 					if (existing) {
 						existing.state = 'going';
-						existing.method = ev.method;
-						existing.path = ev.path;
+						existing.method = String(ev.method);
+						existing.path = String(ev.path);
 					} else {
 						trips.push({
 							id: ev.id,
-							method: ev.method,
-							path: ev.path,
+							method: String(ev.method),
+							path: String(ev.path),
 							label: ev.label,
 							state: 'going'
 						});
@@ -247,7 +283,7 @@
 					activeTable = table;
 					queries.push({
 						n: queries.length + 1,
-						sql: ev.sql,
+						sql: String(ev.sql ?? ''),
 						params: ev.params ?? [],
 						rows: ev.rows,
 						changes: ev.changes,
@@ -328,8 +364,11 @@
 		}
 		if (token !== runToken) return;
 		if (!(await wait(Math.max(step, 200), token, instant))) return;
+		finishPicture(web);
+	}
 
-		// The final picture comes from the result itself.
+	/** The final picture comes from the result itself. */
+	function finishPicture(web?: WebResult) {
 		if (web) {
 			if (web.tables && Object.keys(web.tables).length) runTables = web.tables;
 			sqlResult = web.sqlResult ?? null;
@@ -340,7 +379,13 @@
 					t.status = r.status;
 					t.state = 'done';
 				} else {
-					trips.push({ id: r.id, method: r.method, path: r.path, status: r.status, state: 'done' });
+					trips.push({
+						id: r.id,
+						method: String(r.method),
+						path: String(r.path),
+						status: r.status,
+						state: 'done'
+					});
 				}
 				if (lastStatus === null) lastStatus = r.status;
 			}
@@ -395,13 +440,13 @@
 		<table>
 			<thead>
 				<tr>
-					{#each set.columns as col (col)}<th scope="col">{col}</th>{/each}
+					{#each set.columns as col, c (c)}<th scope="col">{col}</th>{/each}
 				</tr>
 			</thead>
 			<tbody>
 				{#each set.rows.slice(0, max) as row, i (i)}
 					<tr>
-						{#each set.columns as col (col)}
+						{#each set.columns as col, c (c)}
 							<td class:null={row[col] === null || row[col] === undefined}>{cellText(row[col])}</td>
 						{/each}
 					</tr>

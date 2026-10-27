@@ -145,7 +145,13 @@ export function splitSqlStatements(source: string): SqlStatement[] {
 	const out: SqlStatement[] = [];
 	let start = 0;
 	let firstCode = -1;
-	const lineAt = (i: number) => source.slice(0, i).split('\n').length;
+	// Line numbers counted incrementally: re-scanning from the start each time is quadratic.
+	let line = 1;
+	let counted = 0;
+	const lineAt = (i: number) => {
+		for (; counted < i; counted++) if (source.charCodeAt(counted) === 10) line++;
+		return line;
+	};
 	const push = (end: number) => {
 		if (firstCode >= 0) out.push({ sql: source.slice(start, end).trim(), line: lineAt(firstCode) });
 		start = end + 1;

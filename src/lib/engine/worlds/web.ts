@@ -303,13 +303,27 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 		return v instanceof Uint8Array ? '[binary data]' : v;
 	}
 
+	/**
+	 * Rows are objects, so a repeated column name (`SELECT *` over a JOIN gives two `id`s) would
+	 * silently keep only the last value. Repeats get SQLite's own suffix instead: `id`, `id:1`.
+	 */
+	function uniqueColumns(names: string[]): string[] {
+		const used = new Set<string>();
+		return names.map((name) => {
+			let out = name;
+			for (let n = 1; used.has(out); n++) out = `${name}:${n}`;
+			used.add(out);
+			return out;
+		});
+	}
+
 	/** Runs one statement. Throws SQLite's error untouched. */
 	function execOne(sql: string, params: SqlValue[], maxRows = MAX_ROWS): ExecResult {
 		const before = scalar('SELECT total_changes()');
 		const stmt = db.prepare(sql);
 		try {
 			if (params.length) stmt.bind(params);
-			const columns = stmt.getColumnNames();
+			const columns = uniqueColumns(stmt.getColumnNames());
 			const rows: Record<string, unknown>[] = [];
 			while (rows.length < maxRows && stmt.step()) {
 				const values = stmt.get();
@@ -562,7 +576,10 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 
 		let sent: { status: number; body: unknown } | null = null;
 		let status = 200;
+		/** The answer has gone back to the phone: later sends (after an `await`) change nothing. */
+		let closed = false;
 		const send = (body: unknown) => {
+			if (closed) return;
 			if (sent) {
 				logLine(
 					`Warning: the handler for ${where} tried to send a second response. Only the first one counts.`
@@ -609,9 +626,11 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 		});
 
 		current = id;
+		let isAsync = false;
 		try {
 			const ret = route.handler(req, res);
 			if (ret && typeof (ret as Promise<unknown>).then === 'function') {
+				isAsync = true;
 				(ret as Promise<unknown>).then(undefined, () => {});
 			}
 		} catch (e) {
@@ -626,12 +645,18 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 		if (!sent) {
 			current = id;
 			try {
-				logLine(`The handler for ${where} finished without sending a response.`);
+				logLine(
+					`The handler for ${where} finished without sending a response.` +
+						(isAsync
+							? ` It's an ${tick('async')} function, and in this simulation the database answers straight away, so there's nothing to wait for. Leave out ${tick('async')} and ${tick('await')}.`
+							: '')
+				);
 			} finally {
 				current = undefined;
 			}
 			sent = { status: 500, body: { ...SERVER_ERROR_BODY } };
 		}
+		closed = true;
 		const final = sent as { status: number; body: unknown };
 		return done(final.status, final.body, route.pattern);
 	}
@@ -728,6 +753,12 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 		const value = args[0];
 		if (typeof value === 'string') return addScreen({ kind: 'text', text: value });
 		if (value === undefined) return addScreen({ kind: 'text', text: 'undefined' });
+		if (typeof value === 'function') {
+			throw new CommandError(
+				`${tick('show()')} got a command instead of a value. Did you forget the round brackets? Write ${tick('show(res.json())')}, not ${tick('show(res.json)')}.`,
+				'show(): value is a function'
+			);
+		}
 		let copy: unknown;
 		try {
 			copy = jsonCopy(value);

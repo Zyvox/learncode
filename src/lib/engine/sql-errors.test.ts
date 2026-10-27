@@ -46,6 +46,16 @@ describe('splitting SQL', () => {
 		expect(splitSqlStatements('-- only a comment')).toEqual([]);
 	});
 
+	it('splits long sources quickly, with the right line numbers', () => {
+		const src = 'SELECT 1;\n'.repeat(30000) + '\n\nSELECT 2';
+		const t = Date.now();
+		const out = splitSqlStatements(src);
+		expect(Date.now() - t).toBeLessThan(1000);
+		expect(out).toHaveLength(30001);
+		expect(out[29999]).toEqual({ sql: 'SELECT 1', line: 30000 });
+		expect(out[30000]).toEqual({ sql: 'SELECT 2', line: 30003 });
+	});
+
 	it('counts ? placeholders outside strings', () => {
 		expect(countPlaceholders("SELECT * FROM t WHERE a = ? AND b = '?' -- ?")).toBe(1);
 		expect(countPlaceholders('SELECT ?, ?')).toBe(2);
