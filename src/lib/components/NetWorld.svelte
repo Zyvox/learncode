@@ -95,6 +95,10 @@
 
 	const compact = $derived(wrapW > 0 && wrapW < 560);
 	const layout = $derived(layoutNet(nodes, links, { compact, at: spec.at }));
+	/** Shrink the whole picture to fit the available width (down to 55%); beyond that it scrolls. */
+	const fit = $derived(
+		wrapW > 0 && layout.width > wrapW ? Math.max(0.55, wrapW / layout.width) : 1
+	);
 	const cloudIds = $derived(new Set(layout.clouds.map((c) => c.id)));
 	const drawnNodes = $derived(nodes.filter((n) => !cloudIds.has(n.id)));
 	const lbNode = $derived(nodes.find((n) => n.kind === 'lb'));
@@ -713,78 +717,85 @@
 <div class="net" data-testid="net-world" data-flavour={flavour}>
 	<div class="scroller" bind:clientWidth={wrapW}>
 		<div
-			class="stage"
-			class:compact
-			style:width="{layout.width}px"
-			style:height="{layout.height}px"
+			class="fit"
+			style:width="{Math.round(layout.width * fit)}px"
+			style:height="{Math.round(layout.height * fit)}px"
 		>
-			{#each layout.clouds as c (c.id)}
-				{@const cn = nodes.find((n) => n.id === c.id)}
-				<div
-					class="cloud"
-					class:down={cn?.down}
-					style:left="{c.x}px"
-					style:top="{c.y}px"
-					style:width="{c.w}px"
-					style:height="{c.h}px"
-					data-testid="net-node-{c.id}"
-					data-kind="cloud"
-				>
-					<span class="cloud-head"
-						><span aria-hidden="true">☁️</span>
-						{cn?.label ?? c.id}{#if cn?.down}
-							<span class="state off">⏻ off</span>{/if}</span
-					>
-					{#if !nodes.some((n) => n.kind === 'container')}
-						<span class="cloud-empty">Nothing running here yet.</span>
-					{/if}
-				</div>
-			{/each}
-
-			<svg
-				class="wires"
-				width={layout.width}
-				height={layout.height}
-				viewBox="0 0 {layout.width} {layout.height}"
-				aria-hidden="true"
+			<div
+				class="stage"
+				class:compact
+				style:width="{layout.width}px"
+				style:height="{layout.height}px"
+				style:transform={fit < 1 ? `scale(${fit})` : undefined}
 			>
-				{#each links as l, i (i)}
-					{@const a = layout.pos[findNode(nodes, l.from)?.id ?? '']}
-					{@const b = layout.pos[findNode(nodes, l.to)?.id ?? '']}
-					{#if a && b && !cloudIds.has(l.from) && !cloudIds.has(l.to)}
-						<line x1={a.x} y1={a.y} x2={b.x} y2={b.y} class="wire" />
-						{#if l.latencyMs !== undefined}
-							<g transform="translate({(a.x + b.x) / 2}, {(a.y + b.y) / 2})">
-								<rect x="-19" y="-9" width="38" height="18" rx="9" class="lat-bg" />
-								<text class="lat" text-anchor="middle" dominant-baseline="central"
-									>{l.latencyMs} ms</text
-								>
-							</g>
+				{#each layout.clouds as c (c.id)}
+					{@const cn = nodes.find((n) => n.id === c.id)}
+					<div
+						class="cloud"
+						class:down={cn?.down}
+						style:left="{c.x}px"
+						style:top="{c.y}px"
+						style:width="{c.w}px"
+						style:height="{c.h}px"
+						data-testid="net-node-{c.id}"
+						data-kind="cloud"
+					>
+						<span class="cloud-head"
+							><span aria-hidden="true">☁️</span>
+							{cn?.label ?? c.id}{#if cn?.down}
+								<span class="state off">⏻ off</span>{/if}</span
+						>
+						{#if !nodes.some((n) => n.kind === 'container')}
+							<span class="cloud-empty">Nothing running here yet.</span>
 						{/if}
+					</div>
+				{/each}
+
+				<svg
+					class="wires"
+					width={layout.width}
+					height={layout.height}
+					viewBox="0 0 {layout.width} {layout.height}"
+					aria-hidden="true"
+				>
+					{#each links as l, i (i)}
+						{@const a = layout.pos[findNode(nodes, l.from)?.id ?? '']}
+						{@const b = layout.pos[findNode(nodes, l.to)?.id ?? '']}
+						{#if a && b && !cloudIds.has(l.from) && !cloudIds.has(l.to)}
+							<line x1={a.x} y1={a.y} x2={b.x} y2={b.y} class="wire" />
+							{#if l.latencyMs !== undefined}
+								<g transform="translate({(a.x + b.x) / 2}, {(a.y + b.y) / 2})">
+									<rect x="-19" y="-9" width="38" height="18" rx="9" class="lat-bg" />
+									<text class="lat" text-anchor="middle" dominant-baseline="central"
+										>{l.latencyMs} ms</text
+									>
+								</g>
+							{/if}
+						{/if}
+					{/each}
+				</svg>
+
+				{#each drawnNodes as n (n.id)}
+					{@const p = layout.pos[n.id]}
+					{#if p}
+						{@render nodeCard(n, p, n.kind === 'container' && layout.clouds.length > 0)}
 					{/if}
 				{/each}
-			</svg>
 
-			{#each drawnNodes as n (n.id)}
-				{@const p = layout.pos[n.id]}
-				{#if p}
-					{@render nodeCard(n, p, n.kind === 'container' && layout.clouds.length > 0)}
-				{/if}
-			{/each}
+				{#each flights as f (f.key)}
+					<span class="flight tone-{f.tone}" class:small={f.small} use:fly={f} aria-hidden="true">
+						<span class="bit">📦</span>
+						{#if f.text && !f.small}<span class="ftag">{f.text}</span>{/if}
+					</span>
+				{/each}
 
-			{#each flights as f (f.key)}
-				<span class="flight tone-{f.tone}" class:small={f.small} use:fly={f} aria-hidden="true">
-					<span class="bit">📦</span>
-					{#if f.text && !f.small}<span class="ftag">{f.text}</span>{/if}
-				</span>
-			{/each}
-
-			{#each drops as d (d.key)}
-				<div class="drop" style:left="{d.x}px" style:top="{d.y}px" data-testid="net-drop">
-					<span class="x" aria-hidden="true">✕</span>
-					<span class="bubble">{d.reason}</span>
-				</div>
-			{/each}
+				{#each drops as d (d.key)}
+					<div class="drop" style:left="{d.x}px" style:top="{d.y}px" data-testid="net-drop">
+						<span class="x" aria-hidden="true">✕</span>
+						<span class="bubble">{d.reason}</span>
+					</div>
+				{/each}
+			</div>
 		</div>
 	</div>
 
@@ -897,9 +908,14 @@
 		border: 1px solid var(--color-line);
 		-webkit-overflow-scrolling: touch;
 	}
-	.stage {
+	.fit {
 		position: relative;
 		margin: 0 auto;
+		overflow: hidden;
+	}
+	.stage {
+		position: relative;
+		transform-origin: top left;
 	}
 	.wires {
 		position: absolute;

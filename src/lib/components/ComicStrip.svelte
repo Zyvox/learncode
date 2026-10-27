@@ -177,9 +177,9 @@
 			radial-gradient(circle at 1px 1px, rgb(43 37 33 / 0.07) 1px, transparent 1.4px) 0 0 / 7px 7px,
 			#fffdf8;
 		box-shadow: 3px 3px 0 #2b2521;
+		/* A plain fade-in on mount: scroll-driven timelines left panels invisible when the strip
+		   was rendered below the fold (e.g. inside the pass banner). */
 		animation: panel-in 380ms ease-out both;
-		animation-timeline: view();
-		animation-range: entry 0% entry 60%;
 	}
 	.panel.narrator {
 		background: #2b2521;
@@ -283,19 +283,14 @@
 		clip: rect(0 0 0 0);
 		white-space: nowrap;
 	}
+	/* Only the slide is animated: panels stay readable even if the browser hasn't ticked the
+	   animation yet (Chromium pauses animations for elements that are not in view). */
 	@keyframes panel-in {
 		from {
-			opacity: 0.2;
 			transform: translateY(10px);
 		}
 		to {
-			opacity: 1;
 			transform: none;
-		}
-	}
-	@supports not (animation-timeline: view()) {
-		.panel {
-			animation: none;
 		}
 	}
 	@media (prefers-reduced-motion: reduce) {
