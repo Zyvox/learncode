@@ -89,6 +89,9 @@
 		stoppedReason = null;
 	}
 
+	// The first picture (also what the server renders): the spec's files, or the setup's state.
+	resetState();
+
 	const pending = new Set<() => void>();
 	function cancel() {
 		runToken++;
@@ -282,141 +285,145 @@
 </script>
 
 <div class="git-wrap">
-<div class="git" data-testid="git-world">
-	<section class="pane terminal" aria-label="Terminal" data-testid="git-terminal">
-		<header class="term-head">
-			<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-			<span>terminal</span>
-		</header>
-		<div class="term-body" bind:this={termEl} role="log" aria-live="polite">
-			{#each term as l (l.n)}
-				<div class="tline" class:earlier={l.earlier} class:bad={!l.ok && l.done}>
-					<div class="cmd">
-						<span class="prompt" aria-hidden="true">$</span>
-						<span>{l.typed}</span>{#if !l.done && playing}<span class="caret" aria-hidden="true"
-							></span>{/if}
+	<div class="git" data-testid="git-world">
+		<section class="pane terminal" aria-label="Terminal" data-testid="git-terminal">
+			<header class="term-head">
+				<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+				<span>terminal</span>
+			</header>
+			<div class="term-body" bind:this={termEl} role="log" aria-live="polite">
+				{#each term as l (l.n)}
+					<div class="tline" class:earlier={l.earlier} class:bad={!l.ok && l.done}>
+						<div class="cmd">
+							<span class="prompt" aria-hidden="true">$</span>
+							<span>{l.typed}</span>{#if !l.done && playing}<span class="caret" aria-hidden="true"
+								></span>{/if}
+						</div>
+						{#if l.output}<pre class="out">{l.output}</pre>{/if}
 					</div>
-					{#if l.output}<pre class="out">{l.output}</pre>{/if}
-				</div>
-			{/each}
-			{#if !term.length}
-				<p class="term-empty">Your commands run here, one line at a time, top to bottom.</p>
-			{:else if term.every((l) => l.earlier) && !ran}
-				<p class="term-empty">Above: what was already done before you sat down.</p>
-			{/if}
-			{#if stoppedReason}<p class="stopped">{stoppedReason}</p>{/if}
-		</div>
-	</section>
+				{/each}
+				{#if !term.length}
+					<p class="term-empty">Your commands run here, one line at a time, top to bottom.</p>
+				{:else if term.every((l) => l.earlier) && !ran}
+					<p class="term-empty">Above: what was already done before you sat down.</p>
+				{/if}
+				{#if stoppedReason}<p class="stopped">{stoppedReason}</p>{/if}
+			</div>
+		</section>
 
-	<section class="pane folder" aria-label="Working folder" data-testid="git-files">
-		<header class="pane-head">
-			<span aria-hidden="true">📁</span> Your folder
-			{#if isStaged}<span class="note">green = in the next commit</span>{/if}
-		</header>
-		{#if files.length}
-			<ul class="files">
-				{#each files as f (f.path)}
-					<li class="file st-{f.status}" data-testid="git-file" data-status={f.status}>
-						{#if contents[f.path] !== undefined && f.status !== 'deleted'}
-							<details>
-								<summary>
+		<section class="pane folder" aria-label="Working folder" data-testid="git-files">
+			<header class="pane-head">
+				<span aria-hidden="true">📁</span> Your folder
+				{#if isStaged}<span class="note">green = in the next commit</span>{/if}
+			</header>
+			{#if files.length}
+				<ul class="files">
+					{#each files as f (f.path)}
+						<li class="file st-{f.status}" data-testid="git-file" data-status={f.status}>
+							{#if contents[f.path] !== undefined && f.status !== 'deleted'}
+								<details>
+									<summary>
+										<span class="dot" aria-hidden="true"></span>
+										<code class="fname">{f.path}</code>
+										<span class="fstatus"
+											>{initialized ? STATUS_LABEL[f.status] : 'just a file, no history yet'}</span
+										>
+									</summary>
+									<pre class="fcontent">{contents[f.path] || '(empty)'}</pre>
+								</details>
+							{:else}
+								<div class="frow">
 									<span class="dot" aria-hidden="true"></span>
 									<code class="fname">{f.path}</code>
-									<span class="fstatus">{STATUS_LABEL[f.status]}</span>
-								</summary>
-								<pre class="fcontent">{contents[f.path] || '(empty)'}</pre>
-							</details>
-						{:else}
-							<div class="frow">
-								<span class="dot" aria-hidden="true"></span>
-								<code class="fname">{f.path}</code>
-								<span class="fstatus">{STATUS_LABEL[f.status]}</span>
-							</div>
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		{:else}
-			<p class="hint">The folder is empty.</p>
-		{/if}
-		<p class="legend" aria-hidden="true">
-			<span class="st-untracked"><span class="dot"></span>new</span>
-			<span class="st-modified"><span class="dot"></span>changed</span>
-			<span class="st-staged"><span class="dot"></span>staged</span>
-			<span class="st-committed"><span class="dot"></span>saved</span>
-		</p>
-	</section>
-
-	<section class="pane history" aria-label="Commit history" data-testid="git-graph">
-		<header class="pane-head">
-			<span aria-hidden="true">🕰️</span> History
-			{#if head.branch}<span class="note">you’re on <b>{head.branch}</b></span>{/if}
-		</header>
-		{#if !initialized && !commits.length}
-			<p class="hint">No history here yet. <code>git init</code> starts one.</p>
-		{:else if !commits.length}
-			<p class="hint">No commits yet. The first one will show up here.</p>
-		{:else}
-			<div class="graph" style:--graph-w="{graphW}px">
-				<svg
-					class="lanes"
-					width={graphW}
-					height={graph.rows.length * ROW}
-					viewBox="0 0 {graphW} {graph.rows.length * ROW}"
-					aria-hidden="true"
-				>
-					{#each graph.edges as e, i (i)}
-						<path
-							d={edgePath(e)}
-							fill="none"
-							stroke={LANE_COLORS[Math.max(e.from.lane, e.to.lane) % LANE_COLORS.length]}
-							stroke-width="2.5"
-							stroke-linecap="round"
-						/>
-					{/each}
-					{#each graph.rows as r (r.commit.id)}
-						<circle
-							cx={laneX(r.lane)}
-							cy={rowY(r.row)}
-							r={r.merge ? 6.5 : 5.5}
-							fill={r.merge ? 'white' : LANE_COLORS[r.lane % LANE_COLORS.length]}
-							stroke={LANE_COLORS[r.lane % LANE_COLORS.length]}
-							stroke-width={r.merge ? 3 : 2}
-						/>
-					{/each}
-				</svg>
-				<ol class="commits">
-					{#each graph.rows as r (r.commit.id)}
-						{@const names = labelsAt.get(r.commit.id) ?? []}
-						<li
-							class="commit"
-							class:is-head={head.commit === r.commit.id}
-							style:height="{ROW}px"
-							data-testid="git-commit"
-							data-id={r.commit.id}
-						>
-							<code class="cid">{shortId(r.commit.id)}</code>
-							{#each names as b (b)}
-								<span class="branch" class:head={head.branch === b}
-									>{#if head.branch === b}<span class="headmark">HEAD →</span>
-									{/if}{b}</span
-								>
-							{/each}
-							{#if head.branch === null && head.commit === r.commit.id}
-								<span class="branch head"><span class="headmark">HEAD</span></span>
+									<span class="fstatus"
+										>{initialized ? STATUS_LABEL[f.status] : 'just a file, no history yet'}</span
+									>
+								</div>
 							{/if}
-							<span class="msg">{r.commit.message}</span>
-							{#if r.merge}<span class="merge-tag">merge</span>{/if}
 						</li>
 					{/each}
-				</ol>
-			</div>
-			{#if graph.hidden}
-				<p class="hint small">and {graph.hidden} older commit{graph.hidden === 1 ? '' : 's'}</p>
+				</ul>
+			{:else}
+				<p class="hint">The folder is empty.</p>
 			{/if}
-		{/if}
-	</section>
-</div>
+			<p class="legend" aria-hidden="true">
+				<span class="st-untracked"><span class="dot"></span>new</span>
+				<span class="st-modified"><span class="dot"></span>changed</span>
+				<span class="st-staged"><span class="dot"></span>staged</span>
+				<span class="st-committed"><span class="dot"></span>saved</span>
+			</p>
+		</section>
+
+		<section class="pane history" aria-label="Commit history" data-testid="git-graph">
+			<header class="pane-head">
+				<span aria-hidden="true">🕰️</span> History
+				{#if head.branch}<span class="note">you’re on <b>{head.branch}</b></span>{/if}
+			</header>
+			{#if !initialized && !commits.length}
+				<p class="hint">No history here yet. <code>git init</code> starts one.</p>
+			{:else if !commits.length}
+				<p class="hint">No commits yet. The first one will show up here.</p>
+			{:else}
+				<div class="graph" style:--graph-w="{graphW}px">
+					<svg
+						class="lanes"
+						width={graphW}
+						height={graph.rows.length * ROW}
+						viewBox="0 0 {graphW} {graph.rows.length * ROW}"
+						aria-hidden="true"
+					>
+						{#each graph.edges as e, i (i)}
+							<path
+								d={edgePath(e)}
+								fill="none"
+								stroke={LANE_COLORS[Math.max(e.from.lane, e.to.lane) % LANE_COLORS.length]}
+								stroke-width="2.5"
+								stroke-linecap="round"
+							/>
+						{/each}
+						{#each graph.rows as r (r.commit.id)}
+							<circle
+								cx={laneX(r.lane)}
+								cy={rowY(r.row)}
+								r={r.merge ? 6.5 : 5.5}
+								fill={r.merge ? 'white' : LANE_COLORS[r.lane % LANE_COLORS.length]}
+								stroke={LANE_COLORS[r.lane % LANE_COLORS.length]}
+								stroke-width={r.merge ? 3 : 2}
+							/>
+						{/each}
+					</svg>
+					<ol class="commits">
+						{#each graph.rows as r (r.commit.id)}
+							{@const names = labelsAt.get(r.commit.id) ?? []}
+							<li
+								class="commit"
+								class:is-head={head.commit === r.commit.id}
+								style:height="{ROW}px"
+								data-testid="git-commit"
+								data-id={r.commit.id}
+							>
+								<code class="cid">{shortId(r.commit.id)}</code>
+								{#each names as b (b)}
+									<span class="branch" class:head={head.branch === b}
+										>{#if head.branch === b}<span class="headmark">HEAD →</span>
+										{/if}{b}</span
+									>
+								{/each}
+								{#if head.branch === null && head.commit === r.commit.id}
+									<span class="branch head"><span class="headmark">HEAD</span></span>
+								{/if}
+								<span class="msg">{r.commit.message}</span>
+								{#if r.merge}<span class="merge-tag">merge</span>{/if}
+							</li>
+						{/each}
+					</ol>
+				</div>
+				{#if graph.hidden}
+					<p class="hint small">and {graph.hidden} older commit{graph.hidden === 1 ? '' : 's'}</p>
+				{/if}
+			{/if}
+		</section>
+	</div>
 </div>
 
 <style>

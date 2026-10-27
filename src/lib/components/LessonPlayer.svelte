@@ -84,12 +84,8 @@
 	const isSql = $derived(lesson.language === 'sql');
 	const isShell = $derived(lesson.language === 'shell' || world?.kind === 'git');
 	/** Worlds that need the wide layout (the picture over the editor) */
-	const isWide = $derived(
-		world?.kind === 'web' || world?.kind === 'net' || world?.kind === 'git'
-	);
-	const editorLanguage = $derived<'js' | 'sql' | 'shell'>(
-		isSql ? 'sql' : isShell ? 'shell' : 'js'
-	);
+	const isWide = $derived(world?.kind === 'web' || world?.kind === 'net' || world?.kind === 'git');
+	const editorLanguage = $derived<'js' | 'sql' | 'shell'>(isSql ? 'sql' : isShell ? 'shell' : 'js');
 	const trackId = $derived(trackOf(module));
 	/** Lessons of this lesson's track, in order: what the learner has met so far. */
 	const trackLessons = $derived(lessonsOfTrack(trackId));

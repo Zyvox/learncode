@@ -429,8 +429,9 @@ export function createNetWorld(spec: NetWorldSpec): NetWorld {
 	const push = (e: TraceEvent) => base.trace.push(e);
 	const note = (text: string) => push({ t: 'log', where: 'server', text });
 	const byId = (id: string) => state.nodes.find((n) => n.id === id);
+	/** A configuration change on a node (allow/block/listen/addRecord/route/health), not a power switch. */
 	const nodeEvent = (n: NetNode, label: string) =>
-		push({ t: 'node', id: n.id, state: n.down ? 'down' : 'up', label });
+		push({ t: 'node', id: n.id, state: 'changed', label });
 
 	/** Runs one learner command: counts the step, records the `call` event. */
 	function command<A extends unknown[]>(name: string, fn: (...args: A) => unknown) {

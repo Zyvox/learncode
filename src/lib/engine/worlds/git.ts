@@ -1349,7 +1349,8 @@ export function createGitWorld(spec: GitWorldSpec): GitWorld {
 
 	function executeSource(code: string): void {
 		const lines = splitLines(code);
-		if (lines.length === 0) throw new CommandError(NO_COMMANDS, 'empty script');
+		// An empty script is a normal, successful run: the UI uses it to show the setup state.
+		if (lines.length === 0) return;
 		for (const l of lines) {
 			base.step();
 			const r = run(l.text);

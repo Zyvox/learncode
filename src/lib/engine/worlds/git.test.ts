@@ -8,7 +8,6 @@ import { isBlankLine, splitLines, tokenize } from '../shell.ts';
 import {
 	GIT_MAX_STEPS,
 	NOT_A_REPO,
-	NO_COMMANDS,
 	conflictText,
 	createGitWorld,
 	diffText,
@@ -744,10 +743,11 @@ describe('git world: the run', () => {
 		expect(r.steps).toBe(4);
 	});
 
-	it('an empty script asks for a command', async () => {
+	it('an empty script is a quiet, successful run showing the setup state', async () => {
 		const r = await runInNode('# nothing here\n\n', spec());
-		expect(r.ok).toBe(false);
-		expect(r.error?.message).toBe(NO_COMMANDS);
+		expect(r.ok).toBe(true);
+		expect(r.trace).toEqual([]);
+		expect(r.git?.initialized).toBeDefined();
 	});
 
 	it(`stops after ${GIT_MAX_STEPS} commands`, async () => {

@@ -26,7 +26,9 @@ export const STATUS_LABEL: Record<FileStatus, string> = {
 const hasConflict = (text: string | undefined) => !!text && /^<{7}( |$)/m.test(text);
 
 /** The file list as the final result sees it. */
-export function filesOf(git: Pick<GitResult, 'files' | 'staged' | 'modified' | 'untracked'>): FileRow[] {
+export function filesOf(
+	git: Pick<GitResult, 'files' | 'staged' | 'modified' | 'untracked'>
+): FileRow[] {
 	const staged = new Set(git.staged ?? []);
 	const modified = new Set(git.modified ?? []);
 	const untracked = new Set(git.untracked ?? []);
@@ -246,7 +248,9 @@ export function applyCommand(
 
 /** "CONFLICT (content): Merge conflict in story.md" → story.md needs fixing. */
 function markConflicts(state: LiveState, output: string) {
-	for (const m of output.matchAll(/CONFLICT \([^)]*\): (?:Merge conflict in (\S+)|(\S+) was deleted)/g)) {
+	for (const m of output.matchAll(
+		/CONFLICT \([^)]*\): (?:Merge conflict in (\S+)|(\S+) was deleted)/g
+	)) {
 		const p = m[1] ?? m[2];
 		if (p) state.files.set(p, 'conflict');
 	}
@@ -257,7 +261,10 @@ function moveHead(state: LiveState, commit: string) {
 	if (state.head.branch) state.branches[state.head.branch] = commit;
 }
 
-export function liveFromResult(git: GitResult | undefined, files?: Record<string, string>): LiveState {
+export function liveFromResult(
+	git: GitResult | undefined,
+	files?: Record<string, string>
+): LiveState {
 	if (!git) {
 		return {
 			initialized: false,

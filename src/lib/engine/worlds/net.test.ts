@@ -268,11 +268,11 @@ describe('net world: network flavour', () => {
 		});
 		expect(r.net!.dns['preview.inkwell.app']).toBe('203.0.113.10');
 		expect(of(r, 'node')).toEqual([
-			{ t: 'node', id: 'inkwell-fw', state: 'up', label: 'allows 22' },
-			{ t: 'node', id: 'inkwell-fw', state: 'up', label: 'blocks 443' },
-			{ t: 'node', id: 'inkwell-web', state: 'up', label: 'preview on 8080' },
-			{ t: 'node', id: 'dns', state: 'up', label: 'preview.inkwell.app → 203.0.113.10' },
-			{ t: 'node', id: 'home-router', state: 'up', label: 'blocks 8080' }
+			{ t: 'node', id: 'inkwell-fw', state: 'changed', label: 'allows 22' },
+			{ t: 'node', id: 'inkwell-fw', state: 'changed', label: 'blocks 443' },
+			{ t: 'node', id: 'inkwell-web', state: 'changed', label: 'preview on 8080' },
+			{ t: 'node', id: 'dns', state: 'changed', label: 'preview.inkwell.app → 203.0.113.10' },
+			{ t: 'node', id: 'home-router', state: 'changed', label: 'blocks 8080' }
 		]);
 		expect(calls(r)[0]).toBe("allow('inkwell-fw', 22) -> ok");
 		// the spec itself is never changed

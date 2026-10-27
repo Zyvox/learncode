@@ -282,6 +282,7 @@
 
 	function applyNode(ev: NodeEv, token: number, instant: boolean): string {
 		const n = nodes.find((x) => x.id === ev.id);
+		const name = n?.label ?? ev.id;
 		switch (ev.state) {
 			case 'added':
 				if (n) {
@@ -315,15 +316,22 @@
 					}
 				}
 				return `${n?.label ?? ev.id} is shut down.`;
+			// With a label, up/down events describe a change to a node ("allows 443",
+			// "inkwell.app → 203.0.113.10", "/ → reader") rather than a power switch.
 			case 'down':
 				if (n) n.down = true;
-				return `${n?.label ?? ev.id} goes down.`;
+				if (ev.label) flash(ev.id, 'drop', token);
+				return ev.label ? `${name}: ${ev.label}.` : `${name} goes down.`;
 			case 'up':
 				if (n) {
 					n.down = false;
-					n.unhealthy = false;
+					if (!ev.label) n.unhealthy = false;
 				}
-				return `${n?.label ?? ev.id} is up and running.`;
+				if (ev.label) flash(ev.id, 'ok', token);
+				return ev.label ? `${name}: ${ev.label}.` : `${name} is up and running.`;
+			case 'changed':
+				flash(ev.id, 'ok', token);
+				return `${name}: ${ev.label ?? 'changed'}.`;
 			case 'unhealthy':
 				if (n) n.unhealthy = true;
 				return `${n?.label ?? ev.id} is failing its health check.`;
@@ -448,9 +456,7 @@
 						caption = `✕ ${reason}.`;
 					} else {
 						flash(ev.to, 'ok', token);
-						caption = ev.status
-							? `${to} answers ${ev.status}.`
-							: `📦 Bit made it to ${to}.`;
+						caption = ev.status ? `${to} answers ${ev.status}.` : `📦 Bit made it to ${to}.`;
 					}
 					if (!(await wait(step * 0.5, token, instant))) return;
 					break;
@@ -725,7 +731,8 @@
 					data-kind="cloud"
 				>
 					<span class="cloud-head"
-						><span aria-hidden="true">☁️</span> {cn?.label ?? c.id}{#if cn?.down}
+						><span aria-hidden="true">☁️</span>
+						{cn?.label ?? c.id}{#if cn?.down}
 							<span class="state off">⏻ off</span>{/if}</span
 					>
 					{#if !nodes.some((n) => n.kind === 'container')}
@@ -794,7 +801,8 @@
 				<ul class="plan">
 					{#each trafficPlan as t, i (i)}
 						<li>
-							<b>{t.count}</b> request{t.count === 1 ? '' : 's'} to <code>{t.path}</code>{#if t.label}
+							<b>{t.count}</b> request{t.count === 1 ? '' : 's'} to
+							<code>{t.path}</code>{#if t.label}
 								<span class="muted">· {t.label}</span>{/if}
 						</li>
 					{/each}

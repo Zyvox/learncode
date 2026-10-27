@@ -46,7 +46,11 @@ export async function logIn(page: Page, email: string, password = 'password123')
  * The first level of a module, read from the map (locked levels carry `data-lesson-href`), so
  * tests don't hard-code slugs that the content may rename.
  */
-export async function firstLessonHref(page: Page, moduleId: string, track = 'web'): Promise<string> {
+export async function firstLessonHref(
+	page: Page,
+	moduleId: string,
+	track = 'web'
+): Promise<string> {
 	await page.goto(`/learn?track=${track}`);
 	const card = page.locator(`[data-module-id="${moduleId}"]`);
 	await expect(card).toBeVisible();

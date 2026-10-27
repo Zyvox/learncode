@@ -56,8 +56,7 @@
 					class="hover:bg-sand flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 [&::-webkit-details-marker]:hidden"
 				>
 					<span class="flex items-center gap-2">
-						<code class="text-accent-ink font-mono text-[0.95rem] font-semibold">{item.name}</code
-						>
+						<code class="text-accent-ink font-mono text-[0.95rem] font-semibold">{item.name}</code>
 						{#if item.isNew}<span class="chip bg-accent-soft text-accent-ink">new</span>{/if}
 					</span>
 					<svg

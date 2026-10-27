@@ -77,7 +77,7 @@ export type TraceEvent =
 	| {
 			t: 'node';
 			id: string;
-			state: 'up' | 'down' | 'busy' | 'added' | 'removed' | 'unhealthy';
+			state: 'up' | 'down' | 'busy' | 'added' | 'removed' | 'unhealthy' | 'changed';
 			label?: string;
 			kind?: string;
 			service?: string;

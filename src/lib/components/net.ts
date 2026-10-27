@@ -120,7 +120,9 @@ export function layoutNet(
 	const clouds = list.filter((n) => n.kind === 'cloud');
 	const containers = list.filter((n) => n.kind === 'container');
 	// Containers without a cloud to live in are drawn like servers.
-	const plain = list.filter((n) => n.kind !== 'cloud' && (n.kind !== 'container' || !clouds.length));
+	const plain = list.filter(
+		(n) => n.kind !== 'cloud' && (n.kind !== 'container' || !clouds.length)
+	);
 
 	const clientIds = plain.filter((n) => CLIENT.has(n.kind)).map((n) => n.id);
 	const starts = clientIds.length ? clientIds : opts.at ? [opts.at] : plain[0] ? [plain[0].id] : [];
@@ -154,8 +156,7 @@ export function layoutNet(
 		for (const k of containers) {
 			// A container linked to a cloud lives there; otherwise in the first cloud.
 			const link = links.find(
-				(l) =>
-					(l.from === k.id && inCloud.has(l.to)) || (l.to === k.id && inCloud.has(l.from))
+				(l) => (l.from === k.id && inCloud.has(l.to)) || (l.to === k.id && inCloud.has(l.from))
 			);
 			const home = link ? (inCloud.has(link.to) ? link.to : link.from) : clouds[0].id;
 			inCloud.get(home)!.push(k);
@@ -295,9 +296,7 @@ export function parseConfigCall(call: string): ConfigCall | null {
 		case 'allow':
 		case 'block': {
 			const port = num(args[1]);
-			return args[0] !== undefined && Number.isFinite(port)
-				? { fn, node: args[0], port }
-				: null;
+			return args[0] !== undefined && Number.isFinite(port) ? { fn, node: args[0], port } : null;
 		}
 		case 'listen': {
 			const port = num(args[1]);

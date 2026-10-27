@@ -48,7 +48,10 @@
 				</li>
 				<li class="flex gap-3">
 					<span aria-hidden="true">{webTrack.emoji}</span>
-					<span>Follow one tap from a phone through servers, databases and networks, and build each part.</span>
+					<span
+						>Follow one tap from a phone through servers, databases and networks, and build each
+						part.</span
+					>
 				</li>
 			</ul>
 			<p class="text-muted mt-3 max-w-xl text-pretty">
