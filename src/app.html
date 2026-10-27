@@ -2,8 +2,21 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
+		<meta name="theme-color" content="#fbf7f0" />
+		<script>
+			// Apply the last-used vibe colour before first paint so guests don't see a flash.
+			try {
+				var a = localStorage.getItem('lc:accent');
+				var o = localStorage.getItem('lc:on-accent');
+				if (a && /^#[0-9a-f]{3,8}$/i.test(a)) {
+					document.documentElement.style.setProperty('--accent', a);
+					if (o && /^#[0-9a-f]{3,8}$/i.test(o))
+						document.documentElement.style.setProperty('--on-accent', o);
+				}
+			} catch (e) {}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
