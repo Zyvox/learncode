@@ -14,8 +14,10 @@ import {
 	createUser,
 	getUserById,
 	resetLoginRateLimits,
+	resetSignupRateLimits,
 	validateSession
 } from './auth.ts';
+import { MAX_CODE_LENGTH } from './api.ts';
 import { getProgress } from './progress.ts';
 import { clearTables, resetTestDb } from './test-utils.ts';
 import { GET as health } from '../../routes/api/health/+server.ts';
@@ -76,6 +78,7 @@ beforeAll(() => resetTestDb());
 beforeEach(async () => {
 	clearTables();
 	resetLoginRateLimits();
+	resetSignupRateLimits();
 	user = await createUser({
 		email: 'linus@example.com',
 		password: 'long enough',
@@ -141,6 +144,36 @@ describe('api', () => {
 		expect(getProgress(user.id)['first-steps/b'].status).toBe('started');
 	});
 
+	it('caps stored code size', async () => {
+		const huge = 'x'.repeat(MAX_CODE_LENGTH + 1);
+		const tooBig = await call(complete, {
+			request: jsonRequest({ lessonId: 'first-steps/a', code: huge, hintsUsed: 0, attempts: 1 }),
+			locals: locals()
+		});
+		expect(tooBig.status).toBe(400);
+		const draftTooBig = await call(draft, {
+			request: jsonRequest({ lessonId: 'first-steps/a', code: huge }),
+			locals: locals()
+		});
+		expect(draftTooBig.status).toBe(400);
+		// Importing still counts the level, it just doesn't keep the oversized program.
+		const imported = await call(importRoute, {
+			request: jsonRequest({ entries: [{ lessonId: 'first-steps/a', code: huge }] }),
+			locals: locals()
+		});
+		expect(await imported.json()).toEqual({ imported: 1 });
+		expect(getProgress(user.id)['first-steps/a']).toMatchObject({ status: 'done', lastCode: null });
+	});
+
+	it('imports each lesson once, however often it is sent', async () => {
+		const entries = Array.from({ length: 50 }, () => ({ lessonId: 'first-steps/a' }));
+		const first = await call(importRoute, { request: jsonRequest({ entries }), locals: locals() });
+		expect(await first.json()).toEqual({ imported: 1 });
+		const again = await call(importRoute, { request: jsonRequest({ entries }), locals: locals() });
+		expect(await again.json()).toEqual({ imported: 0 });
+		expect(getUserById(user.id)?.xp).toBe(15);
+	});
+
 	it('updates the profile', async () => {
 		const ok = await call(profile, {
 			request: jsonRequest({ displayName: 'Linus T', themeId: 'food' }),
@@ -183,6 +216,26 @@ describe('auth actions', () => {
 		expect(session?.user).toMatchObject({ email: 'new@example.com', xp: 15 });
 	});
 
+	it('caps signups per IP with a friendly message', async () => {
+		const signup = (n: number) =>
+			(signupActions.default as Any)({
+				request: formRequest({
+					email: `kid${n}@example.com`,
+					password: 'long enough',
+					displayName: `Kid ${n}`,
+					themeId: 'games'
+				}),
+				cookies: fakeCookies(),
+				getClientAddress: () => '203.0.113.7'
+			});
+		for (let i = 0; i < 20; i++) await catchRedirect(() => signup(i));
+		const limited = await signup(20);
+		expect(isActionFailure(limited)).toBe(true);
+		expect(limited.status).toBe(429);
+		expect(limited.data.error).toMatch(/try again/i);
+		expect(limited.data.values.email).toBe('kid20@example.com');
+	});
+
 	it('returns a friendly failure on signup errors', async () => {
 		const result = await (signupActions.default as Any)({
 			request: formRequest({
@@ -216,6 +269,18 @@ describe('auth actions', () => {
 		);
 		expect(r).toMatchObject({ status: 303, location: '/learn/first-steps/a' });
 		expect(validateSession(cookies.jar.get('session'))?.user.id).toBe(user.id);
+
+		// Logging in again starts a fresh session and ends the one this browser had.
+		const previous = cookies.jar.get('session')!;
+		await catchRedirect(() =>
+			(loginActions.default as Any)({
+				request: formRequest({ email: 'linus@example.com', password: 'long enough' }),
+				cookies,
+				getClientAddress: () => '127.0.0.1'
+			})
+		);
+		expect(cookies.jar.get('session')).not.toBe(previous);
+		expect(validateSession(previous)).toBeNull();
 
 		const evil = await catchRedirect(() =>
 			(loginActions.default as Any)({

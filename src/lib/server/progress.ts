@@ -44,6 +44,8 @@ export interface CompletionInput {
 	hintsUsed: number;
 	/** Runs during this play-through (added to the stored count). */
 	attempts: number;
+	/** The learner's local hour (0–23) when they finished; falls back to the server's UTC hour. */
+	localHour?: number;
 }
 
 export interface ImportEntry {
@@ -120,7 +122,13 @@ function moduleCompletedBy(lessons: readonly Lesson[], done: Set<string>): boole
 function awardBadges(
 	tx: Tx,
 	userId: number,
-	opts: { streak: number; lesson: Lesson | null; moduleId: string | null; now: Date }
+	opts: {
+		streak: number;
+		lesson: Lesson | null;
+		moduleId: string | null;
+		now: Date;
+		localHour?: number;
+	}
 ): Badge[] {
 	const modules = badgeModules();
 	const ids = evaluateBadges({
@@ -131,7 +139,7 @@ function awardBadges(
 			opts.lesson && opts.moduleId
 				? { id: opts.lesson.id, kind: opts.lesson.kind, moduleId: opts.moduleId }
 				: null,
-		hour: opts.lesson ? opts.now.getUTCHours() : null,
+		hour: opts.lesson ? (opts.localHour ?? opts.now.getUTCHours()) : null,
 		earned: readEarnedIds(tx, userId)
 	});
 	const earnedAt = opts.now.toISOString();
@@ -268,7 +276,8 @@ export function completeLesson(
 				streak: streak.streak,
 				lesson,
 				moduleId: module.id,
-				now
+				now,
+				localHour: input.localHour
 			});
 
 			return {

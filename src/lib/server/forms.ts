@@ -14,7 +14,9 @@ export function safeRedirect(target: string | null | undefined, fallback = '/lea
 	if (!target.startsWith('/') || target.startsWith('//') || target.startsWith('/\\')) {
 		return fallback;
 	}
-	if (/[\u0000-\u001f\u007f]/.test(target)) return fallback;
+	// Printable ASCII only: no control characters (header injection), and nothing a `Location`
+	// header can't carry as-is (non-Latin-1 would throw and turn the redirect into a 500).
+	if (target.length > 2048 || /[^\x21-\x7e]/.test(target)) return fallback;
 	return target;
 }
 

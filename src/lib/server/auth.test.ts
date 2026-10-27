@@ -13,8 +13,12 @@ import {
 	createUser,
 	invalidateSession,
 	invalidateUserSessions,
+	isSignupRateLimited,
 	LOGIN_MAX_FAILURES,
+	MAX_SESSIONS_PER_USER,
+	recordSignup,
 	resetLoginRateLimits,
+	resetSignupRateLimits,
 	SESSION_TTL_MS,
 	setSessionCookie,
 	validateSession,
@@ -42,6 +46,7 @@ beforeAll(() => resetTestDb());
 beforeEach(() => {
 	clearTables();
 	resetLoginRateLimits();
+	resetSignupRateLimits();
 });
 afterEach(() => {
 	vi.useRealTimers();
@@ -125,6 +130,24 @@ describe('verifyLogin', () => {
 });
 
 describe('sessions', () => {
+	it('keeps only the newest sessions per user', async () => {
+		const user = await createUser(valid);
+		const other = await createUser({ ...valid, email: 'other@example.com' });
+		const theirs = createSession(other.id);
+		const first = createSession(user.id);
+		vi.useFakeTimers({ toFake: ['Date'] });
+		let last = first;
+		for (let i = 0; i < MAX_SESSIONS_PER_USER + 5; i++) {
+			vi.setSystemTime(Date.now() + 1000);
+			last = createSession(user.id);
+		}
+		const mine = db.select().from(sessions).where(eq(sessions.userId, user.id)).all();
+		expect(mine).toHaveLength(MAX_SESSIONS_PER_USER);
+		expect(validateSession(first.id)).toBeNull();
+		expect(validateSession(last.id)).not.toBeNull();
+		expect(validateSession(theirs.id)).not.toBeNull();
+	});
+
 	it('creates and validates a session without storing the token', async () => {
 		const user = await createUser(valid);
 		const { id: token, expiresAt } = createSession(user.id);
@@ -203,6 +226,24 @@ describe('cookies', () => {
 		};
 	}
 
+	it('marks the cookie secure when the request came in over https', () => {
+		const expires = new Date('2026-02-01T00:00:00Z');
+		const cookies = fakeCookies();
+		const before = process.env.ORIGIN;
+		try {
+			delete process.env.ORIGIN;
+			setSessionCookie(cookies, 'tok', expires, new URL('https://learn.example.com/login'));
+			expect(cookies.set.mock.calls[0][2].secure).toBe(true);
+			setSessionCookie(cookies, 'tok', expires, new URL('http://localhost:3000/login'));
+			expect(cookies.set.mock.calls[1][2].secure).toBe(false);
+			clearSessionCookie(cookies, new URL('https://learn.example.com/logout'));
+			expect(cookies.delete.mock.calls[0][1].secure).toBe(true);
+		} finally {
+			if (before === undefined) delete process.env.ORIGIN;
+			else process.env.ORIGIN = before;
+		}
+	});
+
 	it('sets an httpOnly lax cookie, secure only on https', () => {
 		const expires = new Date('2026-02-01T00:00:00Z');
 		const cookies = fakeCookies();
@@ -229,5 +270,40 @@ describe('cookies', () => {
 			if (before === undefined) delete process.env.ORIGIN;
 			else process.env.ORIGIN = before;
 		}
+	});
+});
+
+describe('signup rate limit', () => {
+	it('caps new accounts per IP per hour, configurable by env', () => {
+		const before = process.env.SIGNUPS_PER_IP_PER_HOUR;
+		try {
+			delete process.env.SIGNUPS_PER_IP_PER_HOUR;
+			for (let i = 0; i < 20; i++) {
+				expect(isSignupRateLimited('1.2.3.4')).toBe(false);
+				recordSignup('1.2.3.4');
+			}
+			expect(isSignupRateLimited('1.2.3.4')).toBe(true);
+			expect(isSignupRateLimited('5.6.7.8')).toBe(false);
+			process.env.SIGNUPS_PER_IP_PER_HOUR = '50';
+			expect(isSignupRateLimited('1.2.3.4')).toBe(false);
+			vi.useFakeTimers({ toFake: ['Date'] });
+			process.env.SIGNUPS_PER_IP_PER_HOUR = '20';
+			vi.setSystemTime(Date.now() + 61 * 60 * 1000);
+			expect(isSignupRateLimited('1.2.3.4')).toBe(false);
+		} finally {
+			if (before === undefined) delete process.env.SIGNUPS_PER_IP_PER_HOUR;
+			else process.env.SIGNUPS_PER_IP_PER_HOUR = before;
+		}
+	});
+});
+
+describe('login rate limit keys', () => {
+	it('copes with huge junk emails without keeping them whole', async () => {
+		const junk = 'x'.repeat(100_000);
+		for (let i = 0; i < LOGIN_MAX_FAILURES; i++) {
+			expect(await verifyLogin(junk + i, 'whatever', { ip: '9.9.9.9' })).toBeNull();
+		}
+		// Every variant shares the same truncated key, so the 11th try is locked out.
+		await expectAuthError(verifyLogin(junk + 'z', 'whatever', { ip: '9.9.9.9' }), 'rate-limited');
 	});
 });

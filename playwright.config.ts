@@ -13,7 +13,7 @@ export default defineConfig({
 	},
 	webServer: {
 		command:
-			'rm -f data/e2e.sqlite* && ORIGIN=http://localhost:4173 npm run build && DATABASE_PATH=./data/e2e.sqlite PORT=4173 ORIGIN=http://localhost:4173 node build',
+			'rm -f data/e2e.sqlite* && ORIGIN=http://localhost:4173 npm run build && DATABASE_PATH=./data/e2e.sqlite PORT=4173 ORIGIN=http://localhost:4173 SIGNUPS_PER_IP_PER_HOUR=1000 node build',
 		port: 4173,
 		reuseExistingServer: !process.env.CI,
 		timeout: 180_000

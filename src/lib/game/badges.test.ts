@@ -64,7 +64,7 @@ describe('BADGES', () => {
 			name: 'Doing it again',
 			emoji: '🔁'
 		});
-		expect(describeBadge('first-level', modules)?.name).toBe('First Steps');
+		expect(describeBadge('first-level', modules)?.name).toBe('Off the Mark');
 		expect(describeBadge('nope', modules)).toBeUndefined();
 		expect(allBadges(modules).map((b) => b.id)).not.toContain('module-later');
 	});

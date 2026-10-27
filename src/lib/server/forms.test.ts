@@ -12,6 +12,16 @@ describe('safeRedirect', () => {
 		expect(safeRedirect('')).toBe('/learn');
 		expect(safeRedirect(null, '/')).toBe('/');
 	});
+
+	it('only passes what a Location header can carry as-is', () => {
+		expect(safeRedirect('/x\ry')).toBe('/learn');
+		expect(safeRedirect('/\tevil.example')).toBe('/learn');
+		expect(safeRedirect('/caf\u00e9')).toBe('/learn');
+		expect(safeRedirect('/\u2028x')).toBe('/learn');
+		expect(safeRedirect('/a b')).toBe('/learn');
+		expect(safeRedirect('/' + 'a'.repeat(5000))).toBe('/learn');
+		expect(safeRedirect('/caf%C3%A9')).toBe('/caf%C3%A9');
+	});
 });
 
 describe('parseGuestProgress', () => {

@@ -83,14 +83,15 @@ Everything lives in one SQLite file (`DATABASE_PATH`, default `./data/learncode.
 
 ## Configuration
 
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `DATABASE_PATH` | `./data/learncode.sqlite` | SQLite file; directory is created |
-| `PORT` / `HOST` | `3000` / `0.0.0.0` | Where the Node server listens |
-| `ORIGIN` | – | Public URL. Build-time: CSRF origin. Run-time: Secure cookie flag |
-| `PROTOCOL_HEADER`, `HOST_HEADER` | – | Derive origin from a reverse proxy (`x-forwarded-proto`, `x-forwarded-host`) |
-| `ADDRESS_HEADER`, `XFF_DEPTH` | – | Client IP from the proxy (`X-Forwarded-For`, `1`) |
-| `MIGRATIONS_PATH` | `./drizzle` | Where migration SQL lives, if you move the build |
+| Variable                         | Default                   | Meaning                                                                                                                 |
+| -------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_PATH`                  | `./data/learncode.sqlite` | SQLite file; directory is created                                                                                       |
+| `PORT` / `HOST`                  | `3000` / `0.0.0.0`        | Where the Node server listens                                                                                           |
+| `ORIGIN`                         | –                         | Public URL. Build-time: CSRF origin. Run-time: Secure cookie flag                                                       |
+| `PROTOCOL_HEADER`, `HOST_HEADER` | –                         | Derive origin from a reverse proxy (`x-forwarded-proto`, `x-forwarded-host`)                                            |
+| `ADDRESS_HEADER`, `XFF_DEPTH`    | –                         | Client IP from the proxy (`X-Forwarded-For`, `1`). Needed behind a proxy, or every visitor shares one rate-limit bucket |
+| `SIGNUPS_PER_IP_PER_HOUR`        | `20`                      | New accounts allowed per client IP per hour (raise it for a classroom behind one NAT address)                           |
+| `MIGRATIONS_PATH`                | `./drizzle`               | Where migration SQL lives, if you move the build                                                                        |
 
 See `.env.example`.
 
@@ -123,8 +124,13 @@ New vibes go in `src/lib/curriculum/themes.ts`; every theme must define the same
 ## Security notes
 
 - Passwords are hashed with argon2id. Sessions are random tokens stored hashed, in an
-  `httpOnly`, `SameSite=Lax` cookie, Secure when `ORIGIN` is https.
-- Login and signup are rate-limited in memory per process.
+  `httpOnly`, `SameSite=Lax` cookie, Secure when `ORIGIN` is https or the request came in over
+  https. At most 20 sessions per user are kept.
+- Login failures (10 per 15 minutes per IP+email) and new accounts (20 per hour per IP) are
+  rate-limited in memory per process.
+- Rendered pages get a nonce-based Content-Security-Policy (`csp` in `vite.config.ts`).
+  `POST`s to `/api/*` from another site are refused (Sec-Fetch-Site / Origin check in hooks).
+- Learner programs are stored up to 20,000 characters.
 - Learner code runs only in the browser, inside a Worker, never on the server. Progress is
   self-reported by the client (the engine runs client-side), so a determined person can award
   themselves XP; nothing lets them touch anyone else's account.

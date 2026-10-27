@@ -16,7 +16,7 @@ export interface Badge {
 export const BADGES: readonly Badge[] = [
 	{
 		id: 'first-level',
-		name: 'First Steps',
+		name: 'Off the Mark',
 		description: 'Finished your very first level.',
 		emoji: '👣'
 	},
@@ -115,7 +115,7 @@ export interface BadgeContext {
 	streak: number;
 	/** The lesson just completed, or null when evaluating in bulk (e.g. importing guest progress). */
 	lesson: { id: string; kind: LessonKind; moduleId: string } | null;
-	/** UTC hour (0–23) of the completion, or null when unknown. Time-of-day badges need it. */
+	/** The learner's local hour (0–23) of the completion, or null when unknown. Time-of-day badges need it. */
 	hour: number | null;
 	/** Badge ids the user already has. */
 	earned: Iterable<string>;

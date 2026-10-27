@@ -311,7 +311,13 @@
 			const res = await fetch('/api/progress/complete', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ lessonId: lesson.id, code: source, hintsUsed, attempts })
+				body: JSON.stringify({
+					lessonId: lesson.id,
+					code: source,
+					hintsUsed,
+					attempts,
+					localHour: new Date().getHours()
+				})
 			});
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const data = (await res.json()) as {

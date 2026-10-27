@@ -6,7 +6,8 @@ import { json } from '@sveltejs/kit';
 import { z } from 'zod';
 import { THEME_IDS } from '#lib/curriculum/types.ts';
 
-export const MAX_CODE_LENGTH = 50_000;
+/** Longest learner program we store (characters). Real solutions are a few hundred. */
+export const MAX_CODE_LENGTH = 20_000;
 export const MAX_IMPORT_ENTRIES = 1_000;
 
 export function apiError(status: number, error: string, message: string): Response {
@@ -53,14 +54,20 @@ export const completeSchema = z.object({
 	lessonId,
 	code,
 	hintsUsed: smallCount,
-	attempts: smallCount
+	attempts: smallCount,
+	/** The learner's local hour (0–23), for the time-of-day badges. Optional. */
+	localHour: z.number().int().min(0).max(23).optional()
 });
 
 export const draftSchema = z.object({ lessonId, code });
 
 export const importEntrySchema = z.object({
 	lessonId,
-	code: code.nullish().transform((v) => v ?? null),
+	// An oversized program is dropped rather than failing the whole import: the level still counts.
+	code: z
+		.string()
+		.nullish()
+		.transform((v) => (v != null && v.length <= MAX_CODE_LENGTH ? v : null)),
 	hintsUsed: smallCount.default(0),
 	attempts: smallCount.default(1),
 	completedAt: z

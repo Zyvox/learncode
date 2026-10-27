@@ -14,7 +14,14 @@
  *   success:  sets the session cookie and redirects (303) to redirectTo or /learn.
  */
 import { fail, redirect } from '@sveltejs/kit';
-import { AuthError, createSession, setSessionCookie, verifyLogin } from '#lib/server/auth.ts';
+import {
+	AuthError,
+	createSession,
+	invalidateSession,
+	SESSION_COOKIE,
+	setSessionCookie,
+	verifyLogin
+} from '#lib/server/auth.ts';
 import { field, safeRedirect } from '#lib/server/forms.ts';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -27,7 +34,7 @@ export const load: PageServerLoad = ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies, getClientAddress }) => {
+	default: async ({ request, cookies, getClientAddress, url }) => {
 		const form = await request.formData();
 		const email = field(form, 'email');
 		const password = field(form, 'password');
@@ -56,8 +63,10 @@ export const actions: Actions = {
 		}
 		if (!user) return fail(400, { error: MISMATCH, values });
 
+		// Always a brand-new token; whatever session this browser had before is ended.
+		invalidateSession(cookies.get(SESSION_COOKIE));
 		const session = createSession(user.id);
-		setSessionCookie(cookies, session.id, session.expiresAt);
+		setSessionCookie(cookies, session.id, session.expiresAt, url);
 		redirect(303, redirectTo);
 	}
 };

@@ -14,9 +14,9 @@ export const load: PageServerLoad = () => {
 };
 
 export const actions: Actions = {
-	default: ({ cookies }) => {
+	default: ({ cookies, url }) => {
 		invalidateSession(cookies.get(SESSION_COOKIE));
-		clearSessionCookie(cookies);
+		clearSessionCookie(cookies, url);
 		redirect(303, '/');
 	}
 };

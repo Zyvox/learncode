@@ -5,10 +5,11 @@
  * - Sessions: the cookie holds a random 32-byte base64url token; the DB stores only sha256(token),
  *   so a leaked database can't be replayed as live sessions. 30 days, renewed when < 15 days remain.
  * - Logins are rate-limited in memory: 10 failures per 15 minutes per IP+email.
+ * - Signups are capped in memory per IP (20 per hour by default, `SIGNUPS_PER_IP_PER_HOUR`).
  */
 import { hash, verify } from '@node-rs/argon2';
 import type { Cookies } from '@sveltejs/kit';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, desc, eq, lt, notInArray } from 'drizzle-orm';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { THEME_IDS, type ThemeId } from '#lib/curriculum/types.ts';
@@ -26,7 +27,8 @@ export type AuthErrorCode =
 	| 'invalid-email'
 	| 'invalid-name'
 	| 'invalid-theme'
-	| 'rate-limited';
+	| 'rate-limited'
+	| 'too-many-signups';
 
 const AUTH_ERROR_MESSAGES: Record<AuthErrorCode, string> = {
 	'email-taken': 'There’s already an account with that email. Want to log in instead?',
@@ -34,7 +36,9 @@ const AUTH_ERROR_MESSAGES: Record<AuthErrorCode, string> = {
 	'invalid-email': 'That doesn’t look like an email address. Mind checking it?',
 	'invalid-name': 'Pick a name between 1 and 40 characters.',
 	'invalid-theme': 'Pick one of the vibes.',
-	'rate-limited': 'That’s a lot of tries. Take a short break and try again in a few minutes.'
+	'rate-limited': 'That’s a lot of tries. Take a short break and try again in a few minutes.',
+	'too-many-signups':
+		'Lots of accounts have been made from this connection in the last hour. Please try again a bit later.'
 };
 
 export class AuthError extends Error {
@@ -55,6 +59,8 @@ export const SESSION_COOKIE = 'session';
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const SESSION_TTL_MS = 30 * DAY_MS;
 export const SESSION_RENEW_BELOW_MS = 15 * DAY_MS;
+/** Older sessions beyond this many (per user) are dropped when a new one starts. */
+export const MAX_SESSIONS_PER_USER = 20;
 
 const ARGON2_OPTIONS = { memoryCost: 19456, timeCost: 2, parallelism: 1, outputLen: 32 };
 
@@ -197,7 +203,7 @@ export async function verifyLogin(
 		if (key) recordFailure(key);
 		return null;
 	}
-	if (key) failures.delete(key);
+	if (key) failures.forget(key);
 	return toUser(row);
 }
 
@@ -208,40 +214,68 @@ export function updateUserPassword(userId: number, passwordHash: string): void {
 // ---------------------------------------------------------------------------------------------
 // Rate limiting (in memory; resets when the process restarts, which is fine for one Node process)
 
-export const LOGIN_MAX_FAILURES = 10;
-export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_TRACKED_KEYS = 10_000;
+/** Longest key part we keep, so junk input can't make the limiter hold megabytes per key. */
+const MAX_KEY_PART = 320;
 
-const failures = new Map<string, number[]>();
+/** Counts events per key in a sliding window. Holds at most MAX_TRACKED_KEYS keys. */
+class SlidingWindow {
+	private readonly hits = new Map<string, number[]>();
+	constructor(
+		private readonly max: () => number,
+		private readonly windowMs: number
+	) {}
 
-function rateLimitKey(ip: string, email: string): string {
-	return `${ip}|${email}`;
+	private recent(key: string, now = Date.now()): number[] {
+		const list = (this.hits.get(key) ?? []).filter((t) => now - t < this.windowMs);
+		if (list.length === 0) this.hits.delete(key);
+		else this.hits.set(key, list);
+		return list;
+	}
+
+	isLimited(key: string): boolean {
+		return this.recent(key).length >= this.max();
+	}
+
+	record(key: string): void {
+		const now = Date.now();
+		if (this.hits.size >= MAX_TRACKED_KEYS) {
+			for (const k of this.hits.keys()) this.recent(k, now);
+			// Still full of live entries: drop the oldest keys (Map keeps insertion order).
+			for (const k of this.hits.keys()) {
+				if (this.hits.size < MAX_TRACKED_KEYS) break;
+				this.hits.delete(k);
+			}
+		}
+		const list = this.recent(key, now);
+		list.push(now);
+		this.hits.set(key, list);
+	}
+
+	forget(key: string): void {
+		this.hits.delete(key);
+	}
+
+	clear(): void {
+		this.hits.clear();
+	}
 }
 
-function recentFailures(key: string, now = Date.now()): number[] {
-	const list = (failures.get(key) ?? []).filter((t) => now - t < LOGIN_WINDOW_MS);
-	if (list.length === 0) failures.delete(key);
-	else failures.set(key, list);
-	return list;
+export const LOGIN_MAX_FAILURES = 10;
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+const failures = new SlidingWindow(() => LOGIN_MAX_FAILURES, LOGIN_WINDOW_MS);
+
+function rateLimitKey(ip: string, email: string): string {
+	return `${ip.slice(0, MAX_KEY_PART)}|${email.slice(0, MAX_KEY_PART)}`;
 }
 
 function isRateLimited(key: string): boolean {
-	return recentFailures(key).length >= LOGIN_MAX_FAILURES;
+	return failures.isLimited(key);
 }
 
 function recordFailure(key: string): void {
-	const now = Date.now();
-	if (failures.size >= MAX_TRACKED_KEYS) {
-		for (const k of failures.keys()) recentFailures(k, now);
-		// Still full of live entries: drop the oldest keys (Map keeps insertion order).
-		for (const k of failures.keys()) {
-			if (failures.size < MAX_TRACKED_KEYS) break;
-			failures.delete(k);
-		}
-	}
-	const list = recentFailures(key, now);
-	list.push(now);
-	failures.set(key, list);
+	failures.record(key);
 }
 
 /** True if this IP+email is currently locked out of logging in. */
@@ -252,6 +286,33 @@ export function isLoginRateLimited(ip: string, email: string): boolean {
 /** Test helper: forget all counted failures. */
 export function resetLoginRateLimits(): void {
 	failures.clear();
+}
+
+/**
+ * New accounts per IP per hour. Defaults to 20; a school or office behind one NAT address may
+ * need more, so `SIGNUPS_PER_IP_PER_HOUR` overrides it.
+ */
+export const SIGNUP_WINDOW_MS = 60 * 60 * 1000;
+export function signupLimit(): number {
+	const n = Number(process.env.SIGNUPS_PER_IP_PER_HOUR);
+	return Number.isInteger(n) && n > 0 ? n : 20;
+}
+
+const signups = new SlidingWindow(signupLimit, SIGNUP_WINDOW_MS);
+
+/** True if this IP has created too many accounts in the last hour. */
+export function isSignupRateLimited(ip: string): boolean {
+	return signups.isLimited(ip.slice(0, MAX_KEY_PART));
+}
+
+/** Count a successful signup from this IP. */
+export function recordSignup(ip: string): void {
+	signups.record(ip.slice(0, MAX_KEY_PART));
+}
+
+/** Test helper: forget all counted signups. */
+export function resetSignupRateLimits(): void {
+	signups.clear();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -270,9 +331,28 @@ function sessionIdFromToken(token: string): string {
 export function createSession(userId: number): { id: string; expiresAt: Date } {
 	const token = randomBytes(32).toString('base64url');
 	const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-	db.insert(sessions)
-		.values({ id: sessionIdFromToken(token), userId, expiresAt: expiresAt.toISOString() })
-		.run();
+	db.transaction((tx) => {
+		tx.insert(sessions)
+			.values({ id: sessionIdFromToken(token), userId, expiresAt: expiresAt.toISOString() })
+			.run();
+		// Keep only the newest few, so logging in over and over can't grow the table forever.
+		tx.delete(sessions)
+			.where(
+				and(
+					eq(sessions.userId, userId),
+					notInArray(
+						sessions.id,
+						tx
+							.select({ id: sessions.id })
+							.from(sessions)
+							.where(eq(sessions.userId, userId))
+							.orderBy(desc(sessions.expiresAt))
+							.limit(MAX_SESSIONS_PER_USER)
+					)
+				)
+			)
+			.run();
+	});
 	return { id: token, expiresAt };
 }
 
@@ -343,25 +423,34 @@ export function invalidateSessionById(sessionId: string, userId?: number): void 
 		.run();
 }
 
-function cookieSecure(): boolean {
-	return process.env.ORIGIN?.startsWith('https') ?? false;
+/**
+ * Secure when the public origin is https: either `ORIGIN` says so, or the request itself came in
+ * over https (directly, or via `PROTOCOL_HEADER` behind a proxy).
+ */
+function cookieSecure(url?: URL): boolean {
+	return (process.env.ORIGIN?.startsWith('https') ?? false) || url?.protocol === 'https:';
 }
 
-export function setSessionCookie(cookies: Cookies, token: string, expiresAt: Date): void {
+export function setSessionCookie(
+	cookies: Cookies,
+	token: string,
+	expiresAt: Date,
+	url?: URL
+): void {
 	cookies.set(SESSION_COOKIE, token, {
 		httpOnly: true,
 		sameSite: 'lax',
 		path: '/',
-		secure: cookieSecure(),
+		secure: cookieSecure(url),
 		expires: expiresAt
 	});
 }
 
-export function clearSessionCookie(cookies: Cookies): void {
+export function clearSessionCookie(cookies: Cookies, url?: URL): void {
 	cookies.delete(SESSION_COOKIE, {
 		httpOnly: true,
 		sameSite: 'lax',
 		path: '/',
-		secure: cookieSecure()
+		secure: cookieSecure(url)
 	});
 }

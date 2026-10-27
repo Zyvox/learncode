@@ -13,7 +13,7 @@ test('guest progress is imported on signup and XP shows in the header', async ({
 	// XP bar in the header shows a non-zero total (the no-hint bonus makes 10 -> 15)
 	await page.goto('/profile');
 	await expect(page.locator('body')).toContainText(/15 XP in total/);
-	await expect(page.locator('body')).toContainText('First Steps');
+	await expect(page.locator('body')).toContainText('Off the Mark');
 	// localStorage was cleared after the import
 	const stored = await page.evaluate(() => localStorage.getItem('lc:progress:v1'));
 	expect(stored === null || !stored.includes('"status":"done"')).toBeTruthy();
