@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { replaceState } from '$app/navigation';
 	import { APP_NAME } from '#lib/config.ts';
@@ -21,14 +21,26 @@
 	const user = $derived(data.user);
 
 	// Which track tab is open: ?track=… wins, then the remembered choice, then the first track.
+	const known = (v: string | null): v is TrackId => isTrackId(v) && tracks.some((t) => t.id === v);
 	const fromUrl = page.url.searchParams.get('track');
-	let trackId = $state<TrackId>(
-		isTrackId(fromUrl) && tracks.some((t) => t.id === fromUrl) ? fromUrl : tracks[0].id
-	);
+	let trackId = $state<TrackId>(known(fromUrl) ? fromUrl : tracks[0].id);
 	onMount(() => {
 		if (isTrackId(fromUrl)) return;
 		const saved = loadTrackChoice();
 		if (saved && tracks.some((t) => t.id === saved)) trackId = saved;
+	});
+
+	// Follow the URL while staying on this page, e.g. a link to /learn?track=web from the header.
+	const urlTrack = $derived(page.url.searchParams.get('track'));
+	$effect(() => {
+		const t = urlTrack;
+		if (!known(t)) return;
+		untrack(() => {
+			if (trackId !== t) {
+				trackId = t;
+				saveTrackChoice(t);
+			}
+		});
 	});
 
 	function pickTrack(id: TrackId) {

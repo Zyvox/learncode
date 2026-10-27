@@ -27,6 +27,7 @@
 </script>
 
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import RichText from './RichText.svelte';
 
 	let {
@@ -36,7 +37,8 @@
 		nextLabel,
 		heroEmoji,
 		onretry,
-		onretrysave
+		onretrysave,
+		outro
 	}: {
 		outcome: Outcome;
 		boss?: boolean;
@@ -45,6 +47,8 @@
 		heroEmoji: string;
 		onretry?: () => void;
 		onretrysave?: () => void;
+		/** The story beat after a pass ("What just happened"), shown before the way forward */
+		outro?: Snippet;
 	} = $props();
 
 	let showDetails = $state(false);
@@ -185,6 +189,11 @@
 					{/if}
 				</div>
 			</div>
+			{#if outro}
+				<div class="outro animate-fade-up mt-4 rounded-2xl bg-white/85 p-4 sm:p-5">
+					{@render outro()}
+				</div>
+			{/if}
 			<div class="mt-4 flex flex-wrap gap-2">
 				<a
 					href={nextHref}
@@ -201,6 +210,10 @@
 </div>
 
 <style>
+	.outro {
+		animation-delay: 350ms;
+		box-shadow: 0 1px 0 color-mix(in oklab, var(--accent) 25%, transparent);
+	}
 	.spinner {
 		width: 1.1rem;
 		height: 1.1rem;

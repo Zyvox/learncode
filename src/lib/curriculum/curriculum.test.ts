@@ -162,12 +162,12 @@ const EXPECTED_MODULES: Record<string, [id: string, lessons: number][]> = {
 		['who-are-you', 6],
 		['shipping-it', 7],
 		['launch-inkwell', 6],
-		['networks-for-it', 0],
+		['networks-for-it', 8],
+		['git-and-versions', 8],
+		['security-basics', 7],
+		['cloud-and-containers', 7],
 		['command-line', 0],
-		['git-and-versions', 0],
-		['security-basics', 0],
 		['reading-logs', 0],
-		['cloud-and-containers', 0],
 		['apis-in-the-wild', 0],
 		['automation-scripts', 0]
 	]
@@ -541,7 +541,18 @@ describe('lessons: structure', () => {
 		for (const { module, lesson } of allLessons) {
 			if (trackOf(module) !== 'web') continue;
 			const world = lesson.kind === 'predict' ? lesson.world : lesson.world;
-			expect(world?.kind, `${lesson.id} must use the web world`).toBe('web');
+			expect(
+				['web', 'net', 'git'].includes(world?.kind ?? ''),
+				`${lesson.id} must use the web, net or git world`
+			).toBe(true);
+			if (world?.kind === 'git') {
+				expect(lesson.language, `${lesson.id}: git lessons need language 'shell'`).toBe('shell');
+				continue;
+			}
+			if (world?.kind !== 'web') {
+				expect(lesson.language ?? 'js', `${lesson.id}: net lessons use JavaScript`).toBe('js');
+				continue;
+			}
 			const w = world as WebWorldSpec;
 			if (w.role === 'sql')
 				expect(lesson.language, `${lesson.id}: sql role needs language 'sql'`).toBe('sql');

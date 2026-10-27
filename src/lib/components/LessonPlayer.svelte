@@ -4,15 +4,24 @@
   Predict lessons: read-only code + choices → explanation (and the world replays the code).
   Web lessons ("Behind the app"): the WebWorld picture, webtoon concept panels, and SQL mode
   (`lesson.language === 'sql'`) for the editor, the run button and the cheat sheet.
+  Net lessons draw NetWorld (network or cloud), git lessons GitWorld with the shell editor
+  (`lesson.language === 'shell'`). A lesson's `outro` shows in the pass banner.
 -->
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { getAllLessons, getModule, renderText } from '#lib/curriculum/index.ts';
 	import type { Lesson, Module, Theme, ThemedText, WorldSpec } from '#lib/curriculum/types.ts';
-	import type { RunResult, SqlResultSet, TraceEvent, WebResult } from '#lib/engine/types.ts';
+	import type {
+		GitResult,
+		NetResult,
+		RunResult,
+		SqlResultSet,
+		TraceEvent,
+		WebResult
+	} from '#lib/engine/types.ts';
 	import { evaluate, verifySqlFor } from '#lib/engine/evaluate.ts';
-	import { COMMANDS, SQL_COMMANDS, SYNTAX } from '#lib/engine/commands.ts';
+	import { COMMANDS, SQL_COMMANDS, SYNTAX, type CommandDoc } from '#lib/engine/commands.ts';
 	import { completionXp, levelForXp } from '#lib/game/xp.ts';
 	import type { Badge } from '#lib/game/badges.ts';
 	import { guest } from '#lib/stores/guest.svelte.ts';
@@ -24,6 +33,8 @@
 	import ConsoleWorld from './ConsoleWorld.svelte';
 	import CanvasWorld from './CanvasWorld.svelte';
 	import WebWorld from './WebWorld.svelte';
+	import NetWorld from './NetWorld.svelte';
+	import GitWorld from './GitWorld.svelte';
 	import ComicStrip from './ComicStrip.svelte';
 	import RichText from './RichText.svelte';
 	import HintPanel from './HintPanel.svelte';
@@ -56,7 +67,14 @@
 		doneIds: string[];
 	} = $props();
 
-	type WorldHandle = { play(trace: TraceEvent[], web?: WebResult): Promise<void>; reset(): void };
+	type WorldExtra = WebResult | NetResult | GitResult;
+	type WorldHandle = {
+		play(trace: TraceEvent[], extra?: WorldExtra): Promise<void>;
+		reset(): void;
+	};
+	/** What the world component needs besides the trace: the web, net or git part of the result. */
+	const extraOf = (result: RunResult): WorldExtra | undefined =>
+		result.web ?? result.net ?? result.git;
 
 	// ---------- static-ish derived bits ----------
 	const r = (t: ThemedText) => renderText(t, theme);
@@ -64,7 +82,14 @@
 	const starter = $derived(lesson.kind === 'predict' ? lesson.code : lesson.starterCode);
 	const world: WorldSpec | undefined = $derived(lesson.world);
 	const isSql = $derived(lesson.language === 'sql');
-	const isWeb = $derived(world?.kind === 'web');
+	const isShell = $derived(lesson.language === 'shell' || world?.kind === 'git');
+	/** Worlds that need the wide layout (the picture over the editor) */
+	const isWide = $derived(
+		world?.kind === 'web' || world?.kind === 'net' || world?.kind === 'git'
+	);
+	const editorLanguage = $derived<'js' | 'sql' | 'shell'>(
+		isSql ? 'sql' : isShell ? 'shell' : 'js'
+	);
 	const trackId = $derived(trackOf(module));
 	/** Lessons of this lesson's track, in order: what the learner has met so far. */
 	const trackLessons = $derived(lessonsOfTrack(trackId));
@@ -76,19 +101,35 @@
 				? 'Output'
 				: world?.kind === 'canvas'
 					? 'Canvas'
-					: world?.role === 'sql'
-						? 'The database'
-						: 'Behind the app'
+					: world?.kind === 'net'
+						? world.flavour === 'cloud'
+							? 'The cloud'
+							: 'The network'
+						: world?.kind === 'git'
+							? 'Your project'
+							: world?.kind === 'web' && world.role === 'sql'
+								? 'The database'
+								: 'Behind the app'
 	);
-	const roleChip = $derived(
-		world?.kind !== 'web'
-			? null
-			: world.role === 'client'
+	const roleChip = $derived.by(() => {
+		const w = world;
+		if (w?.kind === 'web') {
+			return w.role === 'client'
 				? { icon: '📱', text: 'You are: the phone' }
-				: world.role === 'server'
+				: w.role === 'server'
 					? { icon: '🖥️', text: 'You are: the server' }
-					: { icon: '🗄️', text: 'You are: talking to the database' }
-	);
+					: { icon: '🗄️', text: 'You are: talking to the database' };
+		}
+		if (w?.kind === 'net') {
+			if (w.flavour === 'cloud') return { icon: '🧑‍💻', text: 'You are: the operator' };
+			const at = w.nodes.find((n) => n.id === w.at);
+			return at?.kind === 'phone'
+				? { icon: '📱', text: 'You are: on the phone' }
+				: { icon: '💻', text: 'You are: on the laptop' };
+		}
+		if (w?.kind === 'git') return { icon: '⌨️', text: 'You are: at the terminal' };
+		return null;
+	});
 
 	const title = $derived(r(lesson.title));
 	const hints = $derived(lesson.hints.map(r));
@@ -112,41 +153,73 @@
 			: 'Back to the map'
 	);
 
+	/** Cheat sheet keys: `move()` → 'move'; shell lines → `git commit`, `echo`. */
+	const cheatKey = (s: string) => {
+		const t = s.trim().toLowerCase();
+		if (/^git\s/.test(t)) return t.split(/\s+/).slice(0, 2).join(' ');
+		if (isShell) return t.split(/\s+/)[0];
+		return t.replace(/\(.*$/, '').trim();
+	};
+
+	/** Which section of the cheat sheet a command goes in (long lists are grouped). */
+	function groupOf(c: CommandDoc): string | undefined {
+		const w = world;
+		const own = (c as CommandDoc & { group?: string }).group;
+		if (own) return own;
+		if (w?.kind === 'web') {
+			if (SQL_COMMANDS.includes(c)) return 'SQL';
+			if (c.name.startsWith('db.')) return 'Database';
+			return w.role === 'client' ? 'Phone' : 'Server';
+		}
+		if (w?.kind === 'git') return c.name.trim().startsWith('git') ? 'Git' : 'Files';
+		return undefined;
+	}
+
+	/** Net commands exist in one flavour (network or cloud) or both. */
+	function inFlavour(c: CommandDoc, flavour: string): boolean {
+		const d = c as CommandDoc & { flavours?: string[]; flavour?: string };
+		const list = d.flavours ?? (d.flavour ? [d.flavour] : (d.roles as string[] | undefined));
+		return !list || list.includes(flavour);
+	}
+
 	const cheatItems = $derived.by((): CheatItem[] => {
-		const kind = world?.kind ?? 'grid';
+		const w = world;
+		const kind = w?.kind ?? 'grid';
 		const pool = trackLessons.some((l) => l.id === lesson.id) ? trackLessons : getAllLessons();
 		const unlocked = commandsUnlockedThrough(pool, lesson.id);
-		const norm = (s: string) => s.replace(/\(.*$/, '').trim().toLowerCase();
-		const unlockedSet = new Set(unlocked.map(norm));
-		const fresh = new Set((lesson.newCommands ?? []).map(norm));
+		const unlockedSet = new Set(unlocked.map(cheatKey));
+		const fresh = new Set((lesson.newCommands ?? []).map(cheatKey));
 		// Web world: only what exists in this lesson's role (the phone has no `app.get`).
-		const docs = isSql
+		const docs: CommandDoc[] = isSql
 			? SQL_COMMANDS
-			: world?.kind === 'web'
-				? COMMANDS.web.filter((c) => !c.roles || c.roles.includes(world.role))
-				: (COMMANDS[kind] ?? []);
+			: w?.kind === 'web'
+				? COMMANDS.web.filter((c) => !c.roles || c.roles.includes(w.role))
+				: w?.kind === 'net'
+					? (COMMANDS.net ?? []).filter((c) => inFlavour(c, w.flavour ?? 'network'))
+					: (COMMANDS[kind] ?? []);
 		return docs
-			.filter((c) => unlockedSet.has(norm(c.name)))
+			.filter((c) => unlockedSet.has(cheatKey(c.name)))
+			.filter((c, i, all) => all.findIndex((d) => d.name === c.name) === i)
 			.map((c) => ({
 				name: c.name,
 				summary: r(c.summary),
 				example: c.example,
-				isNew: fresh.has(norm(c.name))
+				isNew: fresh.has(cheatKey(c.name)),
+				group: groupOf(c)
 			}));
 	});
 
 	const syntaxItems = $derived.by((): CheatItem[] => {
-		if (isSql) return [];
+		if (isSql || isShell) return [];
 		const all = trackLessons.some((l) => l.id === lesson.id) ? trackLessons : getAllLessons();
 		const here = syntaxUnlockedThrough(all, lesson.id);
-		const before = new Set<string>();
-		const idx = all.findIndex((l) => l.id === lesson.id);
-		if (idx > 0) for (const id of syntaxUnlockedThrough(all, all[idx - 1].id)) before.add(id);
+		// Never flagged as "new": starters are full of comments and loops long before a lesson
+		// is about them. Only commands (from `newCommands`) get the "new" chip.
 		return SYNTAX.filter((s) => here.has(s.id)).map((s) => ({
 			name: s.name,
 			summary: r(s.summary),
 			example: s.example,
-			isNew: !before.has(s.id)
+			isNew: false
 		}));
 	});
 
@@ -167,6 +240,8 @@
 	let lastPassCode = '';
 	/** The database before any learner code ran, for the web world's database panel */
 	let baseTables = $state<Record<string, SqlResultSet> | undefined>();
+	/** git world: the folder and history after the lesson's setup, before the learner's commands */
+	let gitBase = $state<GitResult | undefined>();
 
 	let worldRef: WorldHandle | undefined = $state();
 	let hintPanel: ReturnType<typeof HintPanel> | undefined = $state();
@@ -179,6 +254,7 @@
 
 	onMount(() => {
 		peekDatabase();
+		peekGit();
 		if (!user && !isPredict) {
 			guest.load();
 			const saved = guest.entries[lesson.id]?.code;
@@ -245,6 +321,19 @@
 		}
 	}
 
+	/** git world: run the setup alone once so the folder and history show before the first Run. */
+	async function peekGit() {
+		const spec = world;
+		if (spec?.kind !== 'git' || !spec.setup?.trim()) return;
+		try {
+			const { runInWorker } = await import('#lib/engine/worker.ts');
+			const result = await runInWorker('', spec, { timeoutMs: 3000 });
+			if (result.git) gitBase = result.git;
+		} catch {
+			// The picture falls back to the spec's files.
+		}
+	}
+
 	function stop() {
 		runId++;
 		busy = false;
@@ -280,7 +369,7 @@
 			busy = false;
 			return;
 		}
-		await worldRef?.play(result.trace, result.web);
+		await worldRef?.play(result.trace, extraOf(result));
 		if (id !== runId) return;
 		busy = false;
 
@@ -439,7 +528,7 @@
 			busy = true;
 			const id = ++runId;
 			const result = await execute(l.code).catch(() => null);
-			if (result && id === runId) await worldRef?.play(result.trace, result.web);
+			if (result && id === runId) await worldRef?.play(result.trace, extraOf(result));
 			if (id === runId) busy = false;
 		}
 	}
@@ -482,7 +571,9 @@
 		}
 	}
 
-	const runLabel = $derived(isSql ? 'Run query' : 'Run');
+	const runLabel = $derived(isSql ? 'Run query' : isShell ? 'Run commands' : 'Run');
+	const editorLabel = $derived(isSql ? 'Your SQL' : isShell ? 'Your commands' : 'Your code');
+	const outro = $derived(lesson.outro);
 
 	const kindChip = $derived(
 		lesson.kind === 'fix'
@@ -494,6 +585,20 @@
 </script>
 
 <svelte:window onkeydown={onWindowKey} />
+
+{#snippet outroBlock()}
+	{#if outro}
+		<div class="space-y-3" data-testid="outro">
+			<p class="eyebrow">What just happened</p>
+			{#if outro.panels?.length}
+				<ComicStrip panels={outro.panels} {theme} />
+			{/if}
+			{#if outro.text}
+				<RichText text={r(outro.text)} class="text-ink-soft" />
+			{/if}
+		</div>
+	{/if}
+{/snippet}
 
 <Celebration bind:this={celebration} />
 
@@ -521,7 +626,7 @@
 		</div>
 	</div>
 
-	<div class="play-grid" class:no-world={!world} class:wide-world={isWeb}>
+	<div class="play-grid" class:no-world={!world} class:wide-world={isWide}>
 		<!-- TEXT -->
 		<div class="area-text space-y-5">
 			<section class="card p-5" aria-label="Story and task">
@@ -534,6 +639,33 @@
 					<RichText text={r(lesson.task)} class="font-semibold" />
 				</div>
 			</section>
+
+			{#if outro && alreadyDone && outcome?.kind !== 'passed'}
+				<details class="card group overflow-hidden" data-testid="outro-replay">
+					<summary
+						class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden"
+					>
+						<span>
+							<span class="eyebrow block">You cleared this one</span>
+							<span class="text-lg font-extrabold">What happened next</span>
+						</span>
+						<svg
+							class="text-muted h-5 w-5 shrink-0 transition-transform group-open:rotate-180"
+							viewBox="0 0 20 20"
+							fill="none"
+							aria-hidden="true"
+							><path
+								d="M5 8l5 5 5-5"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/></svg
+						>
+					</summary>
+					<div class="px-5 pb-5">{@render outroBlock()}</div>
+				</details>
+			{/if}
 
 			{#if lesson.concept}
 				<details class="card group overflow-hidden" bind:open={conceptOpen}>
@@ -579,7 +711,7 @@
 				<CheatSheet
 					items={cheatItems}
 					id="cheat-commands"
-					title={isSql ? 'SQL so far' : 'Your commands'}
+					title={isSql ? 'SQL so far' : isShell ? 'Commands so far' : 'Your commands'}
 				/>
 			{/if}
 			{#if syntaxItems.length}
@@ -618,6 +750,10 @@
 					<CanvasWorld spec={world} {stepMs} bind:this={worldRef} />
 				{:else if world.kind === 'web'}
 					<WebWorld spec={world} {stepMs} {baseTables} bind:this={worldRef} />
+				{:else if world.kind === 'net'}
+					<NetWorld spec={world} {stepMs} bind:this={worldRef} />
+				{:else if world.kind === 'git'}
+					<GitWorld spec={world} {stepMs} base={gitBase} bind:this={worldRef} />
 				{/if}
 			</section>
 		{/if}
@@ -635,7 +771,7 @@
 						readonly
 						label="Code to read"
 						minLines={3}
-						language={isSql ? 'sql' : 'js'}
+						language={editorLanguage}
 					/>
 					<p class="text-lg font-extrabold"><RichText text={r(lesson.question)} inline /></p>
 					<div class="grid gap-2" role="group" aria-label="Choices">
@@ -669,16 +805,16 @@
 			{:else}
 				<div class="card p-3 sm:p-4">
 					<div class="mb-2 flex items-center justify-between px-1">
-						<h2 class="eyebrow">{isSql ? 'Your SQL' : 'Your code'}</h2>
+						<h2 class="eyebrow">{editorLabel}</h2>
 						<span class="text-muted hidden text-xs sm:inline">Ctrl/⌘ + Enter runs it</span>
 					</div>
 					<Editor
 						bind:value={code}
 						{run}
 						{errorLine}
-						label={isSql ? 'Your SQL' : 'Your code'}
+						label={editorLabel}
 						minLines={7}
-						language={isSql ? 'sql' : 'js'}
+						language={editorLanguage}
 					/>
 					<div class="mt-3 hidden flex-wrap items-center gap-2 lg:flex">
 						<button
@@ -712,6 +848,7 @@
 						{nextHref}
 						{nextLabel}
 						heroEmoji={trackId === 'web' ? '📦' : theme.hero.emoji}
+						outro={outro ? outroBlock : undefined}
 						onretry={pickAgain}
 						onretrysave={() =>
 							saveCompletion(

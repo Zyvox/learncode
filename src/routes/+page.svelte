@@ -39,11 +39,20 @@
 			<h1
 				class="text-4xl leading-[1.05] font-black tracking-tight text-balance sm:text-5xl lg:text-6xl"
 			>
-				Learn to code by telling a little character what to do.
+				Learn to code. Or finally see how apps work.
 			</h1>
-			<p class="text-ink-soft mt-5 max-w-xl text-lg text-pretty sm:text-xl">
-				You write a few lines of real JavaScript, press Run, and watch it happen, one step at a
-				time. Each level takes a minute or two, and you don't need to know anything to start.
+			<ul class="text-ink-soft mt-5 max-w-xl space-y-2 text-lg text-pretty sm:text-xl">
+				<li class="flex gap-3">
+					<span aria-hidden="true">{theme.hero.emoji}</span>
+					<span>Tell a little character what to do in real JavaScript, and watch every step.</span>
+				</li>
+				<li class="flex gap-3">
+					<span aria-hidden="true">{webTrack.emoji}</span>
+					<span>Follow one tap from a phone through servers, databases and networks, and build each part.</span>
+				</li>
+			</ul>
+			<p class="text-muted mt-3 max-w-xl text-pretty">
+				A minute or two per level. You don't need to know anything to start.
 			</p>
 			<div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
 				<a
