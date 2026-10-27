@@ -1,0 +1,5 @@
+# Caddy reverse proxy with automatic HTTPS. Replace the hostname.
+code.example.com {
+	encode gzip zstd
+	reverse_proxy 127.0.0.1:3000
+}

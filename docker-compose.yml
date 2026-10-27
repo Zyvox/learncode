@@ -1,0 +1,16 @@
+services:
+  learncode:
+    build: .
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3000:3000'
+    environment:
+      # The public URL people use to reach the app (needed for form posts behind a proxy)
+      ORIGIN: https://code.example.com
+      # Trust the reverse proxy's forwarded headers (rate limiting uses the client IP)
+      ADDRESS_HEADER: X-Forwarded-For
+      XFF_DEPTH: '1'
+      PROTOCOL_HEADER: x-forwarded-proto
+      HOST_HEADER: x-forwarded-host
+    volumes:
+      - ./data:/data
