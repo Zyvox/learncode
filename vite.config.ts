@@ -12,7 +12,12 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter({ out: 'build' })
+			adapter: adapter({ out: 'build' }),
+			paths: {
+				// Set ORIGIN at build time when the app is served over plain http without a reverse
+				// proxy (local runs, e2e). Behind a proxy leave it unset and set PROTOCOL_HEADER instead.
+				origin: process.env.ORIGIN || undefined
+			}
 		})
 	],
 	test: {

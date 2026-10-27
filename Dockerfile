@@ -5,7 +5,10 @@ ENV NODE_ENV=development
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 COPY . .
-RUN npm run build && npm prune --omit=dev
+# Optional: bake the public origin into the build (only needed when NOT behind a reverse proxy
+# that sends X-Forwarded-Proto). docker compose passes it through as a build arg.
+ARG ORIGIN=
+RUN ORIGIN="$ORIGIN" npm run build && npm prune --omit=dev
 
 # ---- runtime stage ----
 FROM node:22-bookworm-slim

@@ -59,8 +59,7 @@ Contracts live in:
 
 ## Engine
 
-Learner code runs **in the browser only** (never on the server) inside a Web Worker built from a
-Blob. The worker gets a small API object (the world's commands), runs the code synchronously with
+Learner code runs **in the browser only** (never on the server) inside a module Web Worker (`sandbox.worker.ts`, bundled by Vite). The worker gets a small API object (the world's commands), runs the code synchronously with
 `new Function`, and posts back a `RunResult`. The main thread kills the worker after a timeout
 (infinite loops) and the world enforces a step cap (runaway `move()`s). The main thread then
 _animates_ the trace — the worker never touches the DOM.
