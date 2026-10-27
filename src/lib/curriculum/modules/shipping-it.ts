@@ -86,21 +86,21 @@ show(res.status);
 			title: 'The trip before the trip',
 			xp: 20,
 			story:
-				'Inkwell now runs on a rented machine in a datacentre, at `https://api.inkwell.studio`. A reader’s phone asks for `https://api.inkwell.studio/series/3?lang=en`, which is a lot of address, and your handler logs what it actually receives.',
+				'Inkwell now runs on a rented machine in a datacentre, at `https://api.inkwell.app`. A reader’s phone asks for `https://api.inkwell.app/series/3?lang=en`, which is a lot of address, and your handler logs what it actually receives.',
 			task: 'Read the trip in the strip, then decide what the handler writes in the log.',
 			concept: {
 				title: 'Name, address, door, envelope, receptionist',
 				panels: [
 					{
 						who: 'mina',
-						text: 'When I type `inkwell.studio`, how does my phone find the right computer?',
+						text: 'When I type `inkwell.app`, how does my phone find the right computer?',
 						scene: 'phone'
 					},
 					{
 						who: 'bit',
 						text: 'First stop is **DNS**, the internet’s phone book. Name in, address out.',
 						scene: 'cloud',
-						code: 'api.inkwell.studio  →  203.0.113.7'
+						code: 'api.inkwell.app  →  203.0.113.10'
 					},
 					{
 						who: 'bit',
@@ -133,15 +133,15 @@ show(res.status);
 				{
 					method: 'GET',
 					path: '/series/3?lang=en',
-					label: 'a reader opens https://api.inkwell.studio/series/3?lang=en'
+					label: 'a reader opens https://api.inkwell.app/series/3?lang=en'
 				}
 			]),
 			question: 'What does the log line say?',
 			choices: [
-				'`path: https://api.inkwell.studio/series/3?lang=en`',
-				'`path: api.inkwell.studio/series/3`',
+				'`path: https://api.inkwell.app/series/3?lang=en`',
+				'`path: api.inkwell.app/series/3`',
 				'`path: /series/3`',
-				'`path: 203.0.113.7:3000/series/3`'
+				'`path: 203.0.113.10:3000/series/3`'
 			],
 			answer: 2,
 			explanation:
@@ -331,7 +331,7 @@ show(res.status + ' ' + res.body.error);
 			question: 'The phone shows `502 Bad gateway`. Where is the problem most likely?',
 			choices: [
 				'The reader’s phone has no internet',
-				'DNS: the name `api.inkwell.studio` can’t be found',
+				'DNS: the name `api.inkwell.app` can’t be found',
 				'The receptionist (proxy) is fine, but the Inkwell app behind it isn’t answering',
 				'The database has no series in it'
 			],

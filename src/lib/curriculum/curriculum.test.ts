@@ -523,18 +523,21 @@ describe('lessons: structure', () => {
 	});
 
 	it('newCommands only name real engine commands, introduced once per track', () => {
+		// Collect every problem so one bad module doesn't hide the ones after it.
+		const problems: string[] = [];
 		for (const track of TRACKS) {
 			const seen = new Set<string>();
 			for (const lesson of getLessonsForTrack(track.id)) {
 				for (const cmd of lesson.newCommands ?? []) {
-					expect(ALL_API.has(bareName(cmd)), `${lesson.id}: ${cmd}`).toBe(true);
+					if (!ALL_API.has(bareName(cmd))) problems.push(`${lesson.id}: unknown command ${cmd}`);
 					// web: `res.status` (client property) and `res.status(code)` (server method) differ
 					const key = track.id === 'web' ? cmd : bareName(cmd);
-					expect(seen.has(key), `${lesson.id}: ${cmd} introduced twice`).toBe(false);
+					if (seen.has(key)) problems.push(`${lesson.id}: ${cmd} introduced twice`);
 					seen.add(key);
 				}
 			}
 		}
+		expect(problems).toEqual([]);
 	});
 
 	it('solutions only use commands that have been introduced (within a track)', () => {
