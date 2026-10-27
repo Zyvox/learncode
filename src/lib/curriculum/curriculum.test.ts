@@ -13,8 +13,13 @@ import {
 	getTheme,
 	pickThemed,
 	renderText,
-	totalLessonCount
+	totalLessonCount,
+	getModulesForTrack,
+	getLessonsForTrack,
+	TRACKS,
+	trackOf
 } from '#lib/curriculum/index.ts';
+import type { PredictFacts } from './facts/types.ts';
 import type {
 	Check,
 	CodeLesson,
@@ -22,9 +27,9 @@ import type {
 	Lesson,
 	Module,
 	ThemedText,
+	WebWorldSpec,
 	WorldSpec
 } from '#lib/curriculum/types.ts';
-import type { RunResult } from '#lib/engine/types.ts';
 
 const SKIP_ENGINE = process.env.SKIP_ENGINE === '1';
 
@@ -44,21 +49,99 @@ const ENGINE_API: Record<WorldSpec['kind'], string[]> = {
 		'itemsLeft'
 	],
 	console: ['print'],
-	canvas: ['background', 'color', 'circle', 'rect', 'line', 'text']
+	canvas: ['background', 'color', 'circle', 'rect', 'line', 'text'],
+	// web world: bare names of COMMANDS.web and SQL_COMMANDS (see engine/commands.ts)
+	web: [
+		'get',
+		'post',
+		'put',
+		'del',
+		'show',
+		'log',
+		'res.status',
+		'res.ok',
+		'res.body',
+		'res.json',
+		'res.text',
+		'app.get',
+		'app.post',
+		'app.put',
+		'app.delete',
+		'req.params',
+		'req.query',
+		'req.body',
+		'req.headers',
+		'res.send',
+		'res.end',
+		'db.all',
+		'db.get',
+		'db.run',
+		'env',
+		'SELECT',
+		'WHERE',
+		'ORDER BY',
+		'LIMIT',
+		'COUNT(*)',
+		'INSERT INTO',
+		'UPDATE',
+		'DELETE FROM',
+		'JOIN',
+		'GROUP BY'
+	]
 };
 const ALL_API = new Set(Object.values(ENGINE_API).flat());
+/** Only these are checked by "used before introduced" (SQL keywords and properties aren't calls). */
+const CALLABLE_API = new Set(
+	[...ENGINE_API.grid, ...ENGINE_API.console, ...ENGINE_API.canvas].filter((n) => !n.includes('.'))
+);
 
-const EXPECTED_MODULES: [id: string, lessons: number][] = [
-	['first-steps', 8],
-	['doing-it-again', 8],
-	['making-choices', 8],
-	['your-own-commands', 6],
-	['remembering-things', 8],
-	['drawing-with-code', 7],
-	['tiny-game', 5],
-	['python-basics', 0],
-	['web-pages', 0]
-];
+/**
+ * Target lesson counts per track. Content authors: when you add or remove a level, update your
+ * module's row here (and only yours).
+ */
+const EXPECTED_MODULES: Record<string, [id: string, lessons: number][]> = {
+	code: [
+		['first-steps', 8],
+		['doing-it-again', 8],
+		['making-choices', 8],
+		['your-own-commands', 6],
+		['remembering-things', 8],
+		['drawing-with-code', 7],
+		['tiny-game', 5],
+		['python-basics', 0],
+		['web-pages', 0]
+	],
+	web: [
+		['what-happens-when-you-tap', 6],
+		['requests-and-responses', 7],
+		['endpoints', 6],
+		['your-first-server', 8],
+		['sending-data-in', 6],
+		['where-the-data-lives', 7],
+		['changing-data', 6],
+		['connecting-tables', 6],
+		['server-meets-database', 8],
+		['the-reader-app', 6],
+		['who-are-you', 6],
+		['shipping-it', 7],
+		['launch-inkwell', 6],
+		['networks-for-it', 0],
+		['command-line', 0],
+		['git-and-versions', 0],
+		['security-basics', 0],
+		['reading-logs', 0],
+		['cloud-and-containers', 0],
+		['apis-in-the-wild', 0],
+		['automation-scripts', 0]
+	]
+};
+
+/** Predict-lesson facts from every facts/*.ts file. */
+const factFiles = import.meta.glob<{ FACTS: PredictFacts }>('./facts/*.ts', { eager: true });
+const PREDICT_FACTS: PredictFacts = Object.assign(
+	{},
+	...Object.values(factFiles).map((f) => f.FACTS ?? {})
+);
 
 const LEFTOVER = /\{[A-Za-z][A-Za-z0-9]*\}/;
 
@@ -83,7 +166,9 @@ function lessonTexts(lesson: Lesson): [string, ThemedText][] {
 		...lesson.hints.map((h, i): [string, ThemedText] => [`hint ${i + 1}`, h])
 	];
 	if (lesson.concept) {
-		out.push(['concept.title', lesson.concept.title], ['concept.body', lesson.concept.body]);
+		out.push(['concept.title', lesson.concept.title]);
+		if (lesson.concept.body !== undefined) out.push(['concept.body', lesson.concept.body]);
+		lesson.concept.panels?.forEach((p, i) => out.push([`panel ${i + 1}`, p.text]));
 	}
 	if (lesson.kind === 'predict') {
 		out.push(['question', lesson.question], ['explanation', lesson.explanation]);
@@ -163,10 +248,36 @@ describe('renderText', () => {
 });
 
 describe('module registry', () => {
-	it('has the expected modules, in order, with the target lesson counts', () => {
-		expect(MODULES.map((m) => [m.id, m.lessons.length])).toEqual(EXPECTED_MODULES);
-		expect(MODULES.map((m) => m.order)).toEqual(EXPECTED_MODULES.map((_, i) => i + 1));
+	it('has the expected modules per track, in order, with the target lesson counts', () => {
 		expect(getModules()).toBe(MODULES);
+		expect(TRACKS.map((t) => t.id)).toEqual(['code', 'web']);
+		for (const track of TRACKS) {
+			const mods = getModulesForTrack(track.id);
+			const expected = EXPECTED_MODULES[track.id];
+			// Modules may exist before every planned one is written; compare what's there, in order.
+			const present = expected.filter(([id]) => mods.some((m) => m.id === id));
+			expect(
+				mods.map((m) => [m.id, m.lessons.length]),
+				track.id
+			).toEqual(present);
+			expect(
+				mods.map((m) => m.order),
+				`${track.id} order`
+			).toEqual(
+				mods
+					.map((m) => m.order)
+					.slice()
+					.sort((a, b) => a - b)
+			);
+			expect(new Set(mods.map((m) => m.order)).size, `${track.id} duplicate order`).toBe(
+				mods.length
+			);
+		}
+		// map order: all code modules first, then web
+		const tracks = MODULES.map((m) => trackOf(m));
+		expect(tracks.lastIndexOf('code')).toBeLessThan(
+			tracks.indexOf('web') === -1 ? Infinity : tracks.indexOf('web')
+		);
 	});
 
 	it('coming-soon modules have no lessons; playable ones do', () => {
@@ -179,7 +290,7 @@ describe('module registry', () => {
 	it('looks things up and walks the course in order', () => {
 		const lessons = getAllLessons();
 		expect(lessons.length).toBe(totalLessonCount());
-		expect(totalLessonCount()).toBe(50);
+		expect(getLessonsForTrack('code')).toHaveLength(50);
 		expect(getModule('first-steps')?.order).toBe(1);
 		expect(getModule('missing')).toBeUndefined();
 		expect(getLesson(lessons[3].id)).toBe(lessons[3]);
@@ -197,8 +308,13 @@ describe('module registry', () => {
 		expect(ctx.index).toBe(7);
 		expect(ctx.next?.id).toBe('doing-it-again/01-keep-going');
 		expect(getNextLessonAfter(lastOfFirst.id)?.id).toBe('doing-it-again/01-keep-going');
-		expect(getNextLessonAfter(lessons.at(-1)!.id)).toBeUndefined();
 		expect(getLessonContext('nope')).toBeUndefined();
+
+		// next/prev never cross tracks
+		const lastCode = getLessonsForTrack('code').at(-1)!;
+		expect(getNextLessonAfter(lastCode.id)).toBeUndefined();
+		const firstWeb = getLessonsForTrack('web')[0];
+		if (firstWeb) expect(getLessonContext(firstWeb.id)!.prev).toBeUndefined();
 	});
 });
 
@@ -346,27 +462,63 @@ describe('lessons: structure', () => {
 		}
 	});
 
-	it('newCommands only name real engine commands, introduced once', () => {
-		const seen = new Set<string>();
-		for (const { lesson } of allLessons) {
-			for (const cmd of lesson.newCommands ?? []) {
-				const name = bareName(cmd);
-				expect(ALL_API.has(name), `${lesson.id}: ${cmd}`).toBe(true);
-				expect(seen.has(name), `${lesson.id}: ${cmd} introduced twice`).toBe(false);
-				seen.add(name);
+	it('newCommands only name real engine commands, introduced once per track', () => {
+		for (const track of TRACKS) {
+			const seen = new Set<string>();
+			for (const lesson of getLessonsForTrack(track.id)) {
+				for (const cmd of lesson.newCommands ?? []) {
+					const name = bareName(cmd);
+					expect(ALL_API.has(name), `${lesson.id}: ${cmd}`).toBe(true);
+					expect(seen.has(name), `${lesson.id}: ${cmd} introduced twice`).toBe(false);
+					seen.add(name);
+				}
 			}
 		}
 	});
 
-	it('solutions only use commands that have been introduced', () => {
-		const known = new Set<string>();
-		for (const { lesson } of allLessons) {
-			for (const cmd of lesson.newCommands ?? []) known.add(bareName(cmd));
-			const code = lesson.kind === 'predict' ? lesson.code : lesson.solution;
-			for (const name of ALL_API) {
-				if (new RegExp(`\\b${name}\\s*\\(`).test(code)) {
-					expect(known.has(name), `${lesson.id} uses ${name}() before it is introduced`).toBe(true);
+	it('solutions only use commands that have been introduced (within a track)', () => {
+		for (const track of TRACKS) {
+			const known = new Set<string>();
+			for (const lesson of getLessonsForTrack(track.id)) {
+				for (const cmd of lesson.newCommands ?? []) known.add(bareName(cmd));
+				const code = lesson.kind === 'predict' ? lesson.code : lesson.solution;
+				const api =
+					track.id === 'web'
+						? new Set(ENGINE_API.web.filter((n) => !n.includes('.') && /^[a-z]/.test(n)))
+						: CALLABLE_API;
+				for (const name of api) {
+					if (new RegExp(`(^|[^.\\w])${name}\\s*\\(`).test(code)) {
+						expect(known.has(name), `${lesson.id} uses ${name}() before it is introduced`).toBe(
+							true
+						);
+					}
 				}
+			}
+		}
+	});
+
+	it('web lessons are internally consistent', () => {
+		for (const { module, lesson } of allLessons) {
+			if (trackOf(module) !== 'web') continue;
+			const world = lesson.kind === 'predict' ? lesson.world : lesson.world;
+			expect(world?.kind, `${lesson.id} must use the web world`).toBe('web');
+			const w = world as WebWorldSpec;
+			if (w.role === 'sql')
+				expect(lesson.language, `${lesson.id}: sql role needs language 'sql'`).toBe('sql');
+			else
+				expect(lesson.language ?? 'js', `${lesson.id}: only sql role uses language 'sql'`).toBe(
+					'js'
+				);
+			if (w.role === 'server' && lesson.kind !== 'predict')
+				expect(
+					(w.requests ?? []).length,
+					`${lesson.id}: server lessons need requests`
+				).toBeGreaterThan(0);
+			if (w.role === 'client' && !w.serverDown)
+				expect(w.serverCode, `${lesson.id}: client lessons need serverCode`).toBeTruthy();
+			if (lesson.concept?.panels) {
+				expect(lesson.concept.panels.length, `${lesson.id} panels`).toBeGreaterThanOrEqual(2);
+				expect(lesson.concept.panels.length, `${lesson.id} too many panels`).toBeLessThanOrEqual(8);
 			}
 		}
 	});
@@ -379,11 +531,14 @@ describe('lessons: run against the real engine', async () => {
 		return;
 	}
 	const { runInNode } = await import('#lib/engine/node.ts');
-	const { evaluate } = await import('#lib/engine/evaluate.ts');
-	const { COMMANDS } = await import('#lib/engine/commands.ts');
+	const { evaluate, verifySqlFor } = await import('#lib/engine/evaluate.ts');
+	const { COMMANDS, SQL_COMMANDS } = await import('#lib/engine/commands.ts');
 
 	it('newCommands match the engine cheat-sheet names exactly', () => {
-		const names = new Set(Object.values(COMMANDS).flatMap((list) => list.map((c) => c.name)));
+		const names = new Set([
+			...Object.values(COMMANDS).flatMap((list) => list.map((c) => c.name)),
+			...SQL_COMMANDS.map((c) => c.name)
+		]);
 		for (const { lesson } of allLessons) {
 			for (const cmd of lesson.newCommands ?? [])
 				expect(names.has(cmd), `${lesson.id}: ${cmd}`).toBe(true);
@@ -392,7 +547,9 @@ describe('lessons: run against the real engine', async () => {
 
 	for (const { lesson } of codeLessons) {
 		it(`${lesson.id}: the solution passes`, async () => {
-			const result = await runInNode(lesson.solution, lesson.world);
+			const result = await runInNode(lesson.solution, lesson.world, {
+				verifySql: verifySqlFor(lesson.checks)
+			});
 			const verdict = evaluate(lesson, result, lesson.solution);
 			const failures = verdict.failures.map((f) => renderText(f, getTheme(DEFAULT_THEME_ID)));
 			expect(result.error?.raw, `${lesson.id} solution error`).toBeUndefined();
@@ -401,35 +558,14 @@ describe('lessons: run against the real engine', async () => {
 		});
 
 		it(`${lesson.id}: the starter code does not already pass`, async () => {
-			const result = await runInNode(lesson.starterCode, lesson.world);
+			const result = await runInNode(lesson.starterCode, lesson.world, {
+				verifySql: verifySqlFor(lesson.checks)
+			});
 			const verdict = evaluate(lesson, result, lesson.starterCode);
 			expect(verdict.passed, `${lesson.id} starter passes already`).toBe(false);
 			expect(result.timedOut, `${lesson.id} starter hangs`).toBe(false);
 		});
 	}
-
-	/**
-	 * What really happens when each predict lesson's code runs. Keeps the "right answer" honest:
-	 * if someone edits the code or the map, this test notices.
-	 */
-	const PREDICT_FACTS: Record<string, (r: RunResult) => unknown> = {
-		'first-steps/06-predict': (r) => [r.grid?.hero.x, r.grid?.hero.y], // one right, two down
-		'doing-it-again/04-predict-inside': (r) => r.trace.filter((e) => e.t === 'turn').length,
-		'making-choices/06-predict': (r) =>
-			r.trace.filter((e) => e.t === 'say' && e.text === 'Nope').length,
-		'your-own-commands/04-predict': (r) => r.trace.filter((e) => e.t === 'turn').length,
-		'remembering-things/07-predict': (r) => r.output,
-		'drawing-with-code/05-predict': (r) =>
-			(r.draws ?? []).flatMap((d) => (d.op === 'circle' ? [d.x] : []))
-	};
-	const EXPECTED_FACTS: Record<string, unknown> = {
-		'first-steps/06-predict': [1, 2],
-		'doing-it-again/04-predict-inside': 1,
-		'making-choices/06-predict': 1,
-		'your-own-commands/04-predict': 4,
-		'remembering-things/07-predict': ['Lives: 4'],
-		'drawing-with-code/05-predict': [50, 50, 50]
-	};
 
 	for (const { lesson } of allLessons) {
 		if (lesson.kind !== 'predict') continue;
@@ -438,8 +574,8 @@ describe('lessons: run against the real engine', async () => {
 			const result = await runInNode(lesson.code, lesson.world!);
 			expect(result.ok, `${lesson.id}: ${result.error?.raw}`).toBe(true);
 			const fact = PREDICT_FACTS[lesson.id];
-			expect(fact, `${lesson.id} has no PREDICT_FACTS entry`).toBeDefined();
-			expect(fact(result)).toEqual(EXPECTED_FACTS[lesson.id]);
+			expect(fact, `${lesson.id} has no entry in curriculum/facts/*.ts`).toBeDefined();
+			expect(fact.pick(result)).toEqual(fact.equals);
 		});
 	}
 });

@@ -2,43 +2,54 @@
  * Curriculum registry. Everything other parts of the app need from the curriculum is
  * exported from here: `import { getLesson, renderText } from '#lib/curriculum/index.ts'`.
  */
-import type { Lesson, Module } from '#lib/curriculum/types.ts';
-import { firstSteps } from './modules/first-steps.ts';
-import { doingItAgain } from './modules/doing-it-again.ts';
-import { makingChoices } from './modules/making-choices.ts';
-import { yourOwnCommands } from './modules/your-own-commands.ts';
-import { rememberingThings } from './modules/remembering-things.ts';
-import { drawingWithCode } from './modules/drawing-with-code.ts';
-import { tinyGame } from './modules/tiny-game.ts';
-import { pythonBasics } from './modules/python-basics.ts';
-import { webPages } from './modules/web-pages.ts';
+import type { Lesson, Module, TrackId } from '#lib/curriculum/types.ts';
+import { TRACKS, TRACK_ORDER } from './tracks.ts';
 
 export type * from '#lib/curriculum/types.ts';
 export { THEME_IDS } from '#lib/curriculum/types.ts';
 export { THEMES, getTheme, DEFAULT_THEME_ID, VOCAB_KEYS } from './themes.ts';
 export { renderText, pickThemed, placeholderValues } from './render.ts';
+export { TRACKS, TRACK_ORDER, getTrack } from './tracks.ts';
+export { CAST } from './cast.ts';
 
-/** All modules, sorted by `order` (map order). Includes `comingSoon` modules with no lessons. */
-export const MODULES: Module[] = [
-	firstSteps,
-	doingItAgain,
-	makingChoices,
-	yourOwnCommands,
-	rememberingThings,
-	drawingWithCode,
-	tinyGame,
-	pythonBasics,
-	webPages
-].sort((a, b) => a.order - b.order);
+/**
+ * Every file in ./modules is a module. Each file exports one `Module` object (any export name).
+ * Drop a file in, and it appears on the map; nothing else to register.
+ */
+const moduleFiles = import.meta.glob<Record<string, unknown>>('./modules/*.ts', { eager: true });
+
+function isModule(value: unknown): value is Module {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		typeof (value as Module).id === 'string' &&
+		Array.isArray((value as Module).lessons)
+	);
+}
+
+export function trackOf(module: Module): TrackId {
+	return module.track ?? 'code';
+}
+
+/**
+ * All modules in map order: track by track (code, then web), then by `order` within the track.
+ * Includes `comingSoon` modules with no lessons.
+ */
+export const MODULES: Module[] = Object.values(moduleFiles)
+	.flatMap((file) => Object.values(file).filter(isModule))
+	.sort((a, b) => {
+		const t = TRACK_ORDER.indexOf(trackOf(a)) - TRACK_ORDER.indexOf(trackOf(b));
+		return t !== 0 ? t : a.order - b.order;
+	});
 
 export interface LessonContext {
 	module: Module;
 	lesson: Lesson;
 	/** 0-based position of the lesson inside its module */
 	index: number;
-	/** Previous lesson in the whole course (may be in the previous module) */
+	/** Previous lesson in the same track (may be in the previous module); never crosses tracks */
 	prev: Lesson | undefined;
-	/** Next lesson in the whole course (may be in the next module) */
+	/** Next lesson in the same track (may be in the next module); never crosses tracks */
 	next: Lesson | undefined;
 }
 
@@ -72,12 +83,15 @@ export function getLessonContext(id: string): LessonContext | undefined {
 	const pos = POSITION.get(id);
 	if (pos === undefined) return undefined;
 	const { module, lesson, index } = ALL[pos];
+	const track = trackOf(module);
+	const prevEntry = ALL[pos - 1];
+	const nextEntry = ALL[pos + 1];
 	return {
 		module,
 		lesson,
 		index,
-		prev: ALL[pos - 1]?.lesson,
-		next: ALL[pos + 1]?.lesson
+		prev: prevEntry && trackOf(prevEntry.module) === track ? prevEntry.lesson : undefined,
+		next: nextEntry && trackOf(nextEntry.module) === track ? nextEntry.lesson : undefined
 	};
 }
 
@@ -99,4 +113,25 @@ export function getModuleOfLesson(id: string): Module | undefined {
 
 export function totalLessonCount(): number {
 	return ALL.length;
+}
+
+/** Modules of one track, in map order. */
+export function getModulesForTrack(track: TrackId): Module[] {
+	return MODULES.filter((m) => trackOf(m) === track);
+}
+
+/** Playable lessons of one track, in course order. */
+export function getLessonsForTrack(track: TrackId): Lesson[] {
+	return ALL.filter((e) => trackOf(e.module) === track).map((e) => e.lesson);
+}
+
+/** The track a lesson belongs to. */
+export function getTrackOfLesson(id: string): TrackId | undefined {
+	const module = getModuleOfLesson(id);
+	return module ? trackOf(module) : undefined;
+}
+
+/** Re-exported so callers can get the track list without importing tracks.ts. */
+export function getTracks() {
+	return TRACKS;
 }

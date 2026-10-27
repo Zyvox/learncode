@@ -158,14 +158,31 @@ export type Check =
 	/** `request` is the index into spec.requests (server role) or into the calls the client made (client role) */
 	| { type: 'response-status'; request: number; status: number; message?: ThemedText }
 	/** Deep-equal (mode 'equal', default) or every key in `expected` must match (mode 'subset'; arrays compared element-wise as subsets) */
-	| { type: 'response-json'; request: number; expected: unknown; mode?: 'equal' | 'subset'; message?: ThemedText }
+	| {
+			type: 'response-json';
+			request: number;
+			expected: unknown;
+			mode?: 'equal' | 'subset';
+			message?: ThemedText;
+	  }
 	| { type: 'response-includes'; request: number; text: string; message?: ThemedText }
 	/** Every request got a 2xx */
 	| { type: 'all-responses-ok'; message?: ThemedText }
 	/** Run `sql` after the learner's code and compare rows (array of objects; key order ignored; row order matters unless `anyOrder`) */
-	| { type: 'db-rows'; sql: string; expected: Record<string, unknown>[]; anyOrder?: boolean; message?: ThemedText }
+	| {
+			type: 'db-rows';
+			sql: string;
+			expected: Record<string, unknown>[];
+			anyOrder?: boolean;
+			message?: ThemedText;
+	  }
 	/** sql role: the last result set equals these rows */
-	| { type: 'sql-result'; expected: Record<string, unknown>[]; anyOrder?: boolean; message?: ThemedText }
+	| {
+			type: 'sql-result';
+			expected: Record<string, unknown>[];
+			anyOrder?: boolean;
+			message?: ThemedText;
+	  }
 	/** sql role: the last result set has exactly these columns (order ignored) */
 	| { type: 'sql-columns'; columns: string[]; message?: ThemedText }
 	/** sql role: at least/at most N rows in the last result set */
