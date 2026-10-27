@@ -32,6 +32,8 @@
 	type NetEv = Extract<TraceEvent, { t: 'packet' | 'node' | 'call' | 'log' | 'stopped' }>;
 
 	interface NodeView extends NetNode {
+		/** Ports blocked on a node that otherwise lets everything in (engine state) */
+		block?: number[];
 		busy?: boolean;
 		fresh?: boolean;
 		leaving?: boolean;
@@ -118,6 +120,9 @@
 		drops = [];
 		counter = null;
 		histogram = null;
+		weight = 1;
+		batchIdx = 0;
+		tally = { ok: 0, failed: 0 };
 		caption = '';
 		ran = false;
 		stoppedReason = null;
@@ -245,15 +250,17 @@
 			case 'block': {
 				const n = findNode(nodes, c.node);
 				if (!n) break;
-				const list = new Set(n.allow ?? []);
-				if (c.fn === 'allow') {
-					if (n.allow) list.add(c.port);
-				} else if (n.allow) list.delete(c.port);
-				else {
-					// "everything" minus one port can't be drawn as a list; the final picture fixes it.
-					break;
+				const sorted = (xs: Iterable<number>) => [...new Set(xs)].sort((a, b) => a - b);
+				if (n.allow) {
+					n.allow = sorted(
+						c.fn === 'allow' ? [...n.allow, c.port] : n.allow.filter((p) => p !== c.port)
+					);
+				} else {
+					const blocked = n.block ?? [];
+					n.block = sorted(
+						c.fn === 'block' ? [...blocked, c.port] : blocked.filter((p) => p !== c.port)
+					);
 				}
-				n.allow = [...list].sort((a, b) => a - b);
 				break;
 			}
 			case 'listen': {
@@ -281,10 +288,12 @@
 					n.down = false;
 					n.leaving = false;
 				} else {
+					const kind = (ev.kind as NetNode['kind']) ?? 'container';
 					nodes.push({
 						id: ev.id,
-						kind: (ev.kind as NetNode['kind']) ?? 'container',
-						label: ev.label,
+						kind,
+						// Containers carry their image in the event's label.
+						...(kind === 'container' ? { image: ev.label } : { label: ev.label }),
 						service: ev.service,
 						fresh: !instant
 					});
@@ -294,7 +303,9 @@
 						if (m) m.fresh = false;
 					});
 				}
-				return `A new ${ev.kind && ev.kind !== 'container' ? (KIND_NAME[ev.kind as NetNode['kind']] ?? ev.kind) : 'container'}, ${ev.label ?? ev.id}, starts up${cloud ? ' in the cloud' : ''}.`;
+				return ev.kind && ev.kind !== 'container'
+					? `A new ${KIND_NAME[ev.kind as NetNode['kind']] ?? ev.kind}, ${ev.label ?? ev.id}, starts up.`
+					: `A new container, ${ev.id}${ev.label ? ` (${ev.label})` : ''}, starts up${cloud ? ' in the cloud' : ''}.`;
 			case 'removed':
 				if (n) {
 					if (instant) nodes = nodes.filter((x) => x.id !== ev.id);
@@ -303,7 +314,7 @@
 						later(420, token, () => (nodes = nodes.filter((x) => x.id !== ev.id)));
 					}
 				}
-				return `${ev.label ?? n?.label ?? ev.id} is shut down.`;
+				return `${n?.label ?? ev.id} is shut down.`;
 			case 'down':
 				if (n) n.down = true;
 				return `${n?.label ?? ev.id} goes down.`;
@@ -331,7 +342,8 @@
 
 	// ---------- replay ----------
 	type Seg = { kind: 'one'; ev: NetEv; idx: number } | { kind: 'burst'; evs: NetEv[] };
-	const BURST = 10;
+	/** A run of at least this many packets plays as a brisk stream (cloud traffic batches). */
+	const BURST = 6;
 
 	function segment(events: NetEv[]): Seg[] {
 		const out: Seg[] = [];
@@ -457,6 +469,7 @@
 				}
 				case 'log': {
 					logs.push(String(ev.text));
+					noteBatchEnd(String(ev.text));
 					scrollDown();
 					if (!(await wait(step * 0.3, token, instant))) return;
 					break;
@@ -474,22 +487,38 @@
 		finishPicture(net);
 	}
 
+	/**
+	 * Big traffic batches only carry a sample of their requests as packets (one in five), so each
+	 * packet of a batch counts for `batch.count / packets` requests. The exact totals from the
+	 * result replace the running guess at the end.
+	 */
+	let weight = 1;
+	let batchIdx = 0;
+	let tally = { ok: 0, failed: 0 };
+
 	function countPacket(ev: PacketEv) {
 		if (ev.status === undefined) return;
-		counter ??= { ok: 0, failed: 0 };
-		if (ev.ok && statusTone(ev.status) === 'ok') counter.ok++;
-		else counter.failed++;
+		if (ev.ok && statusTone(ev.status) === 'ok') tally.ok += weight;
+		else tally.failed += weight;
+		counter = { ok: Math.round(tally.ok), failed: Math.round(tally.failed) };
+	}
+
+	/** The engine closes each traffic batch with a "Batch 2: …" log line. */
+	function noteBatchEnd(text: string) {
+		const m = /^Batch (\d+)\b/.exec(text);
+		if (m) batchIdx = Number(m[1]);
 	}
 
 	/** Many packets (cloud traffic): a brisk stream of sample packets and a running counter. */
 	async function playBurst(evs: NetEv[], token: number, instant: boolean): Promise<boolean> {
 		const packets = evs.filter((e): e is PacketEv => e.t === 'packet');
-		const total = packets.length;
+		const batch = cloud ? trafficPlan[batchIdx] : undefined;
+		const total = batch && batch.count > packets.length ? batch.count : packets.length;
+		weight = total / Math.max(1, packets.length);
 		const speed = Math.min(1, Math.max(stepMs, 60) / 220);
 		const budget = Math.min(4200, Math.max(1600, total * 22)) * speed;
-		const chunks = Math.min(total, 16);
+		const chunks = Math.min(packets.length, 16);
 		const chunkMs = budget / chunks;
-		counter ??= { ok: 0, failed: 0 };
 		drops = [];
 		caption = `${total} requests arrive${lbNode ? ` at the ${labelOf(lbNode.id)}` : ''}…`;
 		let cursor = 0;
@@ -516,9 +545,10 @@
 				}
 			}
 			const k = counter;
-			caption = `Traffic: ${k.ok + k.failed} of ${total} requests answered…`;
+			caption = `Traffic: ${k ? k.ok + k.failed : 0} of ${total} requests answered…`;
 			if (!(await wait(chunkMs, token, instant))) return false;
 		}
+		weight = 1;
 		return true;
 	}
 
@@ -576,9 +606,11 @@
 	const portChips = (n: NetNode) =>
 		Object.entries(n.listens ?? {}).map(([port, name]) => ({ port, name: String(name) }));
 
-	const allowText = (n: NetNode) =>
+	const allowText = (n: NetNode & { block?: number[] }) =>
 		n.allow === undefined
-			? 'lets everything in'
+			? n.block?.length
+				? `lets everything in but ${n.block.map((p) => `:${p}`).join(' ')}`
+				: 'lets everything in'
 			: n.allow.length === 0
 				? 'lets nothing in'
 				: `lets in ${n.allow.map((p) => `:${p}`).join(' ')}`;
@@ -638,7 +670,7 @@
 				{n.unhealthy ? 'failing checks' : 'healthy'}
 			</span>
 		{/if}
-		{#if n.kind === 'firewall' || (n.allow !== undefined && n.kind !== 'container')}
+		{#if n.kind === 'firewall' || (n.kind !== 'container' && (n.allow !== undefined || n.block?.length))}
 			<span class="allow" data-testid="net-allow-{n.id}"
 				><span aria-hidden="true">🛡️</span> {allowText(n)}</span
 			>

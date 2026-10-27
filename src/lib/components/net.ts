@@ -227,7 +227,13 @@ export function callTone(result: string): CallTone {
 		['closed', 'filtered', 'no route', 'unreachable', 'unknown host', 'null', 'error'].includes(r)
 	)
 		return 'bad';
-	if (r === 'open' || /^\d+(\.\d+)?\s*(ms)?$/.test(r) || /^\d{1,3}(\.\d{1,3}){3}$/.test(r))
+	if (
+		r === 'open' ||
+		r === 'ok' ||
+		r === 'true' ||
+		/^\d+(\.\d+)?\s*(ms)?$/.test(r) ||
+		/^\d{1,3}(\.\d{1,3}){3}$/.test(r)
+	)
 		return 'good';
 	if (r.startsWith('[') || r.startsWith("'") || r.startsWith('"')) return 'good';
 	return 'plain';
