@@ -39,7 +39,50 @@ export type TraceEvent =
 	| { t: 'print'; text: string }
 	| { t: 'draw'; op: DrawOp }
 	/** Step cap or timeout hit */
-	| { t: 'stopped'; reason: 'max-steps' | 'timeout' };
+	| { t: 'stopped'; reason: 'max-steps' | 'timeout' }
+	/* ---- web world ---- */
+	/** The phone sent a request. `id` is the request index. */
+	| { t: 'request'; id: number; method: string; path: string; body?: unknown; label?: string }
+	/** The server picked a route (pattern like '/episodes/:id') or found none (null → 404) */
+	| { t: 'route'; id: number; pattern: string | null }
+	/** A log line from log() on the server or the client */
+	| { t: 'log'; id?: number; where: 'server' | 'client'; text: string }
+	/** A database query ran (from a handler, or from the SQL editor). `rows` for SELECTs, `changes` for writes. */
+	| { t: 'query'; id?: number; sql: string; params: unknown[]; rows?: number; changes?: number; error?: string }
+	/** The server answered request `id` */
+	| { t: 'response'; id: number; status: number; body: unknown }
+	/** The phone screen shows something (show() on the client, or the auto-rendered response) */
+	| { t: 'screen'; item: ScreenItem };
+
+export type ScreenItem =
+	| { kind: 'text'; text: string }
+	| { kind: 'json'; value: unknown }
+	| { kind: 'error'; status: number; text: string };
+
+export interface SimResponse {
+	id: number;
+	method: string;
+	path: string;
+	status: number;
+	body: unknown;
+	/** The route pattern that answered, or null for 404 */
+	route: string | null;
+}
+
+export interface SqlResultSet {
+	columns: string[];
+	rows: Record<string, unknown>[];
+}
+
+export interface WebResult {
+	responses: SimResponse[];
+	/** sql role: the last statement that returned rows, if any */
+	sqlResult?: SqlResultSet;
+	/** For the database panel: table name -> first rows (max 25) after the run */
+	tables: Record<string, SqlResultSet>;
+	screen: ScreenItem[];
+	queryCount: number;
+}
 
 export interface FriendlyError {
 	/**
@@ -66,6 +109,8 @@ export interface RunResult {
 	grid?: GridState;
 	/** All draw ops, when the world is a canvas (also in trace) */
 	draws?: DrawOp[];
+	/** Everything the web world produced, when the world is 'web' */
+	web?: WebResult;
 	/** Number of world commands executed */
 	steps: number;
 	timedOut: boolean;

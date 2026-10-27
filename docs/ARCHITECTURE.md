@@ -26,6 +26,14 @@ The language taught is **real JavaScript** (no fake block language), but the voc
 levels only ever require the commands they have introduced. Later modules can add Python and web
 pages; the engine is world-based so that is additive.
 
+## Tracks
+
+Two tracks share the engine, accounts, map and gamification:
+
+- **Learn to code** (`track: 'code'`) — the modules below.
+- **Behind the app** (`track: 'web'`) — servers, endpoints, databases and how they connect, built
+  around a webtoon studio's reader app. Design and API: `docs/WEB_TRACK.md`.
+
 ## Curriculum shape
 
 Modules (in order) and the one idea each one owns:
@@ -74,6 +82,8 @@ Worlds:
   sensors `pathAhead()`, `pathLeft()`, `pathRight()`, `onItem()`, `atGoal()`, `itemsLeft()`.
 - **console** — `print(...values)`. The lesson can pre-define variables (e.g. `score`) that
   exist when the learner's code starts.
+- **web** — a simulated phone → server → SQLite database pipeline (real SQL via sql.js in the
+  worker). See `docs/WEB_TRACK.md`.
 - **canvas** — `color(name)`, `circle(x, y, r)`, `rect(x, y, w, h)`, `line(x1, y1, x2, y2)`,
   `text(x, y, str)`, `background(name)`. Canvas is 300×300 by default. Ops are recorded and the UI
   replays them onto a `<canvas>`.

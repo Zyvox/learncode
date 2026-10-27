@@ -81,7 +81,49 @@ export interface CanvasWorldSpec {
 	background?: string; // default 'white'
 }
 
-export type WorldSpec = GridWorldSpec | ConsoleWorldSpec | CanvasWorldSpec;
+/** A request the simulated reader app ("the phone") sends to the learner's server. */
+export interface SimRequest {
+	method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+	/** Path including any query string, e.g. '/episodes/12?lang=en' */
+	path: string;
+	/** JSON body for POST/PUT */
+	body?: unknown;
+	headers?: Record<string, string>;
+	/** Short label shown on the packet in the animation, e.g. "reader opens episode 12" */
+	label?: string;
+}
+
+/**
+ * The "behind the app" world: a phone (client), a server with endpoints, and a real SQLite
+ * database (sql.js). The learner's code runs in ONE role per lesson. See docs/WEB_TRACK.md
+ * for the exact learner-facing API.
+ */
+export interface WebWorldSpec {
+	kind: 'web';
+	/**
+	 * client: learner code runs on the phone (get/post/show). Routes come from `serverCode`.
+	 * server: learner code registers routes with `app`; then `requests` are fired at it.
+	 * sql:    the editor holds SQL; it runs against the database; the last result set is shown.
+	 */
+	role: 'client' | 'server' | 'sql';
+	/** SQL run on a fresh in-memory database before anything else (CREATE TABLE + seed rows). */
+	schema?: string;
+	/**
+	 * Server code that exists before the learner's code (same `app`/`db` API). In client and sql
+	 * lessons this IS the server; in server lessons it provides routes the learner adds to.
+	 */
+	serverCode?: string;
+	/** Requests the phone sends after the learner's server code has registered its routes. */
+	requests?: SimRequest[];
+	/** Values exposed as `env.NAME` to server code (configuration lessons). */
+	env?: Record<string, string>;
+	/** Which boxes to draw. Default: all three. */
+	show?: ('client' | 'server' | 'database')[];
+	/** Simulated conditions for predict/story levels */
+	serverDown?: boolean;
+}
+
+export type WorldSpec = GridWorldSpec | ConsoleWorldSpec | CanvasWorldSpec | WebWorldSpec;
 export type WorldKind = WorldSpec['kind'];
 
 /**
@@ -111,7 +153,31 @@ export type Check =
 			message?: ThemedText;
 	  }
 	| { type: 'draw-colors'; min: number; message?: ThemedText } // distinct fill colours used
-	| { type: 'draw-background'; message?: ThemedText };
+	| { type: 'draw-background'; message?: ThemedText }
+	/* ---- web world ---- */
+	/** `request` is the index into spec.requests (server role) or into the calls the client made (client role) */
+	| { type: 'response-status'; request: number; status: number; message?: ThemedText }
+	/** Deep-equal (mode 'equal', default) or every key in `expected` must match (mode 'subset'; arrays compared element-wise as subsets) */
+	| { type: 'response-json'; request: number; expected: unknown; mode?: 'equal' | 'subset'; message?: ThemedText }
+	| { type: 'response-includes'; request: number; text: string; message?: ThemedText }
+	/** Every request got a 2xx */
+	| { type: 'all-responses-ok'; message?: ThemedText }
+	/** Run `sql` after the learner's code and compare rows (array of objects; key order ignored; row order matters unless `anyOrder`) */
+	| { type: 'db-rows'; sql: string; expected: Record<string, unknown>[]; anyOrder?: boolean; message?: ThemedText }
+	/** sql role: the last result set equals these rows */
+	| { type: 'sql-result'; expected: Record<string, unknown>[]; anyOrder?: boolean; message?: ThemedText }
+	/** sql role: the last result set has exactly these columns (order ignored) */
+	| { type: 'sql-columns'; columns: string[]; message?: ThemedText }
+	/** sql role: at least/at most N rows in the last result set */
+	| { type: 'sql-row-count'; min?: number; max?: number; message?: ThemedText }
+	/** Something shown on the phone (via show() or the auto-rendered response) contains this text */
+	| { type: 'screen-includes'; text: string; message?: ThemedText }
+	/** A log line (server or client) contains this text */
+	| { type: 'log-includes'; text: string; message?: ThemedText }
+	/** Every db query that ran used bound parameters (no user-derived values glued into SQL). Approximated: no query text contains a value from req.params/query/body. */
+	| { type: 'queries-parameterized'; message?: ThemedText }
+	/** At most N queries ran in total (nudges away from N+1) */
+	| { type: 'max-queries'; count: number; message?: ThemedText };
 
 export type LessonKind =
 	/** Write code from a starter to satisfy checks */
@@ -120,6 +186,22 @@ export type LessonKind =
 	| 'fix'
 	/** Read code, pick what it will do. No editor. */
 	| 'predict';
+
+/** A speaker in webtoon-style concept panels. Defined in curriculum/cast.ts. */
+export type CastId = 'you' | 'mina' | 'theo' | 'bit' | 'narrator';
+
+/**
+ * One panel of a vertical, webtoon-style explainer strip. The UI renders panels top to bottom:
+ * avatar + speech bubble, optional little scene icon. Keep each panel to one or two sentences.
+ */
+export interface Panel {
+	who?: CastId;
+	text: ThemedText;
+	/** A small illustration hint for the panel */
+	scene?: 'phone' | 'server' | 'database' | 'wire' | 'cloud' | 'lock' | 'none';
+	/** Optional code shown under the bubble (monospace, short) */
+	code?: string;
+}
 
 export interface LessonBase {
 	/** `${moduleId}/${slug}` */
@@ -137,7 +219,15 @@ export interface LessonBase {
 	 * Shown when this lesson introduces a new idea. Plain language, an example, nothing else.
 	 * `body` may contain fenced code: ```js ... ```.
 	 */
-	concept?: { title: ThemedText; body: ThemedText };
+	concept?: {
+		title: ThemedText;
+		/** Prose explainer (markdown-lite). Optional when `panels` is given. */
+		body?: ThemedText;
+		/** Webtoon-style strip. When present the UI shows it instead of (or above) `body`. */
+		panels?: Panel[];
+	};
+	/** Language in the editor. Default 'js'. 'sql' lessons use the web world in the sql role. */
+	language?: 'js' | 'sql';
 	/** Progressive hints. Last hint may be the full solution with a nudge to retry next time. */
 	hints: ThemedText[];
 	/** Commands introduced here (shown in the cheat sheet from now on), e.g. ['move()', 'turnLeft()'] */
@@ -170,8 +260,23 @@ export interface PredictLesson extends LessonBase {
 
 export type Lesson = CodeLesson | PredictLesson;
 
+export type TrackId = 'code' | 'web';
+
+export interface Track {
+	id: TrackId;
+	title: ThemedText;
+	blurb: ThemedText;
+	emoji: string;
+	/** Who it's for, one line, shown on the landing page */
+	audience: ThemedText;
+}
+
 export interface Module {
 	id: string; // kebab-case, e.g. 'first-steps'
+	/** Which track the module belongs to. Default 'code'. */
+	track?: TrackId;
+	/** Soft prerequisite shown as a friendly note (never a lock), e.g. "Needs the basics from Learn to code, parts 1–5." */
+	prereq?: ThemedText;
 	title: ThemedText;
 	/** One sentence: the idea this module teaches, in the learner's words */
 	blurb: ThemedText;
