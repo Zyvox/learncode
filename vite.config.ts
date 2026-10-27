@@ -44,6 +44,11 @@ export default defineConfig(({ command }) => ({
 			}
 		})
 	],
+	worker: {
+		// ES-format workers let Vite split the sql.js loader into its own chunk, so the
+		// Learn-to-code lessons never download the database engine.
+		format: 'es'
+	},
 	test: {
 		include: ['src/**/*.{test,spec}.ts'],
 		environment: 'node'
