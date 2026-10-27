@@ -11,6 +11,7 @@
 	import { onDestroy, untrack } from 'svelte';
 	import type { WebWorldSpec } from '#lib/curriculum/types.ts';
 	import type { ScreenItem, SqlResultSet, TraceEvent, WebResult } from '#lib/engine/types.ts';
+	import { MAX_ROWS } from '#lib/engine/worlds/web.ts';
 	import {
 		cellText,
 		emptyTables,
@@ -113,6 +114,9 @@
 	let packetKey = 0;
 	let logEl: HTMLDivElement | undefined = $state();
 	let screenEl: HTMLDivElement | undefined = $state();
+
+	/** Result rows drawn in the SQL table (the rest are counted, not drawn) */
+	const TABLE_MAX = 200;
 
 	const tables = $derived(runTables ?? baseTables ?? schemaTables);
 	const tablesKnown = $derived(!!(runTables ?? baseTables));
@@ -545,10 +549,15 @@
 					<p class="result-cap">
 						{sqlResult.rows.length === 0
 							? 'No rows matched.'
-							: `${sqlResult.rows.length} row${sqlResult.rows.length === 1 ? '' : 's'}`}
+							: sqlResult.rows.length >= MAX_ROWS
+								? `${MAX_ROWS} rows, the most that comes back in one go`
+								: `${sqlResult.rows.length} row${sqlResult.rows.length === 1 ? '' : 's'}`}
 					</p>
 					{#if sqlResult.columns.length}
-						{@render miniTable(sqlResult, 200)}
+						{@render miniTable(sqlResult, TABLE_MAX)}
+						{#if sqlResult.rows.length > TABLE_MAX}
+							<p class="hint small">Showing the first {TABLE_MAX}.</p>
+						{/if}
 					{/if}
 				{:else if ran && !playing}
 					<p class="hint">Nothing came back as rows this time.</p>
