@@ -202,6 +202,10 @@ function lessonTexts(lesson: Lesson): [string, ThemedText][] {
 		['task', lesson.task],
 		...lesson.hints.map((h, i): [string, ThemedText] => [`hint ${i + 1}`, h])
 	];
+	if (lesson.outro) {
+		if (lesson.outro.text !== undefined) out.push(['outro.text', lesson.outro.text]);
+		lesson.outro.panels?.forEach((p, i) => out.push([`outro panel ${i + 1}`, p.text]));
+	}
 	if (lesson.concept) {
 		out.push(['concept.title', lesson.concept.title]);
 		if (lesson.concept.body !== undefined) out.push(['concept.body', lesson.concept.body]);
@@ -294,7 +298,10 @@ describe('module registry', () => {
 			const mods = getModulesForTrack(track.id);
 			const expected = EXPECTED_MODULES[track.id];
 			// Modules may exist before every planned one is written; compare what's there, in order.
-			const present = expected.filter(([id]) => mods.some((m) => m.id === id));
+			// A planned module that is still a coming-soon stub counts as 0 until it is written.
+			const present = expected
+				.filter(([id]) => mods.some((m) => m.id === id))
+				.map(([id, n]) => [id, mods.find((m) => m.id === id)?.comingSoon ? 0 : n]);
 			expect(
 				mods.map((m) => [m.id, m.lessons.length]),
 				track.id
@@ -382,6 +389,17 @@ describe('lessons: structure', () => {
 			expect(new Set(slugs).size).toBe(slugs.length);
 			// slugs are numbered 01, 02, … in order
 			slugs.forEach((s, i) => expect(s.slice(0, 2)).toBe(String(i + 1).padStart(2, '0')));
+		}
+	});
+
+	it('every boss level has an outro', () => {
+		for (const { lesson } of allLessons) {
+			if (!lesson.boss) continue;
+			const o = lesson.outro;
+			expect(
+				Boolean(o && (o.text !== undefined || (o.panels && o.panels.length > 0))),
+				`${lesson.id} needs an outro`
+			).toBe(true);
 		}
 	});
 

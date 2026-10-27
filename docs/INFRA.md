@@ -15,8 +15,10 @@ improvements. Companion to `docs/WEB_TRACK.md` (read that first).
   - `published`: from module 8. Episode 4 is published (retitled "The night market" by the module
     7 boss) and the comment the learner inserted in module 7 exists.
   - `live`: from module 10. Comments the learner posted in module 9, a like or two, Ravi's session.
-    Lessons use the stage that matches their place in the story. Data never persists _between_
-    lessons at runtime (every run is deterministic and testable); the story moves, the seeds follow.
+    - The capstone (`launch-inkwell`) adds episode 9 "Sketches" (Mina's next one, unpublished) on
+      top of `live`, so published-only queries still have something to hide.
+      Lessons use the stage that matches their place in the story. Data never persists _between_
+      lessons at runtime (every run is deterministic and testable); the story moves, the seeds follow.
 - **Steep spots**: capstone checkpoint 1 no longer opens with a JOIN+GROUP BY handler (plain
   list first; the counts become their own checkpoint with the SQL supplied); the logins boss is
   split into two levels; the capstone finale is a real launch-day traffic wave with an outro.
