@@ -342,8 +342,26 @@ show(res.body.error)
 			xp: 50,
 			boss: true,
 			story:
-				'Theo is showing investors round this afternoon and wants Opening night (episode 7), the studio’s most-liked episode, as a full page: the title, the comments under it, and a live tap on the heart with the new count. Three questions from the menu, in that order. Pull it off and you’ve built a whole screen from nothing but the API docs.',
+				'Theo is showing investors round this afternoon and wants Opening night (episode 7), the studio’s most-liked episode, as a full page: the title, the comments under it, and a live tap on the heart with the new count. Three questions from the menu, in that order, and nothing to go on but the API docs.',
 			task: 'For episode 7: show its title, then show its comments, then like it and show the new number of likes. Three requests, in that order.',
+			outro: {
+				panels: [
+					{
+						who: 'theo',
+						scene: 'phone',
+						text: 'Theo hands the phone across the table. An investor taps the heart. 211 becomes 212. Theo pretends this happens all the time.'
+					},
+					{
+						who: 'mina',
+						text: 'You built a whole page from the menu alone. Nobody had to explain the server to you.'
+					},
+					{
+						who: 'bit',
+						scene: 'wire',
+						text: 'Three trips: GET, GET, PUT. Reading the menu is half of everything.'
+					}
+				]
+			},
 			hints: [
 				'From the menu: `GET /episodes/:id` for the title, `GET /episodes/:id/comments` for the comments, `PUT /episodes/:id/like` for the heart. The id is 7 every time.',
 				"Give each answer its own name: `episode`, `comments`, `like`. For example: `const episode = get('/episodes/7')` and then `show(episode.body.title)`.",

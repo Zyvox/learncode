@@ -351,6 +351,9 @@ say("Hello");
 					'Three {items} {itemEmoji} are hidden along a twisty canyon. {Friend} wants all of them back at the {goal}.'
 			},
 			task: 'Collect all three {items} and finish on the {goal}.',
+			outro: {
+				text: '{Hero} reaches the {goal} {goalEmoji} with all three {items} and gets {reward}. {Friend} looks impressed: that was a long walk, and you planned every step of it.'
+			},
 			hints: [
 				'Do it in small pieces. Write a few lines, press Run, see where {hero} ends up, then add more.',
 				'Route: right two (grab), down two, right two (grab), right one, down one (grab), down one.',

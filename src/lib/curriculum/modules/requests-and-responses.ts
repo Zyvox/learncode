@@ -397,6 +397,24 @@ show(res.body)
 			story:
 				'Theo’s idea of the week: a **Load more** button at the bottom of the episode list. The phone fetches the next page, says how many new episodes arrived, and if anything goes wrong, says so politely. It’s your first real feature, start to finish.',
 			task: 'Fetch page 2 of `/episodes`. If it worked, show how many episodes came back (`res.body.length`), then show the list. Otherwise show **Could not load more episodes**.',
+			outro: {
+				panels: [
+					{
+						who: 'theo',
+						scene: 'phone',
+						text: 'Theo taps **Load more** four times in a row, just to watch it work. “Two more episodes. Every time. It’s beautiful.”'
+					},
+					{
+						who: 'mina',
+						text: 'And if the server has a bad night, readers get a polite sentence instead of `undefined`. I’ll take that.'
+					},
+					{
+						who: 'bit',
+						scene: 'wire',
+						text: 'GET /episodes?page=2. I could carry that one in my sleep now.'
+					}
+				]
+			},
 			hints: [
 				"Start with the request: `const res = get('/episodes?page=2')`. Then an `if (res.ok) { … } else { … }`, like in Coming soon.",
 				'A list knows how long it is: `res.body.length` is the number of items in it. Show that first, then `res.body`.',

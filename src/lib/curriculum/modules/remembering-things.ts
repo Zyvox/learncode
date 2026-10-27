@@ -317,6 +317,9 @@ print("Lives: " + lives);
 				sports:
 					'{Friend} wants a match report. Two variables are ready: `player` is "Sam" and `hits` is 4. Every hit is worth 10 points.'
 			},
+			outro: {
+				text: 'Sam’s score is up, and the code did the counting itself. Change `hits` to 7 and the whole board follows. {Friend} pins it up and gives you {reward}.'
+			},
 			task: 'Follow the three steps in the code. The console should end up showing exactly the lines in the example below.\n\n```\nHit! Score: 10\nHit! Score: 20\nHit! Score: 30\nHit! Score: 40\nSam scored 40\nNew high score\n```',
 			hints: [
 				'Step 1 is a loop that runs `hits` times: `for (let i = 0; i < hits; i++) { … }`. Inside: add 10 to score, then print.',

@@ -5,7 +5,19 @@ import { loadSqlInNode, runInNode, runProgramInNode } from '../node.ts';
 import { DB_LOAD_MESSAGE, SPEC_ERROR_MESSAGE, functionExecutor, runProgram } from '../run.ts';
 import type { RunResult, TraceEvent } from '../types.ts';
 import { INKWELL_TEST_SCHEMA as INKWELL_SCHEMA } from './web.fixtures.ts';
-import { MAX_ROWS, createWebWorld, matchRoute, parseQuery, segmentsOf } from './web.ts';
+import {
+	DB_READ_ONLY,
+	MAX_ROWS,
+	SCRIPT_RAN,
+	createWebWorld,
+	escapeHtml,
+	firstKeyword,
+	htmlScreenItem,
+	matchRoute,
+	parseQuery,
+	segmentsOf,
+	toyHash
+} from './web.ts';
 
 const server = (extra: Partial<WebWorldSpec> = {}): WebWorldSpec => ({
 	kind: 'web',
@@ -741,5 +753,285 @@ describe('web world: plumbing', () => {
 			body: 'home'
 		});
 		expect(w.finish().web?.responses).toHaveLength(1);
+	});
+});
+
+describe('web world: security helpers', () => {
+	it('toyHash is deterministic, one-way looking, 64 hex characters', () => {
+		const h = toyHash('mina-pass');
+		expect(h).toMatch(/^[0-9a-f]{64}$/);
+		expect(toyHash('mina-pass')).toBe(h);
+		expect(toyHash('mina-pasS')).not.toBe(h);
+		expect(toyHash('')).toMatch(/^[0-9a-f]{64}$/);
+		expect(toyHash('日本語 🎨')).toMatch(/^[0-9a-f]{64}$/);
+		// no visible structure: the eight 8-character blocks all differ
+		const blocks = h.match(/.{8}/g)!;
+		expect(new Set(blocks).size).toBe(8);
+		// a small change scrambles (nearly) everything
+		const other = toyHash('mina-pas');
+		const same = [...h].filter((c, i) => other[i] === c).length;
+		expect(same).toBeLessThan(16);
+		// lots of inputs, no collisions
+		const many = new Set(Array.from({ length: 2000 }, (_, i) => toyHash(`pass${i}`)));
+		expect(many.size).toBe(2000);
+	});
+
+	it('escapeHtml turns the five special characters into entities', () => {
+		expect(escapeHtml(`<script>alert("hi" & 'bye')</script>`)).toBe(
+			'&lt;script&gt;alert(&quot;hi&quot; &amp; &#39;bye&#39;)&lt;/script&gt;'
+		);
+		expect(escapeHtml('plain text')).toBe('plain text');
+	});
+
+	it('firstKeyword skips whitespace and comments', () => {
+		expect(firstKeyword('  select 1')).toBe('SELECT');
+		expect(firstKeyword('-- note\n/* more */ DELETE FROM x')).toBe('DELETE');
+		expect(firstKeyword('insert into x values (1)')).toBe('INSERT');
+		expect(firstKeyword('')).toBe('');
+	});
+
+	it('htmlScreenItem finds tags in text, lists and objects', () => {
+		expect(htmlScreenItem('hello')).toBeNull();
+		expect(htmlScreenItem('a < b and c > d')).toBeNull();
+		expect(htmlScreenItem({ id: 1, text: 'hi' })).toBeNull();
+		expect(htmlScreenItem('&lt;script&gt;')).toBeNull();
+		expect(htmlScreenItem('<b>bold</b>')).toEqual({
+			kind: 'html',
+			raw: '<b>bold</b>',
+			scripted: false
+		});
+		expect(htmlScreenItem('look <img src=x onerror=1')).toMatchObject({ scripted: false });
+		expect(htmlScreenItem('<SCRIPT>steal()</SCRIPT>')).toMatchObject({ scripted: true });
+		expect(htmlScreenItem([{ author: 'eve', text: '<script>steal()</script>' }])).toEqual({
+			kind: 'html',
+			raw: 'eve\n<script>steal()</script>',
+			scripted: true
+		});
+	});
+});
+
+describe('web world: security lessons', () => {
+	const ACCOUNTS = `
+app.post('/signup', (req, res) => {
+  const info = db.run('INSERT INTO users (name, password_hash) VALUES (?, ?)', [req.body.name, hash(req.body.password)])
+  res.status(201).json({ id: info.lastId })
+})
+app.post('/login', (req, res) => {
+  const user = db.get('SELECT * FROM users WHERE name = ?', [req.body.name])
+  if (!user || !hashMatches(req.body.password, user.password_hash)) {
+    return res.status(401).json({ error: 'Wrong name or password' })
+  }
+  res.json({ welcome: user.name })
+})`;
+
+	it('signup stores a hash, login checks it with hashMatches', async () => {
+		const spec = server({
+			requests: [
+				{ method: 'POST', path: '/signup', body: { name: 'mina', password: 'mina-pass' } },
+				{ method: 'POST', path: '/login', body: { name: 'mina', password: 'mina-pass' } },
+				{ method: 'POST', path: '/login', body: { name: 'mina', password: 'guess' } }
+			]
+		});
+		const r = await runInNode(ACCOUNTS, spec, {
+			verifySql: ['SELECT password_hash FROM users']
+		});
+		expect(r.error).toBeUndefined();
+		expect(r.web!.responses.map((x) => x.status)).toEqual([201, 200, 401]);
+		expect(r.web!.responses[1].body).toEqual({ welcome: 'mina' });
+		const stored = r.web!.verification![0].rows[0].password_hash;
+		expect(stored).toBe(toyHash('mina-pass'));
+		expect(JSON.stringify(r.web!.tables.users)).not.toContain('mina-pass');
+	});
+
+	it('serverCode can seed hashes, even on a read-only connection', async () => {
+		const spec = server({
+			dbReadOnly: true,
+			serverCode:
+				"db.run('INSERT INTO users (name, password_hash) VALUES (?, ?)', ['mina', hash('mina-pass')])\n" +
+				"log(escape('<i>seeded</i>'), hashMatches('mina-pass', hash('mina-pass')))",
+			requests: [
+				{ method: 'POST', path: '/login', body: { name: 'mina', password: 'mina-pass' } },
+				{ method: 'POST', path: '/login', body: { name: 'mina', password: 'nope' } }
+			]
+		});
+		const code = ACCOUNTS.slice(ACCOUNTS.indexOf("app.post('/login'"));
+		const r = await runInNode(code, spec);
+		expect(r.error).toBeUndefined();
+		expect(r.web!.responses.map((x) => x.status)).toEqual([200, 401]);
+		// serverCode runs silently: no trace from the seed
+		expect(of(r, 'log')).toEqual([]);
+	});
+
+	it('dbReadOnly refuses writes inside a handler: 500, a log line and a refused query', async () => {
+		const spec = server({
+			dbReadOnly: true,
+			requests: [
+				{ method: 'GET', path: '/comments' },
+				{ method: 'POST', path: '/comments', body: { text: 'hi' } },
+				{ method: 'GET', path: '/wipe' }
+			]
+		});
+		const code = `
+app.get('/comments', (req, res) => res.json(db.all('SELECT text FROM comments')))
+app.post('/comments', (req, res) => {
+  db.run("INSERT INTO comments (episode_id, author, text) VALUES (1, 'x', ?)", [req.body.text])
+  res.status(201).json({ ok: true })
+})
+app.get('/wipe', (req, res) => {
+  db.all('SELECT 1; /* sneaky */ DROP TABLE comments')
+  res.json('gone')
+})`;
+		const r = await runInNode(code, spec, { verifySql: ['SELECT COUNT(*) AS n FROM comments'] });
+		expect(r.error).toBeUndefined();
+		expect(r.web!.responses.map((x) => x.status)).toEqual([200, 500, 500]);
+		const logs = of(r, 'log');
+		expect(logs).toHaveLength(2);
+		expect(logs[0]).toEqual({
+			t: 'log',
+			id: 1,
+			where: 'server',
+			text: `Error in POST /comments: ${DB_READ_ONLY}`
+		});
+		expect(logs[1].text).toContain('This database connection may only read.');
+		const refused = of(r, 'query').filter((q) => q.error);
+		expect(refused.map((q) => [q.id, q.error])).toEqual([
+			[1, 'attempt to write a readonly database'],
+			[2, 'attempt to write a readonly database']
+		]);
+		expect(refused[0].params).toEqual(['hi']);
+		// the SELECT before the DROP still ran; nothing was written
+		expect(of(r, 'query').filter((q) => q.id === 2 && !q.error)).toHaveLength(1);
+		expect(r.web!.verification![0].rows).toEqual([{ n: 2 }]);
+	});
+
+	it('dbReadOnly outside a handler is a friendly run error', async () => {
+		const r = await runInNode("db.run('DELETE FROM comments')", server({ dbReadOnly: true }));
+		expect(r.ok).toBe(false);
+		expect(r.error?.message).toBe(DB_READ_ONLY);
+		expect(r.error?.raw).toContain('readonly');
+	});
+
+	it('wrong arguments get friendly messages', async () => {
+		const msg = async (code: string) => (await runInNode(code, server())).error?.message;
+		expect(await msg('hash()')).toContain('`hash()` got `undefined`');
+		expect(await msg('hash(42)')).toBe(
+			'`hash()` needs a piece of text, like `hash(req.body.password)`.'
+		);
+		expect(await msg("hashMatches(hash('a'), 'a')")).toContain('the other way round');
+		expect(await msg("hashMatches('a')")).toContain('`hashMatches()` needs the text');
+		expect(await msg("hashMatches('a', 5)")).toContain('stored hash second');
+		expect(await msg('escape({ text: 1 })')).toContain('Escape each text on its own');
+		expect(await msg('escape(undefined)')).toContain('`escape()` got `undefined`');
+		expect(await msg("sha256('x')")).toContain('hash');
+		const ok = await runInNode(
+			"log(escape(7), hashMatches('a', hash('a')), hashMatches('b', hash('a')))",
+			server()
+		);
+		expect(of(ok, 'log')[0].text).toBe('7 true false');
+	});
+
+	const COMMENTS = (out: string) => `
+app.get('/comments', (req, res) => {
+  const rows = db.all('SELECT author, text FROM comments WHERE episode_id = 3')
+  res.json(rows.map((c) => ({ author: c.author, text: ${out} })))
+})`;
+	const evil = server({
+		renderHtml: true,
+		schema:
+			INKWELL_SCHEMA +
+			`INSERT INTO comments (episode_id, author, text) VALUES (3, 'eve', '<script>steal()</script>');`,
+		requests: [{ method: 'GET', path: '/comments' }]
+	});
+
+	it('renderHtml: a comment with a script runs on the phone', async () => {
+		const r = await runInNode(COMMENTS('c.text'), evil);
+		expect(r.error).toBeUndefined();
+		expect(r.web!.screen).toEqual([
+			{ kind: 'html', raw: 'eve\n<script>steal()</script>', scripted: true }
+		]);
+		expect(of(r, 'log')).toEqual([{ t: 'log', id: 0, where: 'client', text: SCRIPT_RAN }]);
+		// the screen event comes before the "script ran" line
+		expect(kinds(r).slice(-2)).toEqual(['screen', 'log']);
+	});
+
+	it('renderHtml: escape() keeps it plain text', async () => {
+		const r = await runInNode(COMMENTS('escape(c.text)'), evil);
+		expect(r.web!.screen).toEqual([
+			{
+				kind: 'json',
+				value: [{ author: 'eve', text: '&lt;script&gt;steal()&lt;/script&gt;' }]
+			}
+		]);
+		expect(of(r, 'log')).toEqual([]);
+	});
+
+	it('renderHtml: other tags render without running anything; errors and plain text as usual', async () => {
+		const spec = server({
+			renderHtml: true,
+			requests: [
+				{ method: 'GET', path: '/bold' },
+				{ method: 'GET', path: '/plain' },
+				{ method: 'GET', path: '/bad' }
+			]
+		});
+		const code = `
+app.get('/bold', (req, res) => res.send('<b>Hello</b>'))
+app.get('/plain', (req, res) => res.send('Hello'))
+app.get('/bad', (req, res) => res.status(400).json({ error: '<script>x</script>' }))`;
+		const r = await runInNode(code, spec);
+		expect(r.web!.screen).toEqual([
+			{ kind: 'html', raw: '<b>Hello</b>', scripted: false },
+			{ kind: 'text', text: 'Hello' },
+			{ kind: 'error', status: 400, text: '<script>x</script>' }
+		]);
+		expect(of(r, 'log')).toEqual([]);
+	});
+
+	it('without renderHtml a script is just text', async () => {
+		const r = await runInNode(COMMENTS('c.text'), { ...evil, renderHtml: false });
+		expect(r.web!.screen[0].kind).toBe('json');
+		expect(of(r, 'log')).toEqual([]);
+	});
+
+	it('renderHtml in the client role: show() renders text as HTML', async () => {
+		const spec: WebWorldSpec = {
+			kind: 'web',
+			role: 'client',
+			renderHtml: true,
+			serverCode: `app.get('/c', (req, res) => res.json([{ text: '<script>steal()</script>' }]))`
+		};
+		const r = await runInNode(
+			"show('<script>alert(1)</script>')\nshow('<i>hi</i>')\nshow('hi')\nshow(get('/c').json())\nshow({ n: 1 })",
+			spec
+		);
+		expect(r.error).toBeUndefined();
+		expect(r.web!.screen).toEqual([
+			{ kind: 'html', raw: '<script>alert(1)</script>', scripted: true },
+			{ kind: 'html', raw: '<i>hi</i>', scripted: false },
+			{ kind: 'text', text: 'hi' },
+			{ kind: 'html', raw: '<script>steal()</script>', scripted: true },
+			{ kind: 'json', value: { n: 1 } }
+		]);
+		expect(of(r, 'log')).toEqual([
+			{ t: 'log', where: 'client', text: SCRIPT_RAN },
+			{ t: 'log', where: 'client', text: SCRIPT_RAN }
+		]);
+	});
+
+	it('plainHttp labels requests as readable on the wire', async () => {
+		const spec = server({
+			plainHttp: true,
+			requests: [
+				{ method: 'GET', path: '/a', label: 'log in' },
+				{ method: 'GET', path: '/a' }
+			]
+		});
+		const r = await runInNode("app.get('/a', (req, res) => res.send('ok'))", spec);
+		expect(of(r, 'request').map((e) => e.label)).toEqual(['log in · http', 'http']);
+		const plain = await runInNode("app.get('/a', (req, res) => res.send('ok'))", {
+			...spec,
+			plainHttp: false
+		});
+		expect(of(plain, 'request').map((e) => e.label)).toEqual(['log in', undefined]);
 	});
 });

@@ -424,6 +424,9 @@ turnRight();
 					"The {goal} {goalEmoji} is at the top of a big staircase, and there's a {item} {itemEmoji} on four of the steps. Every step sounds the same. Hmm."
 			},
 			task: 'Climb to the {goal} and grab every {item}. Use a loop: you may only write `move()` twice.',
+			outro: {
+				text: '{Hero} is at the top with every {item}, and {friend} hands over {reward}. Five stairs, one loop. A staircase of a hundred steps would take the same few lines.'
+			},
 			hints: [
 				"Look at a single stair. {Hero} goes right one, up one, then faces right again. That's the bit that repeats.",
 				'One stair, in code: `move(); turnLeft(); move(); pickUp(); turnRight();` There are 5 stairs.',

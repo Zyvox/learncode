@@ -389,6 +389,9 @@ for (let i = 0; i < 4; i++) {
 				food: 'Closing time. Three long counters with {items} {itemEmoji} left on them, linked by a passage on the left. Clear them all and finish at the {goal}.'
 			},
 			task: 'Collect every {item} and finish on the {goal}. Make your own commands for the parts that repeat: you may only write `move()` four times in total.',
+			outro: {
+				text: 'Every row is swept and {hero} is on the {goal}. {Friend} wants to borrow `sweepRow()` for tomorrow, and hands over {reward} in exchange.'
+			},
 			hints: [
 				'Write `sweepRow()`: walk to the end picking up as you go, turn around, walk back. Then `goDown()`: turn to face down, two steps, turn to face right.',
 				'When {hero} gets back to the left end of a row, {hero} is facing left. One `turnLeft()` faces down. After two moves, another `turnLeft()` faces right again.',

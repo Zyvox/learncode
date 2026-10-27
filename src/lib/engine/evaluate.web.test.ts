@@ -350,3 +350,87 @@ describe('evaluate: client role', () => {
 		]);
 	});
 });
+
+describe('evaluate: security checks', () => {
+	const evilSchema =
+		INKWELL_TEST_SCHEMA +
+		"INSERT INTO comments (episode_id, author, text) VALUES (3, 'eve', '<script>steal()</script>');";
+	const world = server([{ method: 'GET', path: '/comments' }], {
+		schema: evilSchema,
+		renderHtml: true
+	});
+	const comments = (out: string) => `app.get('/comments', (req, res) => {
+  const rows = db.all('SELECT author, text FROM comments WHERE episode_id = 3')
+  res.json(rows.map((c) => ({ author: c.author, text: ${out} })))
+})`;
+	const xssChecks: Check[] = [
+		{ type: 'screen-no-script' },
+		{ type: 'response-no-script', request: 0 }
+	];
+
+	it('screen-no-script and response-no-script fail when the script reaches the phone', async () => {
+		const res = await check(comments('c.text'), world, xssChecks);
+		expect(res.passed).toBe(false);
+		expect(res.failures).toEqual([
+			"A script ran on the reader's phone: the screen got text with a `<script>` tag in it, and the phone ran it instead of showing it. Escape text before it goes out, like `escape(comment.text)`, so `<` becomes `&lt;` and the tag is shown as plain text.",
+			'The answer to `GET /comments` still has a raw `<script` tag in it, so a phone that shows it would run it. Escape the text with `escape(…)` before sending it.'
+		]);
+	});
+
+	it('pass once the output is escaped', async () => {
+		const res = await check(comments('escape(c.text)'), world, [
+			...xssChecks,
+			{ type: 'screen-includes', text: '&lt;script&gt;' }
+		]);
+		expect(res.failures).toEqual([]);
+	});
+
+	it('response-no-script without that request', async () => {
+		const res = await check('', world, [{ type: 'response-no-script', request: 1 }]);
+		expect(res.failures[0]).toContain('no answer');
+	});
+
+	it('screen-includes searches html items too', async () => {
+		const res = await check(comments('c.text'), world, [
+			{ type: 'screen-includes', text: 'steal()' },
+			{ type: 'screen-includes', text: 'eve' }
+		]);
+		expect(res.failures).toEqual([]);
+	});
+
+	it('log-excludes', async () => {
+		const login = server([{ method: 'POST', path: '/login', body: { password: 'mina-pass' } }]);
+		const checks: Check[] = [{ type: 'log-excludes', text: 'mina-pass' }];
+		const leaky = await check(
+			"app.post('/login', (req, res) => {\n  log('login attempt', req.body)\n  res.json({ ok: true })\n})",
+			login,
+			checks
+		);
+		expect(leaky.failures).toEqual([
+			'The server log contains `mina-pass`. Secrets and passwords must never be logged.'
+		]);
+		const careful = await check(
+			"app.post('/login', (req, res) => {\n  log('login attempt')\n  res.json({ ok: true })\n})",
+			login,
+			checks
+		);
+		expect(careful.passed).toBe(true);
+		const custom = await check("log('mina-pass')", login, [
+			{ type: 'log-excludes', text: 'mina-pass', message: 'Keep it secret.' }
+		]);
+		expect(custom.failures).toEqual(['Keep it secret.']);
+	});
+
+	it('points out hashMatches without brackets, but not an object key', async () => {
+		const code = `app.post('/login', (req, res) => {
+  if (hashMatches) res.status(401).json({ hash: 1, escape: 2 })
+})`;
+		const res = await check(code, server([{ method: 'POST', path: '/login' }]), [
+			{ type: 'all-responses-ok' }
+		]);
+		expect(res.failures[0]).toBe(
+			"`hashMatches` needs round brackets to work: `hashMatches()`. Without them JavaScript only looks at the name and doesn't run it."
+		);
+		expect(res.failures).toHaveLength(2);
+	});
+});

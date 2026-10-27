@@ -284,9 +284,17 @@ export const tinyGame: Module = {
 			xp: 50,
 			story: {
 				default:
-					'Last piece: a proper ending. Count the empty doors, and tell the player whether they won. Then you have built a whole game from scratch. Take a second to enjoy that.',
+					'Last piece: a proper ending. The game knows the score, but it never says who won. Count the empty doors, then tell the player how it went.',
 				games:
-					'Final level. Count the empty doors, and tell the player if they beat {villain}. Then you have built a whole game from scratch. {Friend} is very proud.'
+					'Final level. The game keeps score, but it never says whether the player beat {villain}. Count the empty doors, then tell them.'
+			},
+			outro: {
+				text: {
+					default:
+						'`You win`. That is a whole game, built from an empty editor, and every line of it is yours. {Friend} hands over {reward}. Take a second to enjoy that.',
+					games:
+						'{Villain} is beaten, and {friend} is very proud: you built a whole game from scratch. {Reward} is yours. Take a second to enjoy that.'
+				}
 			},
 			task: 'Count the empty doors in a new variable and print `Empty doors: 5` after the score. Then, if the score is more than 0, print `You win`, otherwise `Game over`. The whole console should look like the example.\n\n```\nTreasure hunt\nDoor 1: empty\n…\nDoor 7: empty\nScore: 5\nEmpty doors: 5\nYou win\n```',
 			hints: [

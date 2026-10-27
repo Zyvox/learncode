@@ -1,7 +1,13 @@
 import type { Module } from '#lib/curriculum/types.ts';
-import { INKWELL_READING, serverWorld } from '#lib/curriculum/inkwell.ts';
+import type { SimRequest, WebWorldSpec } from '#lib/curriculum/types.ts';
+import { INKWELL_AT, serverWorld } from '#lib/curriculum/inkwell.ts';
 
 const M = 'server-meets-database';
+
+/** Episode 4 is out (module 7 boss), with Mina's comment under it. */
+const PUBLISHED = INKWELL_AT('published');
+const world = (requests: SimRequest[], extra: Partial<WebWorldSpec> = {}) =>
+	serverWorld(requests, { schema: PUBLISHED, ...extra });
 
 /** The comments list the phone reads in the comment levels (lets learners see what got saved). */
 const COMMENTS_LIST = `
@@ -78,7 +84,7 @@ export const serverMeetsDatabase: Module = {
 				"The SQL goes in quotes as the first thing in the brackets: `db.all('SELECT id, title, genre FROM series')`. Then answer with `res.json(rows)` instead of `res.json([])`.",
 				"Here's the whole handler:\n```js\napp.get('/series', (req, res) => {\n  const rows = db.all('SELECT id, title, genre FROM series');\n  res.json(rows);\n});\n```"
 			],
-			world: serverWorld([
+			world: world([
 				{ method: 'GET', path: '/series', label: 'reader opens the series list' }
 			]),
 			starterCode: `// The phone asks for the series list.
@@ -160,7 +166,7 @@ app.get('/series', (req, res) => {
 				"Then `if (!row) { … } else { … }`. `!row` is true when the database found nothing. Put `res.status(404).json({ error: 'No such series' })` in the first part and `res.json(row)` in the second.",
 				"The whole handler:\n```js\napp.get('/series/:id', (req, res) => {\n  const row = db.get('SELECT * FROM series WHERE id = ?', [req.params.id]);\n  if (!row) {\n    res.status(404).json({ error: 'No such series' });\n  } else {\n    res.json(row);\n  }\n});\n```"
 			],
-			world: serverWorld([
+			world: world([
 				{ method: 'GET', path: '/series/2', label: 'reader taps Grove & Gear' },
 				{ method: 'GET', path: '/series/9', label: 'reader follows an old link to series 9' }
 			]),
@@ -217,7 +223,7 @@ app.get('/series', (req, res) => {
 				'`db.get` stops after the first row it finds. Which command gives back every row?',
 				'Change `db.get` to `db.all`. Nothing else needs to change.'
 			],
-			world: serverWorld([
+			world: world([
 				{ method: 'GET', path: '/series?author=Mina', label: 'Mina looks for her own series' },
 				{ method: 'GET', path: '/series?author=Jun', label: 'a reader looks for Jun’s series' }
 			]),
@@ -267,7 +273,7 @@ app.get('/series', (req, res) => {
   res.json({ title: ep.title, likes: ep.likes });
 });
 `,
-			world: serverWorld([
+			world: world([
 				{ method: 'GET', path: '/episodes/3', label: 'reader opens episode 3' },
 				{ method: 'GET', path: '/episodes/42', label: 'reader opens episode 42' }
 			]),
@@ -293,7 +299,7 @@ app.get('/series', (req, res) => {
 			title: 'Comments that stay',
 			xp: 20,
 			story:
-				'Your comments endpoint from “Sending data in” kept comments in a list, and the list forgot them at every restart. Theo found out the hard way. Today comments go into the database, starting with noodlefan’s thoughts on episode 3.',
+				'Your comments endpoint from “Sending data in” kept comments in a list, and the list forgot them at every restart. Theo found out the hard way. Today comments go into the database, starting with june_b, who has been waiting all week to tell Extra spicy (episode 8) something.',
 			task: "In `POST /episodes/:id/comments`, save the comment with `db.run('INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)', [req.params.id, req.body.author, req.body.text])`. Answer with status `201` and `{ id: … }`, the new comment's id from what `db.run` gives back.",
 			concept: {
 				title: 'Changing things: `db.run`',
@@ -313,7 +319,7 @@ app.get('/series', (req, res) => {
 						who: 'bit',
 						text: '`db.run` doesn’t bring rows back. It brings a receipt: how many rows changed, and the id the database gave the new row.',
 						scene: 'database',
-						code: 'r.changes  // 1\nr.lastId   // 6'
+						code: 'r.changes  // 1\nr.lastId   // 7'
 					},
 					{
 						who: 'narrator',
@@ -328,23 +334,23 @@ app.get('/series', (req, res) => {
 				'`r.lastId` is the new comment’s id. Answer with `res.status(201).json({ id: r.lastId })`.',
 				"The whole handler:\n```js\napp.post('/episodes/:id/comments', (req, res) => {\n  const r = db.run(\n    'INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)',\n    [req.params.id, req.body.author, req.body.text]\n  );\n  res.status(201).json({ id: r.lastId });\n});\n```"
 			],
-			world: serverWorld(
+			world: world(
 				[
 					{
 						method: 'POST',
-						path: '/episodes/3/comments',
-						body: { author: 'noodlefan', text: 'Ravi was right about the gate' },
-						label: 'noodlefan comments on episode 3'
+						path: '/episodes/8/comments',
+						body: { author: 'june_b', text: 'Extra spicy, as promised.' },
+						label: 'june_b comments on episode 8'
 					},
 					{
 						method: 'GET',
-						path: '/episodes/3/comments',
+						path: '/episodes/8/comments',
 						label: 'reader reloads the comments'
 					}
 				],
 				{ serverCode: COMMENTS_LIST }
 			),
-			starterCode: `// The phone sends a body like { author: 'noodlefan', text: '…' }
+			starterCode: `// The phone sends a body like { author: 'june_b', text: '…' }
 app.post('/episodes/:id/comments', (req, res) => {
   // 1. INSERT the comment with db.run, a ? for each value
   // 2. Answer 201 with { id: the new comment's id }
@@ -364,16 +370,16 @@ app.post('/episodes/:id/comments', (req, res) => {
 					type: 'response-json',
 					request: 0,
 					mode: 'subset',
-					expected: { id: 6 },
+					expected: { id: 7 },
 					message:
 						'Send the new id back: `res.status(201).json({ id: r.lastId })`, where `r` is what `db.run` gave you.'
 				},
 				{
 					type: 'db-rows',
-					sql: 'SELECT episode_id, author, text FROM comments WHERE id = 6',
-					expected: [{ episode_id: 3, author: 'noodlefan', text: 'Ravi was right about the gate' }],
+					sql: 'SELECT episode_id, author, text FROM comments WHERE id = 7',
+					expected: [{ episode_id: 8, author: 'june_b', text: 'Extra spicy, as promised.' }],
 					message:
-						'The comment should be saved in the `comments` table for episode 3, with the author and text from `req.body`.'
+						'The comment should be saved in the `comments` table for episode 8, with the author and text from `req.body`.'
 				},
 				{
 					type: 'queries-parameterized',
@@ -412,7 +418,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 				]
 			},
 			code: GLUED_POST,
-			world: serverWorld(
+			world: world(
 				[
 					{
 						method: 'POST',
@@ -463,7 +469,7 @@ app.post('/episodes/:id/comments', (req, res) => {
 				"You don't need the `sql` variable with all the `+` pieces. Write the SQL in one piece with `?` where the values go: `'INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)'`.",
 				"The fixed handler:\n```js\napp.post('/episodes/:id/comments', (req, res) => {\n  db.run(\n    'INSERT INTO comments (episode_id, author, text) VALUES (?, ?, ?)',\n    [req.params.id, req.body.author, req.body.text]\n  );\n  res.status(201).json({ saved: true });\n});\n```"
 			],
-			world: serverWorld(
+			world: world(
 				[
 					{
 						method: 'POST',
@@ -523,9 +529,9 @@ app.post('/episodes/:id/comments', (req, res) => {
 				{
 					type: 'db-rows',
 					sql: 'SELECT COUNT(*) AS n FROM comments',
-					expected: [{ n: 7 }],
+					expected: [{ n: 8 }],
 					message:
-						'Every comment on every episode should still be there (7 in total). Something deleted some of them.'
+						'Every comment on every episode should still be there (8 in total, Mina’s note on The night market included). Something deleted some of them.'
 				}
 			]
 		},
@@ -537,24 +543,47 @@ app.post('/episodes/:id/comments', (req, res) => {
 			xp: 50,
 			boss: true,
 			story:
-				'Theo wants two things before Friday: a working ♥ button, and comments newest first, “like every other app on earth”. After this, every tap on the phone lands in the real database, and your server stops being a demo.',
+				'The night market has been out for a day and still shows 0 likes, because the ♥ button doesn’t do anything yet. Ravi has already left a comment under it, and it sits below Mina’s older note. Theo wants both fixed before Friday: a working ♥, and comments newest first, “like every other app on earth”.',
+			outro: {
+				panels: [
+					{
+						who: 'narrator',
+						scene: 'database',
+						text: 'The night market gets its first like ever. Extra spicy goes up to 189. Episode 99 gets a polite 404, which is more than it deserves.'
+					},
+					{
+						who: 'mina',
+						scene: 'phone',
+						text: '“Worth the wait. The lantern panel.” Ravi’s comment is at the top now, right where I’d see it first. I may print it out.'
+					},
+					{
+						who: 'theo',
+						text: 'So every tap lands in the real database now? Not a demo, not a list in your code?'
+					},
+					{
+						who: 'bit',
+						scene: 'wire',
+						text: 'Every single one. The server isn’t pretending any more. Neither am I.'
+					}
+				]
+			},
 			task: "Write two endpoints.\n\n**`PUT /episodes/:id/like`**: add one like with `db.run('UPDATE episodes SET likes = likes + 1 WHERE id = ?', …)`. If the receipt says `changes` is `0`, no such episode: answer `404`. Otherwise answer with `{ id, likes }` for that episode, fresh from the database.\n\n**`GET /episodes/:id/comments`**: the episode's comments with `author`, `text` and `created_at`, newest first (`ORDER BY created_at DESC`).",
 			hints: [
 				"For the like: `const r = db.run(…)`, then `if (r.changes === 0) { 404 } else { … }`. In the else part, fetch the episode again with `db.get('SELECT id, likes FROM episodes WHERE id = ?', [req.params.id])` and send it.",
 				"For the comments: `db.all('SELECT author, text, created_at FROM comments WHERE episode_id = ? ORDER BY created_at DESC', [req.params.id])`, then `res.json(…)` with the rows.",
 				"Both endpoints:\n```js\napp.put('/episodes/:id/like', (req, res) => {\n  const r = db.run('UPDATE episodes SET likes = likes + 1 WHERE id = ?', [req.params.id]);\n  if (r.changes === 0) {\n    res.status(404).json({ error: 'No such episode' });\n  } else {\n    res.json(db.get('SELECT id, likes FROM episodes WHERE id = ?', [req.params.id]));\n  }\n});\n\napp.get('/episodes/:id/comments', (req, res) => {\n  res.json(db.all('SELECT author, text, created_at FROM comments WHERE episode_id = ? ORDER BY created_at DESC', [req.params.id]));\n});\n```"
 			],
-			world: serverWorld(
+			world: world(
 				[
-					{ method: 'PUT', path: '/episodes/3/like', label: 'reader taps ♥ on The locked gate' },
-					{ method: 'PUT', path: '/episodes/3/like', label: 'another reader taps ♥ too' },
+					{ method: 'PUT', path: '/episodes/4/like', label: 'reader taps ♥ on The night market' },
+					{ method: 'PUT', path: '/episodes/8/like', label: 'another reader taps ♥ on Extra spicy' },
 					{ method: 'PUT', path: '/episodes/99/like', label: 'an old app taps ♥ on episode 99' },
-					{ method: 'GET', path: '/episodes/3/comments', label: 'reader opens the comments' }
+					{ method: 'GET', path: '/episodes/4/comments', label: 'reader opens the comments' }
 				],
 				{
 					schema:
-						INKWELL_READING +
-						"\nINSERT INTO comments (episode_id, author, text, created_at) VALUES (3, 'june_b', 'Read it again. The gate was open the whole time.', '2026-10-09');\n"
+						PUBLISHED +
+						"\nINSERT INTO comments (id, episode_id, author, text, created_at) VALUES (7, 4, 'ravi', 'Worth the wait. The lantern panel.', '2026-10-09');\n"
 				}
 			),
 			starterCode: `app.put('/episodes/:id/like', (req, res) => {
@@ -591,16 +620,16 @@ app.get('/episodes/:id/comments', (req, res) => {
 					type: 'response-json',
 					request: 0,
 					mode: 'subset',
-					expected: { id: 3, likes: 144 },
+					expected: { id: 4, likes: 1 },
 					message:
-						'After one ♥, episode 3 should answer `{ id: 3, likes: 144 }`. Fetch it again with `db.get` after the UPDATE so the number is fresh.'
+						'After its first ♥, The night market should answer `{ id: 4, likes: 1 }`. Fetch it again with `db.get` after the UPDATE so the number is fresh.'
 				},
 				{
 					type: 'response-json',
 					request: 1,
 					mode: 'subset',
-					expected: { id: 3, likes: 145 },
-					message: 'The second ♥ should bring episode 3 to 145 likes.'
+					expected: { id: 8, likes: 189 },
+					message: 'The ♥ on Extra spicy should bring episode 8 from 188 to 189 likes.'
 				},
 				{
 					type: 'response-status',
@@ -614,17 +643,21 @@ app.get('/episodes/:id/comments', (req, res) => {
 					request: 3,
 					mode: 'subset',
 					expected: [
-						{ author: 'june_b', created_at: '2026-10-09' },
-						{ author: 'ravi', created_at: '2026-10-05' }
+						{ author: 'ravi', created_at: '2026-10-09' },
+						{ author: 'mina', created_at: '2026-10-08' }
 					],
 					message:
-						'The comments on episode 3 should come newest first: june_b’s from 9 October, then ravi’s from 5 October. Add `ORDER BY created_at DESC`.'
+						'The comments on The night market should come newest first: ravi’s from 9 October, then Mina’s from 8 October. Add `ORDER BY created_at DESC`.'
 				},
 				{
 					type: 'db-rows',
-					sql: 'SELECT likes FROM episodes WHERE id = 3',
-					expected: [{ likes: 145 }],
-					message: 'Episode 3 should have 145 likes in the database after two ♥ taps.'
+					sql: 'SELECT id, likes FROM episodes WHERE id IN (4, 8) ORDER BY id',
+					expected: [
+						{ id: 4, likes: 1 },
+						{ id: 8, likes: 189 }
+					],
+					message:
+						'In the database, The night market should have 1 like and Extra spicy 189, one ♥ each.'
 				},
 				{
 					type: 'queries-parameterized',

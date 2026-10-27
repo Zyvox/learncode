@@ -494,8 +494,26 @@ app.delete('/comments/:id', (req, res) => {
 			xp: 50,
 			boss: true,
 			story:
-				'Every episode gets its own comments section, where readers post and moderators clean up. The freelancer building the phone app has sent the list of requests it will make, and Theo has sent three coffee emojis. When this passes, Theo’s favourite question finally gets a yes.',
+				'Every episode gets its own comments section, where readers post and moderators clean up. The freelancer building the phone app has sent the list of requests it will make, and Theo has sent three coffee emojis. Readers can’t comment yet. That changes here.',
 			task: 'Write three endpoints:\n1. `GET /episodes/:id/comments`: the comments whose `episode_id` matches.\n2. `POST /episodes/:id/comments`: `400` with an `error` if `author` or `text` is missing; otherwise save `{ id, episode_id, author, text }` and answer `201` with it. `episode_id` must be a number.\n3. `DELETE /comments/:id`: `204` when it was there, `404` with an `error` when it wasn’t.',
+			outro: {
+				panels: [
+					{
+						who: 'theo',
+						scene: 'phone',
+						text: '“Can readers comment yet?” For the first time, the answer is yes. Theo posts a test comment, then a second one, just because he can.'
+					},
+					{
+						who: 'mina',
+						text: 'My reply is up there, and the empty one got turned away. Wait, where do the comments actually go? Into that list in your code?'
+					},
+					{
+						who: 'bit',
+						scene: 'server',
+						text: 'Into the server’s memory. Which is lovely right up until somebody restarts it.'
+					}
+				]
+			},
 			hints: [
 				'Do them in order and press **Run** after each. Every one of them is something you did earlier in this module, with an `episode_id` added.',
 				'For the new comment, use `episode_id: Number(req.params.id)` and `id: comments.length + 1`. For the delete, first `find` the comment: if it isn’t there, answer 404.',

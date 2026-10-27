@@ -60,12 +60,21 @@ app.delete('/comments/:id', (req, res) => res.status(204).end())`;
 		}
 	});
 
-	it('the client globals match the client api', async () => {
+	it('the client and server globals match their apis', async () => {
 		const { loadSqlInNode } = await import('./node.ts');
 		const SQL = await loadSqlInNode();
 		const { createWebWorld } = await import('./worlds/web.ts');
-		const api = Object.keys(createWebWorld({ kind: 'web', role: 'client' }, { SQL }).api).sort();
-		expect(commandNames('web').sort()).toEqual(api);
+		const apiOf = (role: 'client' | 'server') =>
+			Object.keys(createWebWorld({ kind: 'web', role }, { SQL }).api).sort();
+		const globals = (role: 'client' | 'server') =>
+			webCommandNames(role)
+				.filter((n) => commandNames('web').includes(n))
+				.sort();
+		expect(globals('client')).toEqual(apiOf('client'));
+		expect(globals('server')).toEqual(apiOf('server'));
+		expect(commandNames('web').sort()).toEqual(
+			[...new Set([...apiOf('client'), ...apiOf('server')])].sort()
+		);
 		expect(webCommandNames('sql')).toEqual(SQL_COMMANDS.map((c) => c.name.replace(/\(.*$/, '')));
 		expect(webCommandNames('server')).toContain('app.get');
 		expect(webCommandNames('server')).toContain('db.all');

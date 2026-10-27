@@ -21,7 +21,7 @@ export const whereTheDataLives: Module = {
 			language: 'sql',
 			story:
 				'The lists in your server’s code vanish every time it restarts, and Theo has noticed. The old server never had that problem, because it kept everything in a database. Before your server talks to it, you’re going to talk to it yourself.',
-			task: 'Ask the database for every row and every column of the `series` table: `SELECT * FROM series;`',
+			task: 'Ask the database for every series it knows about: every row and every column of the `series` table.',
 			concept: {
 				title: 'Tables, rows, columns',
 				panels: [
@@ -41,11 +41,11 @@ export const whereTheDataLives: Module = {
 					{
 						who: 'you',
 						text: 'Pretty much. You ask in a language called **SQL**, each question is a **query**, and the answer comes back as rows.',
-						code: 'SELECT * FROM series;'
+						code: 'SELECT * FROM episodes;'
 					},
 					{
 						who: 'bit',
-						text: 'I’ll carry that one over. `SELECT` means “give me”, `*` “every column”, `FROM series` says which table, and `;` ends the question.'
+						text: 'I’ll carry that one over. `SELECT` means “give me”, `*` “every column”, `FROM episodes` says which table, and `;` ends the question.'
 					},
 					{
 						who: 'theo',
@@ -56,8 +56,9 @@ export const whereTheDataLives: Module = {
 			},
 			newCommands: ['SELECT'],
 			hints: [
-				'Three parts: `SELECT`, then `*` for every column, then `FROM` and the table name.',
-				'Type exactly `SELECT * FROM series;` and press **Run**.'
+				'The strip above asks for every episode. You want the same question about a different table.',
+				'Three parts: `SELECT`, then `*` for every column, then `FROM` and the table name. End with `;`.',
+				'`SELECT * FROM series;`'
 			],
 			world: sqlWorld(),
 			starterCode: `-- Ask for every row of the series table below.
@@ -87,10 +88,10 @@ export const whereTheDataLives: Module = {
 			language: 'sql',
 			story:
 				'Theo wants a short list for the website footer: each series and who draws it. Instead of `*` you can name just the columns you want, with commas between them, and Theo has had a go. Press **Run**.',
-			task: 'Read the error, then fix the query so it gives back two columns: `title` and the column that holds who makes each series.',
+			task: 'Read the error, then fix the query so the footer gets exactly two things per series: its title and who makes it.',
 			hints: [
 				'The database tells you which columns `series` really has. Is `artist` one of them?',
-				'The person who makes a series is in the `author` column.',
+				'Look at the column names of `series` in the database panel. One of them holds the person who makes each series.',
 				'`SELECT title, author FROM series;`'
 			],
 			world: sqlWorld(),
@@ -334,6 +335,24 @@ SELECT * FROM episodes;
 			story:
 				'Theo is back with the “Needs some love” shelf, and this time he means it: the three published episodes with the fewest likes, so the studio can share them on social media this week. Unpublished episodes are not invited, and every piece of this module gets a turn.',
 			task: 'Get the `title` and `likes` of the three **published** episodes with the fewest likes, fewest first.',
+			outro: {
+				panels: [
+					{
+						who: 'theo',
+						scene: 'phone',
+						text: 'Theo posts the shelf that afternoon: A seed in the gears, The clockwork fox, Rain on Pine Street. Not a single sketch on it.'
+					},
+					{
+						who: 'mina',
+						text: 'By the evening, people are asking where to read The clockwork fox. And you only asked the database one question.'
+					},
+					{
+						who: 'bit',
+						scene: 'database',
+						text: 'Pick, filter, sort, cut. The database did the heavy lifting. I just carried the note.'
+					}
+				]
+			},
 			hints: [
 				'You need every piece from this module: pick the columns, keep only `published = 1`, sort by `likes`, keep three.',
 				'Fewest first is the normal order, so no `DESC` this time. The order of the parts is `SELECT … FROM … WHERE … ORDER BY … LIMIT …`.',

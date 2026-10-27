@@ -317,6 +317,24 @@ show(res.body[0].title)
 			story:
 				'Theo wants a demo for the artists’ meeting in ten minutes: “All the series, and under them the title of the first Moonlit Deliveries episode. Can it do that?” It can, with two questions to the server, and it will be the first screen you’ve built yourself.',
 			task: 'Ask for `/series` and show the whole list. Then ask for the episodes of series 1, at the path `/series/1/episodes`, and show only the title of the first episode.',
+			outro: {
+				panels: [
+					{
+						who: 'theo',
+						scene: 'phone',
+						text: 'Ten minutes later, Theo holds the phone up in the meeting. Three series, and “The first parcel” underneath. Nobody notices it was built this morning.'
+					},
+					{
+						who: 'mina',
+						text: 'So that’s where my comics come from. The phone asked twice, and the server answered twice.'
+					},
+					{
+						who: 'bit',
+						scene: 'wire',
+						text: 'Two round trips before the coffee got cold. I’ll be doing a lot more of those.'
+					}
+				]
+			},
 			hints: [
 				'Two requests, two answers. Give each answer its own name: the starter already calls the first one `series`. Call the second one `episodes`.',
 				"For the second part: `const episodes = get('/series/1/episodes')`, then show one title from it, the same way you picked the first series in the last level.",

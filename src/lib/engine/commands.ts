@@ -2,7 +2,12 @@
  * Reference for the UI cheat sheet: every command per world, and the JavaScript basics.
  * Summaries are ThemedText (render with renderText()) and written for absolute beginners.
  */
-import type { ThemedText, WebWorldSpec, WorldKind } from '#lib/curriculum/types.ts';
+import type {
+	NetWorldSpec,
+	ThemedText,
+	WebWorldSpec,
+	WorldKind
+} from '#lib/curriculum/types.ts';
 
 export interface CommandDoc {
 	/** As the learner writes it, e.g. 'move()', 'say(text)' */
@@ -12,9 +17,12 @@ export interface CommandDoc {
 	example?: string;
 	/** web world only: the roles (WebWorldSpec.role) where this command exists */
 	roles?: WebRole[];
+	/** net world only: the flavours (NetWorldSpec.flavour) where this command exists */
+	flavours?: NetFlavour[];
 }
 
 export type WebRole = WebWorldSpec['role'];
+export type NetFlavour = NetWorldSpec['flavour'];
 
 export interface SyntaxDoc {
 	id: string;
@@ -258,6 +266,27 @@ const WEB_COMMANDS: CommandDoc[] = [
 		roles: ['server']
 	},
 	{
+		name: 'hash(text)',
+		summary:
+			"Scramble a password into a fixed-length fingerprint. The same text always gives the same fingerprint, but there's no way back to the password. Store this, never the password itself.",
+		example: "const fingerprint = hash('mina-pass')\nlog(fingerprint)",
+		roles: ['server']
+	},
+	{
+		name: 'hashMatches(text, hash)',
+		summary:
+			'Check what someone typed against a fingerprint you stored with `hash()`. Gives `true` when they match, without ever un-scrambling anything.',
+		example: "const stored = hash('mina-pass')\nlog(hashMatches('mina-pass', stored))",
+		roles: ['server']
+	},
+	{
+		name: 'escape(text)',
+		summary:
+			'Make text safe to put on a page: `<` becomes `&lt;` and so on, so a tag someone typed is shown as text instead of being run.',
+		example: "log(escape('<b>hello</b>'))",
+		roles: ['server']
+	},
+	{
 		name: 'env',
 		summary:
 			'Settings for the server, like `env.PORT`, kept outside the code so they can change without editing it.',
@@ -274,6 +303,119 @@ const WEB_COMMANDS: CommandDoc[] = [
 	},
 	...SQL_COMMANDS
 ];
+
+/** The net world: networks (`flavour: 'network'`) and the cloud (`flavour: 'cloud'`). See docs/INFRA.md. */
+const NET_COMMANDS: CommandDoc[] = [
+	// ---- network ----
+	{
+		name: 'lookup(name)',
+		summary:
+			"Ask the DNS server, the internet's phone book, for the address behind a name. You get `null` when it doesn't know the name.",
+		example: "const ip = lookup('inkwell.app')\nlog(ip)",
+		flavours: ['network']
+	},
+	{
+		name: 'ping(host)',
+		summary:
+			"Send a tiny message to a machine and time the trip there. You get the milliseconds, or `'unreachable'` when no way leads there.",
+		example: "log(ping('inkwell.app'))",
+		flavours: ['network']
+	},
+	{
+		name: 'connect(host, port)',
+		summary:
+			"Knock on one door (port) of a machine. You get `'open'`, `'closed'` (nobody there), `'filtered'` (a firewall said no), `'no route'` or `'unknown host'`.",
+		example: "log(connect('inkwell.app', 443))",
+		flavours: ['network']
+	},
+	{
+		name: 'trace(host)',
+		summary:
+			'List every machine a message passes on its way there. An empty list means it never arrived; the log says where it stopped.',
+		example: "log(trace('inkwell.app'))",
+		flavours: ['network']
+	},
+	{
+		name: 'allow(node, port)',
+		summary: 'Let messages for this port through a firewall or into a machine.',
+		example: "allow('inkwell-fw', 443)",
+		flavours: ['network']
+	},
+	{
+		name: 'block(node, port)',
+		summary: 'Stop messages for this port at a firewall or a machine.',
+		example: "block('inkwell-fw', 22)",
+		flavours: ['network']
+	},
+	{
+		name: 'listen(node, port, name)',
+		summary: 'Start a program on a machine that answers on this port.',
+		example: "listen('inkwell-web', 443, 'reader')",
+		flavours: ['network']
+	},
+	{
+		name: 'addRecord(name, ip)',
+		summary: 'Teach the DNS server which address a name belongs to.',
+		example: "addRecord('inkwell.app', '203.0.113.10')",
+		flavours: ['network']
+	},
+	// ---- cloud ----
+	{
+		name: 'deploy(name, options)',
+		summary:
+			'Start your app in the cloud: give it a name, the image (your app packed in a box) and how many copies to run.',
+		example: "deploy('reader', { image: 'reader:1.0', replicas: 2 })",
+		flavours: ['cloud']
+	},
+	{
+		name: 'scale(name, count)',
+		summary: 'Change how many copies of a service run. More copies can serve more readers at once.',
+		example: "scale('reader', 4)",
+		flavours: ['cloud']
+	},
+	{
+		name: 'route(path, service)',
+		summary:
+			'Tell the load balancer which service answers requests whose path starts with this. The longest match wins.',
+		example: "route('/', 'reader')",
+		flavours: ['cloud']
+	},
+	{
+		name: 'release(name, image)',
+		summary:
+			'Switch a service to a new version, one copy at a time, so readers never see it go away.',
+		example: "release('reader', 'reader:1.1')",
+		flavours: ['cloud']
+	},
+	{
+		name: 'health(name, path)',
+		summary:
+			'Give the load balancer a page to check on every copy. Copies that fail the check get no traffic, and a broken release stops.',
+		example: "health('reader', '/health')",
+		flavours: ['cloud']
+	},
+	{
+		name: 'env(name, key, value)',
+		summary:
+			'Give a service a setting from outside its image, so the same image works in every place.',
+		example: "env('reader', 'DB_URL', 'postgres://db')",
+		flavours: ['cloud']
+	},
+	// ---- both ----
+	{
+		name: 'log(value)',
+		summary: 'Write a line in the log, so you can see what an answer was.',
+		example: "log(lookup('inkwell.app'))",
+		flavours: ['network', 'cloud']
+	}
+];
+
+/** Bare command names for one flavour of the net world, e.g. network → ['lookup', 'ping', …, 'log'] */
+export function netCommandNames(flavour: NetFlavour): string[] {
+	return NET_COMMANDS.filter((c) => c.flavours?.includes(flavour)).map((c) =>
+		c.name.replace(/\(.*$/, '').trim()
+	);
+}
 
 /**
  * Cheat-sheet names for one role of the web world, without the bracket part:
@@ -394,7 +536,10 @@ export const COMMANDS: Record<WorldKind, CommandDoc[]> = {
 			example: 'circle(width / 2, height / 2, 50)'
 		}
 	],
-	web: WEB_COMMANDS
+	web: WEB_COMMANDS,
+	net: NET_COMMANDS,
+	// placeholder: filled by the git world (worlds/git.ts)
+	git: []
 };
 
 /** Bare command names per world (no brackets), e.g. ['move', 'turnLeft', …] */

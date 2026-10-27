@@ -299,23 +299,47 @@ SELECT id, author, text FROM comments WHERE episode_id = 8;
 			boss: true,
 			language: 'sql',
 			story:
-				'Episode 4 of Moonlit Deliveries is nearly done, though the database still calls it “Sketches” and keeps it unpublished. Mina wants publish day to be one calm paste: real title, published, her first comment already under it. Write it and try it here, where the database resets on every **Run**, so it’s ready the day she says go.',
-			task: "Three changes:\n1. Give episode 4 the title `The night market`.\n2. Publish it: `published = 1`.\n3. Add a comment on episode 4 from `mina`, with any text.\nTip: one `UPDATE` can change two columns: `SET title = '…', published = 1`.",
+				'It’s 8 October, and episode 4 of Moonlit Deliveries is finished. The database still calls it “Sketches” and keeps it hidden. Mina has the real title, and a note she wants waiting under it for the first readers. She pulls up a chair: “Go on. You press **Run**.”',
+			task: "Publish episode 4, for real:\n1. Give it the title `The night market`.\n2. Publish it: `published = 1`.\n3. Add Mina’s comment on episode 4: author `mina`, text `Finally out. Thank you for waiting.`, and `created_at` set to today, `'2026-10-08'`.\nTip: one `UPDATE` can change two columns: `SET title = '…', published = 1`.",
+			outro: {
+				panels: [
+					{
+						who: 'narrator',
+						scene: 'database',
+						text: 'Row 4 changes. “Sketches” becomes The night market, and `published` flips to 1.'
+					},
+					{
+						who: 'mina',
+						scene: 'phone',
+						text: 'Mina refreshes the app. Her episode is there, and her note is the first thing under it. She refreshes again, just to see it twice.'
+					},
+					{
+						who: 'theo',
+						text: 'Three lines of SQL and the episode is out? I’ve sat through launch meetings longer than that.'
+					},
+					{
+						who: 'bit',
+						scene: 'wire',
+						text: 'Episode 4, finally on the menu. Readers, I’m on my way.'
+					}
+				]
+			},
 			hints: [
 				'Start with the `UPDATE`, for the row with `id = 4`. Don’t forget the `WHERE`: you know what happens without it.',
-				"`UPDATE episodes SET title = 'The night market', published = 1 WHERE id = 4;` Then an `INSERT INTO comments` like in level 1, with `episode_id` 4.",
-				"Both lines:\n```sql\nUPDATE episodes SET title = 'The night market', published = 1 WHERE id = 4;\nINSERT INTO comments (episode_id, author, text) VALUES (4, 'mina', 'Finally. Enjoy the market');\n```"
+				"`UPDATE episodes SET title = 'The night market', published = 1 WHERE id = 4;` Then an `INSERT INTO comments` like in level 1, with `episode_id` 4 and one more column: `created_at`.",
+				"Both lines:\n```sql\nUPDATE episodes SET title = 'The night market', published = 1 WHERE id = 4;\nINSERT INTO comments (episode_id, author, text, created_at)\nVALUES (4, 'mina', 'Finally out. Thank you for waiting.', '2026-10-08');\n```"
 			],
 			world: sqlWorld(),
 			starterCode: `-- 1. Rename episode 4 to 'The night market'
 -- 2. Publish it
--- 3. Add Mina's comment on it
+-- 3. Add Mina's comment on it, dated today: '2026-10-08'
 
 -- Episode 4 as it is now:
 SELECT * FROM episodes WHERE id = 4;
 `,
 			solution: `UPDATE episodes SET title = 'The night market', published = 1 WHERE id = 4;
-INSERT INTO comments (episode_id, author, text) VALUES (4, 'mina', 'Finally. Enjoy the market');
+INSERT INTO comments (episode_id, author, text, created_at)
+VALUES (4, 'mina', 'Finally out. Thank you for waiting.', '2026-10-08');
 SELECT * FROM episodes WHERE id = 4;
 `,
 			checks: [
@@ -346,6 +370,13 @@ SELECT * FROM episodes WHERE id = 4;
 					sql: 'SELECT episode_id, author FROM comments WHERE id = 6',
 					expected: [{ episode_id: 4, author: 'mina' }],
 					message: "The new comment should be on episode 4, from `'mina'`."
+				},
+				{
+					type: 'db-rows',
+					sql: 'SELECT text, created_at FROM comments WHERE id = 6',
+					expected: [{ text: 'Finally out. Thank you for waiting.', created_at: '2026-10-08' }],
+					message:
+						"Mina wrote her note already: `'Finally out. Thank you for waiting.'`, word for word, with `created_at` `'2026-10-08'`. Readers will see exactly what you type."
 				}
 			]
 		}

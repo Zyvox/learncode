@@ -45,8 +45,8 @@ export interface World {
 	 * a numeric `line` property (SqlError) points at the learner's line.
 	 */
 	executeSource?(code: string): void;
-	/** World-specific parts of the RunResult (grid / draws / web). Called exactly once. */
-	finish(): Pick<RunResult, 'grid' | 'draws' | 'web'>;
+	/** World-specific parts of the RunResult (grid / draws / web / net / git). Called exactly once. */
+	finish(): Pick<RunResult, 'grid' | 'draws' | 'web' | 'net' | 'git'>;
 }
 
 export interface ObjectMethods {

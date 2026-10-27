@@ -76,6 +76,9 @@ const ENGINE_API: Record<WorldSpec['kind'], string[]> = {
 		'db.all',
 		'db.get',
 		'db.run',
+		'hash',
+		'hashMatches',
+		'escape',
 		'env',
 		'SELECT',
 		'WHERE',
@@ -87,6 +90,40 @@ const ENGINE_API: Record<WorldSpec['kind'], string[]> = {
 		'DELETE FROM',
 		'JOIN',
 		'GROUP BY'
+	],
+	// net world (networks and cloud), see engine/worlds/net.ts
+	net: [
+		'lookup',
+		'ping',
+		'connect',
+		'trace',
+		'allow',
+		'block',
+		'listen',
+		'addRecord',
+		'deploy',
+		'scale',
+		'route',
+		'release',
+		'health',
+		'env',
+		'log'
+	],
+	// git world: shell lines, see engine/worlds/git.ts
+	git: [
+		'git init',
+		'git status',
+		'git add',
+		'git commit',
+		'git log',
+		'git branch',
+		'git switch',
+		'git merge',
+		'git diff',
+		'git restore',
+		'echo',
+		'cat',
+		'ls'
 	]
 };
 const ALL_API = new Set(Object.values(ENGINE_API).flat());

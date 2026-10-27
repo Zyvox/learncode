@@ -492,8 +492,31 @@ app.get('/series', (req, res) => {
 			xp: 50,
 			boss: true,
 			story:
-				'Theo wants browsing done by Friday: the series list with genre filters, a page per series, and the episodes of each series. The data is in place and the server is empty. Three endpoints from now, Inkwell has an API you wrote yourself.',
+				'Theo wants browsing done by Friday: the series list with genre filters, a page per series, and the episodes of each series. The data is in place and the server is empty.',
 			task: 'Write three endpoints:\n1. `GET /series`: all series, or only one genre when there is `?genre=`.\n2. `GET /series/:id`: that series, or `404` with an `error` when there is none.\n3. `GET /series/:id/episodes`: the episodes whose `series_id` matches.',
+			outro: {
+				panels: [
+					{
+						who: 'narrator',
+						scene: 'server',
+						text: 'Thursday afternoon. One day early.'
+					},
+					{
+						who: 'theo',
+						scene: 'phone',
+						text: 'Comedy, tap. Grove & Gear, tap. A broken link gets a polite 404 instead of a blank screen. Inkwell has an API, and you wrote it.'
+					},
+					{
+						who: 'mina',
+						text: 'Every one of those answers came from a few lines you typed. I’ll never look at a loading spinner the same way.'
+					},
+					{
+						who: 'bit',
+						scene: 'wire',
+						text: 'Five requests, five answers, nobody waiting. Best kind of shift.'
+					}
+				]
+			},
 			hints: [
 				'Take them one at a time and press **Run** after each. The first two are the endpoints you wrote earlier in this module.',
 				'For the third, filter `episodes` instead of `series`: `episodes.filter((e) => e.series_id === Number(req.params.id))`.',

@@ -479,6 +479,9 @@ turnRight();
 					'The forest has turned into a maze of {walls}. {Friend} knows the trick: keep your right paw on the wall and never let go.'
 			},
 			task: 'Get to the {goal} and pick up all three {items} on the way. Use the right-hand rule in a loop.',
+			outro: {
+				text: '{Hero} walks out of the maze with all three {items}, and {friend} hands over {reward}. Your code never knew the map. It looked, decided, and kept going, so it would find its way through a maze nobody has drawn yet.'
+			},
 			hints: [
 				'The comments in the editor are your plan. Each numbered line becomes one part of an `if` / `else if` / `else`, and all of it goes inside `while (!atGoal())`.',
 				'Start the loop with `if (onItem()) { pickUp(); }` so {hero} grabs {items} on the way. Rule 1 needs two lines inside its `{ }`: `turnRight();` and then `move();`.',

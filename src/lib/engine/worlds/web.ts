@@ -46,6 +46,16 @@ export const WEB_TOO_MANY_STEPS: ThemedText = `Your program did more than ${WEB_
 
 export const SCREEN_FULL: ThemedText = `The phone screen is full: ${'`show()`'} was used more than ${MAX_SCREEN_ITEMS} times. Show a whole list at once with one ${'`show(list)`'} instead.`;
 
+export const DB_READ_ONLY: ThemedText =
+	'This database connection may only read. Writes need a connection with more rights.';
+/** SQLite's own wording for the same thing (the "show details" text and the query trace) */
+export const DB_READ_ONLY_RAW = 'attempt to write a readonly database';
+/** Statements a read-only connection refuses (first keyword) */
+export const WRITE_KEYWORDS = ['INSERT', 'UPDATE', 'DELETE', 'REPLACE', 'DROP', 'ALTER', 'CREATE'];
+
+/** Client log line when a renderHtml phone "ran" a script (the simulated XSS) */
+export const SCRIPT_RAN = "💥 A script ran on the reader's phone.";
+
 export const SERVER_DOWN_BODY = { error: 'Could not reach the server' };
 export const SERVER_ERROR_BODY = { error: 'Server error' };
 
@@ -70,6 +80,11 @@ export const WEB_OBJECT_METHODS: Record<Role, Record<string, ObjectMethods>> = {
 export const WEB_ALIASES: Record<Role, Record<string, string>> = {
 	server: {
 		print: 'log',
+		sha256: 'hash',
+		hashPassword: 'hash',
+		checkPassword: 'hashMatches',
+		escapeHtml: 'escape',
+		sanitize: 'escape',
 		router: 'app',
 		server: 'app',
 		express: 'app',
@@ -183,6 +198,89 @@ function errorText(e: unknown): string {
 		return (e as Error).message;
 	}
 	return formatValue(e);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Security helpers (pure: also used by tests and lesson authors)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * A toy one-way function for the security lessons. Deterministic, 64 hex characters, so it
+ * looks like SHA-256 output, but it is NOT a real cryptographic hash: eight 32-bit FNV-1a
+ * passes with different seeds, each chained to the one before and finished with a mixer.
+ */
+export function toyHash(text: string): string {
+	let out = '';
+	let prev = 0x6a09e667;
+	for (let round = 0; round < 8; round++) {
+		let h = (0x811c9dc5 ^ Math.imul(round + 1, 0x9e3779b9) ^ prev) >>> 0;
+		for (let i = 0; i < text.length; i++) {
+			h ^= text.charCodeAt(i);
+			h = Math.imul(h, 0x01000193);
+		}
+		h ^= text.length;
+		// murmur3's finalizer: every input bit changes about half of the output bits
+		h ^= h >>> 16;
+		h = Math.imul(h, 0x85ebca6b);
+		h ^= h >>> 13;
+		h = Math.imul(h, 0xc2b2ae35);
+		h ^= h >>> 16;
+		prev = h >>> 0;
+		out += prev.toString(16).padStart(8, '0');
+	}
+	return out;
+}
+
+const HTML_ENTITIES: Record<string, string> = {
+	'&': '&amp;',
+	'<': '&lt;',
+	'>': '&gt;',
+	'"': '&quot;',
+	"'": '&#39;'
+};
+
+/** `<b>` → `&lt;b&gt;`: the text is shown as it is instead of being read as HTML. */
+export function escapeHtml(text: string): string {
+	return text.replace(/[&<>"']/g, (c) => HTML_ENTITIES[c]);
+}
+
+const SCRIPT_TAG = /<script/i;
+const ANY_TAG = /<\/?[a-z][^<>]*>|<img\b/i;
+
+/** Leaf values of a response body or shown value (a few levels deep), as text */
+function leafTexts(v: unknown, depth = 0, out: string[] = []): string[] {
+	if (out.length >= 200) return out;
+	if (typeof v === 'string') out.push(v);
+	else if (typeof v === 'number' || typeof v === 'boolean') out.push(String(v));
+	else if (depth < 3 && Array.isArray(v)) v.forEach((x) => leafTexts(x, depth + 1, out));
+	else if (depth < 3 && typeof v === 'object' && v !== null) {
+		Object.values(v).forEach((x) => leafTexts(x, depth + 1, out));
+	}
+	return out;
+}
+
+export type HtmlScreenItem = Extract<ScreenItem, { kind: 'html' }>;
+
+/**
+ * renderHtml lessons: how a careless phone app shows this value. Text with a tag in it (at the
+ * top level or inside a list/object) becomes an `html` item; `scripted` when a `<script` tag is
+ * among it. Plain values give null (shown as usual). Nothing is ever evaluated.
+ */
+export function htmlScreenItem(value: unknown): HtmlScreenItem | null {
+	const texts = leafTexts(value);
+	const strings = texts.filter((t): t is string => typeof t === 'string');
+	if (!strings.some((t) => SCRIPT_TAG.test(t) || ANY_TAG.test(t))) return null;
+	return {
+		kind: 'html',
+		raw: typeof value === 'string' ? value : texts.join('\n'),
+		scripted: strings.some((t) => SCRIPT_TAG.test(t))
+	};
+}
+
+/** First keyword of a statement, skipping leading comments: 'select', 'insert', … (upper case) */
+export function firstKeyword(sql: string): string {
+	const rest = sql.replace(/^(\s+|--[^\n]*(\n|$)|\/\*[\s\S]*?\*\/)*/, '');
+	return (rest.match(/^[A-Za-z]+/)?.[0] ?? '').toUpperCase();
 }
 
 function screenItemFor(status: number, body: unknown): ScreenItem {
@@ -386,6 +484,14 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 		);
 	}
 
+	/** dbReadOnly: the write is refused before it reaches the database (traced like a failed query). */
+	function refuseWrite(sql: string, params: SqlValue[]): never {
+		step();
+		state.queryCount++;
+		push(withId({ t: 'query', sql, params: [...params], error: DB_READ_ONLY_RAW }));
+		throw new CommandError(DB_READ_ONLY, DB_READ_ONLY_RAW);
+	}
+
 	/** db.all / db.get / db.run: validates, runs every statement in the string, traces each. */
 	function dbCall(cmd: 'all' | 'get' | 'run', sql: unknown, params: unknown): ExecResult {
 		const name = `db.${cmd}`;
@@ -423,6 +529,9 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 		let changes = 0;
 		let lastId = 0;
 		statements.forEach((s, i) => {
+			if (spec.dbReadOnly && !setup && WRITE_KEYWORDS.includes(firstKeyword(s.sql))) {
+				refuseWrite(s.sql, i === 0 ? values : []);
+			}
 			const r = query(s.sql, i === 0 ? values : [], cmd === 'get' ? 1 : MAX_ROWS);
 			if (!first && r.columns.length > 0) first = r;
 			changes += r.changes;
@@ -444,6 +553,55 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 		}
 	});
 
+	// ---- security helpers (server globals) ---------------------------------------------------
+
+	function hash(text?: unknown): string {
+		if (typeof text !== 'string') {
+			throw new CommandError(
+				text === undefined
+					? `${tick('hash()')} got ${tick('undefined')}, so there is nothing to scramble. Check the spelling of what you passed, like ${tick('hash(req.body.password)')}.`
+					: `${tick('hash()')} needs a piece of text, like ${tick('hash(req.body.password)')}.`,
+				`hash(${formatValue(text)})`
+			);
+		}
+		return toyHash(text);
+	}
+
+	const looksHashed = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
+
+	function hashMatches(text?: unknown, hashed?: unknown): boolean {
+		const usage = `${tick('hashMatches()')} needs the text someone typed first and the stored hash second, like ${tick('hashMatches(req.body.password, user.password_hash)')}.`;
+		if (looksHashed(text) && typeof hashed === 'string' && !looksHashed(hashed)) {
+			throw new CommandError(
+				`${usage} It looks like the two are the other way round.`,
+				'hashMatches(): arguments swapped'
+			);
+		}
+		if (typeof text !== 'string' || typeof hashed !== 'string') {
+			const missing = text === undefined || hashed === undefined;
+			throw new CommandError(
+				missing
+					? `${usage} One of them is ${tick('undefined')}: check the spelling, and that the row was found.`
+					: usage,
+				`hashMatches(${formatValue(text)}, ${formatValue(hashed)})`
+			);
+		}
+		return toyHash(text) === hashed.trim().toLowerCase();
+	}
+
+	function escape(text?: unknown): string {
+		if (typeof text === 'number' || typeof text === 'boolean') return String(text);
+		if (typeof text !== 'string') {
+			throw new CommandError(
+				text === undefined || text === null
+					? `${tick('escape()')} got ${tick(String(text))}, so there is nothing to make safe. Check the spelling of what you passed, like ${tick('escape(req.body.text)')}.`
+					: `${tick('escape()')} makes one piece of text safe to show. Escape each text on its own, like ${tick('escape(comment.text)')}.`,
+				`escape(${formatValue(text)})`
+			);
+		}
+		return escapeHtml(text);
+	}
+
 	// ---- logging & screen --------------------------------------------------------------------
 
 	function writeLog(where: 'server' | 'client', args: unknown[]) {
@@ -457,6 +615,19 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 	function addScreen(item: ScreenItem) {
 		state.screen.push(item);
 		push({ t: 'screen', item });
+	}
+
+	/** renderHtml: the phone renders the text; a script in it "runs" (only a log line, never real). */
+	function showHtml(item: HtmlScreenItem, id?: number) {
+		addScreen(item);
+		if (item.scripted) {
+			step();
+			push(
+				id === undefined
+					? { t: 'log', where: 'client', text: SCRIPT_RAN }
+					: { t: 'log', id, where: 'client', text: SCRIPT_RAN }
+			);
+		}
 	}
 
 	// ---- router ------------------------------------------------------------------------------
@@ -513,7 +684,12 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 	): SimResponse {
 		state.responses.push(r);
 		push({ t: 'response', id: r.id, status: r.status, body: r.body });
-		if (autoScreen) addScreen(screenItemFor(r.status, r.body));
+		if (autoScreen) {
+			const html =
+				spec.renderHtml && r.status >= 200 && r.status < 300 ? htmlScreenItem(r.body) : null;
+			if (html) showHtml(html, r.id);
+			else addScreen(screenItemFor(r.status, r.body));
+		}
 		return r;
 	}
 
@@ -525,6 +701,7 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 		const reqEvent: Extract<TraceEvent, { t: 'request' }> = { t: 'request', id, method, path };
 		if (request.body !== undefined) reqEvent.body = jsonCopy(request.body);
 		if (request.label) reqEvent.label = request.label;
+		if (spec.plainHttp) reqEvent.label = (reqEvent.label ? reqEvent.label + ' · ' : '') + 'http';
 		push(reqEvent);
 
 		const done = (status: number, body: unknown, route: string | null) =>
@@ -675,13 +852,17 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 	if (spec.serverCode) {
 		setup = true;
 		try {
-			new Function('app', 'db', 'log', 'env', 'console', `"use strict";\n${spec.serverCode}`)(
-				app,
-				dbApi,
-				serverLog,
-				env,
-				serverConsole
-			);
+			new Function(
+				'app',
+				'db',
+				'log',
+				'env',
+				'console',
+				'hash',
+				'hashMatches',
+				'escape',
+				`"use strict";\n${spec.serverCode}`
+			)(app, dbApi, serverLog, env, serverConsole, hash, hashMatches, escape);
 		} catch (e) {
 			db.close();
 			throw new SpecError(`serverCode failed: ${errorText(e)}`);
@@ -751,6 +932,15 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 			);
 		}
 		const value = args[0];
+		if (spec.renderHtml && typeof value !== 'function') {
+			let html: HtmlScreenItem | null = null;
+			try {
+				html = htmlScreenItem(typeof value === 'string' ? value : jsonCopy(value));
+			} catch {
+				// not JSON: the error below explains it
+			}
+			if (html) return showHtml(html);
+		}
 		if (typeof value === 'string') return addScreen({ kind: 'text', text: value });
 		if (value === undefined) return addScreen({ kind: 'text', text: 'undefined' });
 		if (typeof value === 'function') {
@@ -777,7 +967,12 @@ export function createWebWorld(spec: WebWorldSpec, deps: WebWorldDeps): WebWorld
 	let variables: Record<string, unknown> = {};
 	let log: (...args: unknown[]) => void = serverLog;
 	if (role === 'server') {
-		api = { log: serverLog };
+		api = {
+			log: serverLog,
+			hash: hash as ApiFunction,
+			hashMatches: hashMatches as ApiFunction,
+			escape: escape as ApiFunction
+		};
 		variables = { app, db: dbApi, env };
 	} else if (role === 'client') {
 		api = {

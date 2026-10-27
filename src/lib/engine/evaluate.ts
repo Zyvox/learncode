@@ -16,6 +16,7 @@ import type {
 	WebResult
 } from './types.ts';
 import { matchRoute, parseQuery, segmentsOf } from './worlds/web.ts';
+import { netCheckFails } from './worlds/net.ts';
 
 export { stripComments };
 
@@ -66,8 +67,9 @@ export function bareCommands(code: string, kind: WorldKind, names = commandNames
 		for (const m of src.matchAll(re)) {
 			const before = src.slice(0, m.index! + m[1].length);
 			const after = src.slice(m.index! + m[0].length);
-			// skip declarations / assignments: `function move`, `let move`, `move = …`
-			if (/\b(function|let|const|var)\s*$/.test(before) || /^\s*=(?!=)/.test(after)) continue;
+			// skip declarations / assignments / object keys: `function move`, `let move`, `move = …`,
+			// `{ hash: h }`
+			if (/\b(function|let|const|var)\s*$/.test(before) || /^\s*(=(?!=)|:)/.test(after)) continue;
 			found.push(name);
 			break;
 		}
@@ -115,6 +117,8 @@ function compareLines(expected: string[], got: string[]): string | null {
 
 /** Global functions in the web world's client role (for the "missing brackets" hint). */
 const CLIENT_FUNCTIONS = ['get', 'post', 'put', 'del', 'show', 'log'];
+/** …and in the server role (`if (hashMatches) {` is always true) */
+const SERVER_FUNCTIONS = ['log', 'hash', 'hashMatches', 'escape'];
 
 // ---------------------------------------------------------------------------------------------
 // Web world helpers
@@ -285,7 +289,9 @@ function screenText(web: WebResult): string[] {
 			? item.text
 			: item.kind === 'error'
 				? `${item.status} ${item.text}`
-				: (JSON.stringify(item.value) ?? String(item.value))
+				: item.kind === 'html'
+					? item.raw
+					: (JSON.stringify(item.value) ?? String(item.value))
 	);
 }
 
@@ -489,6 +495,28 @@ function webCheckFails(
 			}
 			return msg(`The log should include ${tick(check.text)}, but it doesn't yet.`);
 		}
+		case 'screen-no-script': {
+			const scripted = web.screen.find((item) => item.kind === 'html' && item.scripted);
+			if (!scripted) return null;
+			return msg(
+				`A script ran on the reader's phone: the screen got text with a ${tick('<script>')} tag in it, and the phone ran it instead of showing it. Escape text before it goes out, like ${tick('escape(comment.text)')}, so ${tick('<')} becomes ${tick('&lt;')} and the tag is shown as plain text.`
+			);
+		}
+		case 'response-no-script': {
+			const r = responseFor(check.request);
+			if (typeof r !== 'object' || !('status' in r)) return r as ThemedText;
+			const text = typeof r.body === 'string' ? r.body : (JSON.stringify(r.body) ?? '');
+			if (!/<script/i.test(text)) return null;
+			return msg(
+				`The answer to ${reqName(r)} still has a raw ${tick('<script')} tag in it, so a phone that shows it would run it. Escape the text with ${tick('escape(…)')} before sending it.`
+			);
+		}
+		case 'log-excludes': {
+			if (!logLines(result.trace).some((l) => l.includes(check.text))) return null;
+			return msg(
+				`The server log contains ${tick(check.text)}. Secrets and passwords must never be logged.`
+			);
+		}
 		case 'queries-parameterized': {
 			const sql = gluedQuery(result.trace);
 			if (!sql) return null;
@@ -619,6 +647,18 @@ export function checkFails(
 			return draws.some((d) => d.op === 'background')
 				? null
 				: msg(`Give the canvas a background colour with ${tick('background("…")')}.`);
+		// ---- net world (networks + cloud): rules and messages live in worlds/net.ts ----
+		case 'net-reachable':
+		case 'net-unreachable':
+		case 'net-resolves':
+		case 'net-node':
+		case 'net-allows':
+		case 'cloud-replicas':
+		case 'cloud-route':
+		case 'cloud-success-rate':
+		case 'net-call-result':
+			return netCheckFails(check, result.net, msg);
+		// ---- end net world ----
 		default:
 			return webCheckFails(check, result, msg, dbRowsIndex);
 	}
@@ -644,7 +684,11 @@ export function evaluate(lesson: CodeLesson, result: RunResult, code: string): E
 				? bareCommands(code, world.kind)
 				: world.role === 'sql' || lesson.language === 'sql'
 					? []
-					: bareCommands(code, 'web', world.role === 'client' ? CLIENT_FUNCTIONS : ['log']);
+					: bareCommands(
+							code,
+							'web',
+							world.role === 'client' ? CLIENT_FUNCTIONS : SERVER_FUNCTIONS
+						);
 		failures.unshift(
 			...bare.map(
 				(n) =>

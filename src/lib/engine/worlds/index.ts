@@ -4,6 +4,7 @@ import { SpecError, type World } from '../core.ts';
 import { createCanvasWorld } from './canvas.ts';
 import { createConsoleWorld } from './console.ts';
 import { createGridWorld } from './grid.ts';
+import { createNetWorld } from './net.ts';
 import { createWebWorld } from './web.ts';
 
 /** What some worlds need besides the spec (the web world needs a loaded sql.js). */
@@ -28,6 +29,8 @@ export function createWorld(spec: WorldSpec, deps: WorldDeps = {}): World {
 		case 'web':
 			if (!deps.SQL) throw new SqlNotLoaded();
 			return createWebWorld(spec, { SQL: deps.SQL, verifySql: deps.verifySql });
+		case 'net':
+			return createNetWorld(spec);
 		default:
 			throw new SpecError(
 				`unknown world kind ${JSON.stringify((spec as { kind?: unknown })?.kind)}`

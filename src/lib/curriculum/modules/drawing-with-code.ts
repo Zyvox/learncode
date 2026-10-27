@@ -302,6 +302,9 @@ flower(230, 100);
 					'{Friend} wants a postcard from the moon base: a dark sky, a planet, and a tall base with rows of glowing windows.'
 			},
 			task: 'Make it your own, but include: a background, at least 3 colours, a circle, and at least 12 rectangles. Draw the windows with loops: you can write `rect()` at most 3 times.',
+			outro: {
+				text: 'The lights come on, window by window. {Friend} asks for a copy to hang up in {place}, and gives you {reward} for it.'
+			},
 			hints: [
 				'Start with the easy parts: `background()`, a moon `circle()`, and one big `rect()` for the building.',
 				'For the windows, put a loop for the columns inside a loop for the rows. Keep `x` and `y` in variables, like the row of circles. Set `x` back to the left at the start of every row, or the windows wander off to the right.',

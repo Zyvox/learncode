@@ -1,14 +1,14 @@
 import type { Module, SimRequest, WebWorldSpec } from '#lib/curriculum/types.ts';
-import { INKWELL_SCHEMA } from '#lib/curriculum/inkwell.ts';
+import { INKWELL_AT } from '#lib/curriculum/inkwell.ts';
 
 const M = 'who-are-you';
 
-/** Everything, plus a session for Ravi so two people can be logged in at once. */
-const TWO_SESSIONS =
-	INKWELL_SCHEMA + "\nINSERT INTO sessions (token, user_id) VALUES ('tok_ravi_456', 2);\n";
-
+/**
+ * Inkwell is live: last week's comments and likes, Mina and Ravi as the first two accounts,
+ * and a session each (Mina's tok_mina_123, Ravi's phone tok_ravi_456).
+ */
 function world(requests: SimRequest[], extra: Partial<WebWorldSpec> = {}): WebWorldSpec {
-	return { kind: 'web', role: 'server', schema: INKWELL_SCHEMA, requests, ...extra };
+	return { kind: 'web', role: 'server', schema: INKWELL_AT('live'), requests, ...extra };
 }
 
 const MINA = { token: 'tok_mina_123' };
@@ -41,13 +41,14 @@ function currentUser(req) {
 }
 `;
 
-/** Used by the boss so logging out can be checked with a request. */
-const ME_ROUTE = `
-app.get('/me', (req, res) => {
-  const token = req.headers.token || '';
-  const user = db.get('SELECT users.name FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token = ?', [token]);
-  if (!user) return res.status(401).json({ error: 'Who are you? Please log in.' });
-  res.json(user);
+/** The profile route from level 3. */
+const ME = `app.get('/me', (req, res) => {
+  const user = currentUser(req);
+  if (!user) {
+    res.status(401).json({ error: 'Who are you? Please log in.' });
+  } else {
+    res.json({ name: user.name });
+  }
 });
 `;
 
@@ -68,7 +69,7 @@ export const whoAreYou: Module = {
 			title: 'Even you can’t read it',
 			xp: 15,
 			story:
-				'Inkwell is getting accounts, so comments can have real names that nobody else can borrow. The database now has a `users` table, and Theo’s cousin left a debugging endpoint in that lists it.',
+				'Inkwell has been live for a week, and now it’s getting accounts, so comments can have real names that nobody else can borrow. Mina and Ravi are the first two testers in the new `users` table, and Theo’s cousin left a debugging endpoint in that lists it.',
 			task: 'Read the endpoint and decide what Mina’s row looks like.',
 			concept: {
 				title: 'The server never keeps your password',
@@ -126,7 +127,7 @@ export const whoAreYou: Module = {
 			title: 'Logging in',
 			xp: 25,
 			story:
-				'Ravi wants to log in so his comments can carry his name. One person on the internet thinks Ravi’s password is hunter2. Someone else tries an account that doesn’t exist.',
+				'Ravi is already logged in on his phone (that’s the `tok_ravi_456` row in `sessions`). Now he wants his new tablet logged in too. Meanwhile one person on the internet thinks Ravi’s password is hunter2, and someone else tries an account that doesn’t exist.',
 			task: "Write `POST /login`. The body is `{ name, password }`.\n\n1. Get the user: `db.get('SELECT * FROM users WHERE name = ?', [req.body.name])`.\n2. If `checkPassword(user, req.body.password)` is false, answer `401` with `{ error: 'Wrong name or password' }`.\n3. Otherwise make a token with `makeToken(user)`, save it with `db.run('INSERT INTO sessions (token, user_id) VALUES (?, ?)', [token, user.id])`, and answer `{ token: token }`.\n\n`checkPassword` and `makeToken` are already written at the top.",
 			concept: {
 				title: 'A session token is a ticket',
@@ -164,7 +165,7 @@ export const whoAreYou: Module = {
 					method: 'POST',
 					path: '/login',
 					body: { name: 'ravi', password: 'inkwell-ravi' },
-					label: 'Ravi logs in'
+					label: 'Ravi logs in on his tablet'
 				},
 				{
 					method: 'POST',
@@ -221,9 +222,9 @@ app.post('/login', (req, res) => {
 				{
 					type: 'db-rows',
 					sql: 'SELECT user_id FROM sessions ORDER BY user_id',
-					expected: [{ user_id: 1 }, { user_id: 2 }],
+					expected: [{ user_id: 1 }, { user_id: 2 }, { user_id: 2 }],
 					message:
-						'After this, `sessions` should have Mina’s old ticket and exactly one new one for Ravi (user 2). Only save a token when the password is right.'
+						'After this, `sessions` should have Mina’s ticket, Ravi’s phone ticket, and exactly one new one for Ravi’s tablet (user 2). Only save a token when the password is right.'
 				},
 				{
 					type: 'queries-parameterized',
@@ -238,8 +239,8 @@ app.post('/login', (req, res) => {
 			title: 'Who is asking?',
 			xp: 25,
 			story:
-				'Mina’s phone sends her token with every request now. The profile screen asks `GET /me`, and the server has to work out who that is. Also knocking: a phone with no token at all, and someone who made one up.',
-			task: 'Finish `currentUser(req)`. Read the token from `req.headers.token`. No token: `return undefined`. Otherwise give back the user from `sessions JOIN users` where `sessions.token = ?`. The `/me` route is already written and answers 401 when you give back nothing.',
+				'Mina’s phone sends her token with every request now. The profile screen asks `GET /me`, and the server has to work out who that is. Also knocking: a phone with no token at all, and someone who made one up. And Ravi, who lent his phone to his little brother, wants to log out of it.',
+			task: '1. Finish `currentUser(req)`. Read the token from `req.headers.token`. No token: `return undefined`. Otherwise give back the user from `sessions JOIN users` where `sessions.token = ?`. The `/me` route is already written and answers 401 when you give back nothing.\n2. Fill in `DELETE /session` (log out): delete the row from `sessions` whose token is `req.headers.token`, then answer `204` with `res.status(204).end()`.',
 			concept: {
 				title: 'Headers: writing on the envelope',
 				panels: [
@@ -259,14 +260,20 @@ app.post('/login', (req, res) => {
 						who: 'narrator',
 						text: 'The server looks the token up in `sessions`, and if it’s there, it knows who’s asking. Missing or made up means 401: “who are you?”',
 						scene: 'database'
+					},
+					{
+						who: 'bit',
+						text: 'And logging out? The server just tears up the ticket: it deletes that row from `sessions`. Next time I show up with it, nobody knows me.',
+						scene: 'database',
+						code: "DELETE FROM sessions WHERE token = ?"
 					}
 				]
 			},
 			newCommands: ['req.headers'],
 			hints: [
 				'First line: `const token = req.headers.token;` Then `if (!token) return undefined;`.',
-				"Then `return db.get('SELECT users.id, users.name FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token = ?', [token]);`. A made-up token finds no row, so `db.get` gives back `undefined` all by itself.",
-				"The finished helper:\n```js\nfunction currentUser(req) {\n  const token = req.headers.token;\n  if (!token) return undefined;\n  return db.get(\n    'SELECT users.id, users.name FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token = ?',\n    [token]\n  );\n}\n```"
+				"Then `return db.get('SELECT users.id, users.name FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token = ?', [token]);`. A made-up token finds no row, so `db.get` gives back `undefined` all by itself. Logging out is one `db.run('DELETE FROM sessions WHERE token = ?', [req.headers.token])` and a 204.",
+				"The finished helper and the log-out route:\n```js\nfunction currentUser(req) {\n  const token = req.headers.token;\n  if (!token) return undefined;\n  return db.get(\n    'SELECT users.id, users.name FROM sessions JOIN users ON users.id = sessions.user_id WHERE sessions.token = ?',\n    [token]\n  );\n}\n\napp.delete('/session', (req, res) => {\n  db.run('DELETE FROM sessions WHERE token = ?', [req.headers.token]);\n  res.status(204).end();\n});\n```"
 			],
 			world: world([
 				{ method: 'GET', path: '/me', headers: MINA, label: 'Mina opens her profile' },
@@ -276,6 +283,13 @@ app.post('/login', (req, res) => {
 					path: '/me',
 					headers: { token: 'tok_made_up' },
 					label: 'someone tries a made-up token'
+				},
+				{ method: 'DELETE', path: '/session', headers: RAVI, label: 'Ravi logs out on his phone' },
+				{
+					method: 'GET',
+					path: '/me',
+					headers: RAVI,
+					label: 'the phone’s old token tries to open the profile'
 				}
 			]),
 			starterCode: `// Who is asking? Give back the user ({ id, name }) or undefined.
@@ -285,23 +299,16 @@ function currentUser(req) {
   // 3. Look it up: sessions JOIN users, WHERE sessions.token = ?
 }
 
-app.get('/me', (req, res) => {
-  const user = currentUser(req);
-  if (!user) {
-    res.status(401).json({ error: 'Who are you? Please log in.' });
-  } else {
-    res.json({ name: user.name });
-  }
+${ME}
+app.delete('/session', (req, res) => {
+  // Log out: delete the row in sessions whose token is req.headers.token, then answer 204
 });
 `,
 			solution: `${CURRENT_USER}
-app.get('/me', (req, res) => {
-  const user = currentUser(req);
-  if (!user) {
-    res.status(401).json({ error: 'Who are you? Please log in.' });
-  } else {
-    res.json({ name: user.name });
-  }
+${ME}
+app.delete('/session', (req, res) => {
+  db.run('DELETE FROM sessions WHERE token = ?', [req.headers.token]);
+  res.status(204).end();
 });
 `,
 			checks: [
@@ -325,6 +332,25 @@ app.get('/me', (req, res) => {
 					request: 2,
 					status: 401,
 					message: 'A made-up token isn’t in `sessions`, so nobody is found and the answer is 401.'
+				},
+				{
+					type: 'response-status',
+					request: 3,
+					status: 204,
+					message: 'Logging out should answer 204: `res.status(204).end()`.'
+				},
+				{
+					type: 'response-status',
+					request: 4,
+					status: 401,
+					message:
+						'After logging out, Ravi’s phone token shouldn’t work any more. Delete its row from `sessions` in `DELETE /session`.'
+				},
+				{
+					type: 'db-rows',
+					sql: 'SELECT token FROM sessions',
+					expected: [{ token: 'tok_mina_123' }],
+					message: 'After Ravi logs out, only Mina’s session should be left in `sessions`.'
 				},
 				{
 					type: 'code-includes',

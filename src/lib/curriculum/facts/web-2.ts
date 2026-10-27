@@ -25,9 +25,9 @@ export const FACTS: PredictFacts = {
 		pick: (r) => r.web?.sqlResult?.rows.map((row) => row.id),
 		equals: [6, 7]
 	},
-	// one row per comment; episodes without comments drop out
+	// one row per comment (6 from the 'published' stage on); episodes without comments drop out
 	'connecting-tables/03-predict-join-rows': {
 		pick: (r) => r.web?.sqlResult?.rows.length,
-		equals: 5
+		equals: 6
 	}
 };

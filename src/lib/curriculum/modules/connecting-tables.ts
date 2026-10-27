@@ -1,5 +1,8 @@
 import type { Module } from '#lib/curriculum/types.ts';
-import { sqlWorld } from '#lib/curriculum/inkwell.ts';
+import { INKWELL_AT, sqlWorld } from '#lib/curriculum/inkwell.ts';
+
+/** From this module on, episode 4 is out (module 7 boss) with Mina's comment under it. */
+const world = () => sqlWorld({ schema: INKWELL_AT('published') });
 
 const M = 'connecting-tables';
 
@@ -21,7 +24,7 @@ export const connectingTables: Module = {
 			xp: 20,
 			language: 'sql',
 			story:
-				'The “Latest episodes” screen shows episode titles, but readers want to know which series each one belongs to. The `episodes` table only has a `series_id`. The series titles are in another table.',
+				'The night market went out last week, and readers who find it on the “Latest episodes” screen keep asking which series it belongs to. Fair question: the screen only shows episode titles. The `episodes` table only has a `series_id`. The series titles are in another table.',
 			task: 'List every episode’s title next to its series title. Name the columns `title` and `series`: `SELECT episodes.title, series.title AS series …`',
 			concept: {
 				title: 'A pointer, not a copy',
@@ -60,7 +63,7 @@ export const connectingTables: Module = {
 				'Then add `JOIN series ON series.id = episodes.series_id` before the `;`.',
 				'```sql\nSELECT episodes.title, series.title AS series\nFROM episodes\nJOIN series ON series.id = episodes.series_id;\n```'
 			],
-			world: sqlWorld(),
+			world: world(),
 			starterCode: `SELECT title, series_id FROM episodes;
 `,
 			solution: `SELECT episodes.title, series.title AS series
@@ -81,7 +84,7 @@ JOIN series ON series.id = episodes.series_id;
 						{ title: 'The first parcel', series: 'Moonlit Deliveries' },
 						{ title: 'Rain on Pine Street', series: 'Moonlit Deliveries' },
 						{ title: 'The locked gate', series: 'Moonlit Deliveries' },
-						{ title: 'Sketches', series: 'Moonlit Deliveries' },
+						{ title: 'The night market', series: 'Moonlit Deliveries' },
 						{ title: 'A seed in the gears', series: 'Grove & Gear' },
 						{ title: 'The clockwork fox', series: 'Grove & Gear' },
 						{ title: 'Opening night', series: 'Night Shift Noodles' },
@@ -125,7 +128,7 @@ JOIN series ON series.id = episodes.series_id;
 				"Add `WHERE series.author = 'Mina'` at the end. Text goes in single quotes, with a capital M.",
 				"```sql\nSELECT episodes.title, episodes.likes\nFROM episodes\nJOIN series ON series.id = episodes.series_id\nWHERE series.author = 'Mina';\n```"
 			],
-			world: sqlWorld(),
+			world: world(),
 			starterCode: `SELECT episodes.title, episodes.likes
 FROM episodes
 JOIN series ON series.id = episodes.series_id;
@@ -148,7 +151,7 @@ WHERE series.author = 'Mina';
 						{ title: 'The first parcel', likes: 120 },
 						{ title: 'Rain on Pine Street', likes: 98 },
 						{ title: 'The locked gate', likes: 143 },
-						{ title: 'Sketches', likes: 0 },
+						{ title: 'The night market', likes: 0 },
 						{ title: 'Opening night', likes: 210 },
 						{ title: 'Extra spicy', likes: 188 }
 					],
@@ -165,19 +168,19 @@ WHERE series.author = 'Mina';
 			xp: 15,
 			language: 'sql',
 			story:
-				'The moderators want a page with every comment and the episode it’s on. There are 5 comments and 8 episodes in the database.',
+				'The moderators want a page with every comment and the episode it’s on. There are 6 comments in the database now (Mina’s note under The night market is still there from publish day) and 8 episodes.',
 			task: 'Read the query and decide how many rows it gives back.',
 			code: `SELECT comments.author, comments.text, episodes.title
 FROM comments
 JOIN episodes ON episodes.id = comments.episode_id;
 `,
-			world: sqlWorld(),
+			world: world(),
 			question: 'How many rows come back?',
 			choices: [
-				'5: one for each comment',
+				'6: one for each comment',
 				'8: one for each episode',
-				'13: all the comments plus all the episodes',
-				'40: every comment paired with every episode'
+				'14: all the comments plus all the episodes',
+				'48: every comment paired with every episode'
 			],
 			answer: 0,
 			hints: [
@@ -185,7 +188,7 @@ JOIN episodes ON episodes.id = comments.episode_id;
 				'What happens to an episode nobody has commented on? Is there a comment to put next to it?'
 			],
 			explanation:
-				'5. Each comment points at exactly one episode, so each comment becomes one row with its episode’s title next to it. Episode 1 shows up twice, because it has two comments. Episodes with no comments, like The clockwork fox, don’t show up at all: there’s nothing to pair them with. A `JOIN` only keeps rows that found a partner.'
+				'6. Each comment points at exactly one episode, so each comment becomes one row with its episode’s title next to it. Episode 1 shows up twice, because it has two comments. Episodes with no comments, like The clockwork fox, don’t show up at all: there’s nothing to pair them with. A `JOIN` only keeps rows that found a partner.'
 		},
 		{
 			id: `${M}/04-group-by`,
@@ -225,7 +228,7 @@ JOIN episodes ON episodes.id = comments.episode_id;
 				'Add `GROUP BY series_id` at the end, before the `;`.',
 				'`SELECT series_id, COUNT(*) AS episode_count FROM episodes GROUP BY series_id;`'
 			],
-			world: sqlWorld(),
+			world: world(),
 			starterCode: `SELECT COUNT(*) AS episode_count FROM episodes;
 `,
 			solution: `SELECT series_id, COUNT(*) AS episode_count
@@ -259,14 +262,14 @@ GROUP BY series_id;
 			xp: 20,
 			language: 'sql',
 			story:
-				'The new “Most discussed” list says Sketches has a comment, and Sketches isn’t even published. Somebody’s `JOIN` is matching the wrong things. Press **Run** and compare with the `comments` table.',
-			task: 'Fix the query so it counts each episode’s real comments. The first parcel should have 2, The locked gate 1 and Opening night 2.',
+				'The new “Most discussed” list says The clockwork fox has a comment. Nobody has ever commented on The clockwork fox. Somebody’s `JOIN` is matching the wrong things. Press **Run** and compare with the `comments` table.',
+			task: 'Fix the query so it counts each episode’s real comments. The first parcel should have 2, The locked gate 1, The night market 1 and Opening night 2.',
 			hints: [
 				'Look at the `ON` part. Which column in `comments` says which episode a comment belongs to?',
 				'`comments.id` is the comment’s own number. The pointer to the episode is `comments.episode_id`.',
 				'Change the `ON` line to `JOIN episodes ON episodes.id = comments.episode_id`.'
 			],
-			world: sqlWorld(),
+			world: world(),
 			starterCode: `SELECT episodes.title, COUNT(*) AS comment_count
 FROM comments
 JOIN episodes ON episodes.id = comments.id
@@ -284,10 +287,11 @@ GROUP BY episodes.id;
 					expected: [
 						{ title: 'The first parcel', comment_count: 2 },
 						{ title: 'The locked gate', comment_count: 1 },
+						{ title: 'The night market', comment_count: 1 },
 						{ title: 'Opening night', comment_count: 2 }
 					],
 					message:
-						'Only three episodes have comments: The first parcel (2), The locked gate (1) and Opening night (2). Match each comment to its episode with `comments.episode_id`.'
+						'Only four episodes have comments: The first parcel (2), The locked gate (1), The night market (1) and Opening night (2). Match each comment to its episode with `comments.episode_id`.'
 				}
 			]
 		},
@@ -301,13 +305,31 @@ GROUP BY episodes.id;
 			language: 'sql',
 			story:
 				'End of season. Theo needs one small table for the investors: each series by name, how many episodes it has published, and how many likes they got in total, most liked series first. He’d like it before his coffee gets cold. This is the kind of report that usually means waiting on someone else, and this time the someone is you.',
+			outro: {
+				panels: [
+					{
+						who: 'theo',
+						scene: 'database',
+						text: 'The coffee is still warm. Theo reads the table twice, then copies it into his slides without changing a thing.'
+					},
+					{
+						who: 'mina',
+						text: 'Four episodes for Moonlit now, The night market counted with the rest. Grove & Gear needs some love, and Jun is going to hear about it.'
+					},
+					{
+						who: 'bit',
+						scene: 'database',
+						text: 'Three tables’ worth of answers, one trip. I didn’t even break a sweat.'
+					}
+				]
+			},
 			task: 'One row per series with three columns: `series` (the series title), `published_episodes` (how many published episodes) and `total_likes` (their likes added up), sorted by `total_likes`, biggest first.\nNew helper: `SUM(column)` adds up a column the way `COUNT(*)` counts rows.',
 			hints: [
-				'Build it in steps and press **Run** after each: first the `JOIN` from level 1, then `WHERE episodes.published = 1`, then `GROUP BY series.id`, then the sort.',
+				'Build it in steps and press **Run** after each: first the `JOIN` from level 1, then `WHERE episodes.published = 1` (everything is published today, but next season’s sketches will be back in the table), then `GROUP BY series.id`, then the sort.',
 				'The columns are `series.title AS series, COUNT(*) AS published_episodes, SUM(episodes.likes) AS total_likes`. The order of the parts is `SELECT … FROM … JOIN … WHERE … GROUP BY … ORDER BY …`.',
 				'```sql\nSELECT series.title AS series, COUNT(*) AS published_episodes, SUM(episodes.likes) AS total_likes\nFROM episodes\nJOIN series ON series.id = episodes.series_id\nWHERE episodes.published = 1\nGROUP BY series.id\nORDER BY total_likes DESC;\n```'
 			],
-			world: sqlWorld(),
+			world: world(),
 			starterCode: `-- Season report: series, published_episodes, total_likes
 -- One row per series, most liked first.
 `,
@@ -336,11 +358,11 @@ ORDER BY total_likes DESC;
 					type: 'sql-result',
 					expected: [
 						{ series: 'Night Shift Noodles', published_episodes: 2, total_likes: 398 },
-						{ series: 'Moonlit Deliveries', published_episodes: 3, total_likes: 361 },
+						{ series: 'Moonlit Deliveries', published_episodes: 4, total_likes: 361 },
 						{ series: 'Grove & Gear', published_episodes: 2, total_likes: 138 }
 					],
 					message:
-						'Close. Check two things: Moonlit Deliveries has 3 published episodes (Sketches isn’t one, so use `WHERE episodes.published = 1`), and the most liked series comes first (`ORDER BY total_likes DESC`).'
+						'Close. Check two things: one row per series, with Moonlit Deliveries at 4 published episodes now that The night market is out, and the most liked series first (`ORDER BY total_likes DESC`).'
 				}
 			]
 		}

@@ -1,7 +1,17 @@
 import type { Module } from '#lib/curriculum/types.ts';
-import { clientWorld } from '#lib/curriculum/inkwell.ts';
+import { INKWELL_AT, INKWELL_SERVER, clientWorld } from '#lib/curriculum/inkwell.ts';
 
 const M = 'the-reader-app';
+
+/** From here on Inkwell is live: last week's comments and likes are in the database. */
+const LIVE = INKWELL_AT('live');
+
+/** Tonight's update: the comments endpoint reads a table that doesn't exist. Registered first, so it wins. */
+const BROKEN_COMMENTS = `
+app.get('/episodes/:id/comments', (req, res) => {
+  res.json(db.all('SELECT id, author, text FROM comment WHERE episode_id = ? ORDER BY id', [req.params.id]));
+});
+`;
 
 export const theReaderApp: Module = {
 	id: M,
@@ -53,7 +63,7 @@ export const theReaderApp: Module = {
 				"Build the path by joining text and the id: `get('/episodes/' + episodes[0].id)`. Keep what it gives back in a variable and show its `.body`.",
 				"Add these two lines at the end:\n```js\nconst first = get('/episodes/' + episodes[0].id);\nshow(first.body);\n```"
 			],
-			world: clientWorld(),
+			world: clientWorld({ schema: LIVE }),
 			starterCode: `// A reader opens Moonlit Deliveries
 const res = get('/series/1/episodes');
 const episodes = res.body;
@@ -92,53 +102,92 @@ show(first.body);
 			]
 		},
 		{
-			id: `${M}/02-not-found`,
-			slug: '02-not-found',
+			id: `${M}/02-half-a-screen`,
+			slug: '02-half-a-screen',
 			kind: 'fix',
-			title: 'The word “undefined”',
+			title: 'Half a screen beats none',
 			xp: 20,
 			story:
-				'Mina tapped an early link to episode 4, the one she’s still drawing, and the phone proudly shows the word **undefined**. You fixed this once on the Coming soon level, and here it is again on the real screen. “That’s not a word I want readers to see,” says Mina, fairly.',
-			task: "Run it and look at the phone. Then make the second episode check `b.ok` first: if it isn’t OK, `show('Episode not found')`, otherwise show the title as before.",
+				'Tonight’s server update broke the comments endpoint, and the server team is on it. Meanwhile, every episode page on the phone says **undefined comments** under a box of error text. Mina, reading Opening night on the bus: “The episode is fine. Why is the whole page panicking?”',
+			task: 'Run it and look at the status of the comments trip. Then change the comments part: when the status is `500` or more, show `Comments are taking a break. Try again in a minute.` instead. The episode title stays on the screen.',
+			concept: {
+				title: 'Which failures are worth waiting out',
+				panels: [
+					{
+						who: 'bit',
+						scene: 'server',
+						text: 'The episode trip came back fine. The comments trip came back with a `500`: I reached the server, and it tripped over its own feet.'
+					},
+					{
+						who: 'mina',
+						scene: 'phone',
+						text: 'So the episode is there, and only the comments are broken. Show me the episode, then.'
+					},
+					{
+						who: 'you',
+						text: 'And tell readers something true. A `404` won’t change however long they wait. A `500` often goes away once the server team has had their coffee.',
+						code: 'if (comments.status >= 500) {\n  // our side broke: try again later\n}'
+					},
+					{
+						who: 'narrator',
+						text: 'One broken endpoint shouldn’t take down the whole screen. Show what worked, and explain what didn’t.'
+					}
+				]
+			},
 			hints: [
-				'Episode 4 isn’t published, so the server answers 404 with `{ error: … }`. That body has no `title`, so `b.body.title` is `undefined`.',
-				'`b.ok` is `true` for answers in the 200s. Wrap the last `show` in `if (!b.ok) { … } else { … }`.',
-				"The end of your code:\n```js\nconst b = get('/episodes/4');\nif (!b.ok) {\n  show('Episode not found');\n} else {\n  show(b.body.title);\n}\n```"
+				'The comments answer has the status `500`. The code only expects a `404`, so the `500` falls through to the `else` and the error body gets shown as if it were comments.',
+				'Add a new first branch: `if (comments.status >= 500) { show(…) } else if (comments.status === 404) { … } else { … }`.',
+				"The comments part:\n```js\nconst comments = get('/episodes/7/comments');\nif (comments.status >= 500) {\n  show('Comments are taking a break. Try again in a minute.');\n} else if (comments.status === 404) {\n  show('No comments here');\n} else {\n  show(comments.body.length + ' comments');\n  show(comments.body);\n}\n```"
 			],
-			world: clientWorld(),
-			starterCode: `const a = get('/episodes/3');
-show(a.body.title);
+			world: clientWorld({ schema: LIVE, serverCode: BROKEN_COMMENTS + INKWELL_SERVER }),
+			starterCode: `const ep = get('/episodes/7');
+show(ep.body.title);
 
-const b = get('/episodes/4');
-show(b.body.title);
-`,
-			solution: `const a = get('/episodes/3');
-show(a.body.title);
-
-const b = get('/episodes/4');
-if (!b.ok) {
-  show('Episode not found');
+const comments = get('/episodes/7/comments');
+if (comments.status === 404) {
+  show('No comments here');
 } else {
-  show(b.body.title);
+  show(comments.body.length + ' comments');
+  show(comments.body);
+}
+`,
+			solution: `const ep = get('/episodes/7');
+show(ep.body.title);
+
+const comments = get('/episodes/7/comments');
+if (comments.status >= 500) {
+  show('Comments are taking a break. Try again in a minute.');
+} else if (comments.status === 404) {
+  show('No comments here');
+} else {
+  show(comments.body.length + ' comments');
+  show(comments.body);
 }
 `,
 			checks: [
 				{
-					type: 'screen-includes',
-					text: 'The locked gate',
-					message: 'Episode 3 should still show its title, The locked gate.'
+					type: 'response-status',
+					request: 1,
+					status: 500,
+					message: "Keep asking for the comments: `get('/episodes/7/comments')`."
 				},
 				{
 					type: 'screen-includes',
-					text: 'Episode not found',
+					text: 'Opening night',
 					message:
-						'When the answer for episode 4 isn’t OK, show `Episode not found` instead of the title.'
+						'Keep the episode title on the screen. The episode trip worked, so the reader should still see it.'
+				},
+				{
+					type: 'screen-includes',
+					text: 'Comments are taking a break. Try again in a minute.',
+					message:
+						'When the comments answer is a `500` or more, show `Comments are taking a break. Try again in a minute.`'
 				},
 				{
 					type: 'code-includes',
-					pattern: '\\.ok\\b',
+					pattern: 'status\\s*>=?\\s*(500|499)|\\.ok\\b',
 					message:
-						'Decide using the answer itself: check `b.ok` before reading `b.body.title`. Then any missing episode gets the friendly message, not just this one.'
+						'Decide from the answer itself: check `comments.status >= 500` (or `comments.ok`) before showing the list.'
 				}
 			]
 		},
@@ -156,7 +205,7 @@ if (!b.ok) {
 				'Order matters: send first, fetch the list afterwards. Otherwise the list you show was made before the comment existed.',
 				"The whole thing:\n```js\nconst comment = { author: 'mina', text: 'Thank you for reading!' };\npost('/episodes/3/comments', comment);\nconst list = get('/episodes/3/comments');\nshow(list.body);\n```"
 			],
-			world: clientWorld(),
+			world: clientWorld({ schema: LIVE }),
 			starterCode: `// Mina wants to leave a thank-you under episode 3
 const comment = { author: 'mina', text: 'Thank you for reading!' };
 
@@ -204,7 +253,7 @@ show(list.body);
 post('/episodes/7/comments', { author: 'ravi', text: 'Spicy indeed' });
 show(before.body.length);
 `,
-			world: clientWorld(),
+			world: clientWorld({ schema: LIVE }),
 			question: 'Episode 7 starts with 2 comments. What does the phone show?',
 			choices: ['2', '3', '0', 'An error, because the list changed'],
 			answer: 0,
@@ -261,7 +310,7 @@ show(before.body.length);
 				"For the comments do the same with `'/episodes/7/comments'` and `show` the whole list.",
 				"The whole translation:\n```js\nconst res = get('/episodes/7');\nconst episode = res.json();\nshow(episode.title);\n\nconst res2 = get('/episodes/7/comments');\nconst comments = res2.json();\nshow(comments);\n```"
 			],
-			world: clientWorld(),
+			world: clientWorld({ schema: LIVE }),
 			starterCode: `// From the real Inkwell phone app:
 //
 //   const res = await fetch('/episodes/7');
@@ -312,14 +361,32 @@ show(comments);
 			xp: 45,
 			boss: true,
 			story:
-				'Mina is testing the episode screen on episodes 3 (one comment), 4 (unpublished, so a 404) and 8 (no comments yet). Right now it shows **undefined**, asks for comments on an episode that doesn’t exist, and shows an empty pair of brackets where a friendly line should be. Fix it and the reader app has a screen that copes with real life.',
+				'Mina is testing the episode screen on three cases: The night market (episode 4, where her note from publish day and Ravi’s comment are both still waiting), an old link to episode 99 that never existed, and The clockwork fox (episode 6, no comments yet). Right now it shows **undefined**, asks for comments on an episode that doesn’t exist, and shows an empty pair of brackets where a friendly line should be.',
 			task: 'Fix `openEpisode(id)`:\n\n1. If the episode answer isn’t OK, show `Episode not found` and don’t fetch its comments.\n2. Otherwise show the title, fetch the comments, and show `No comments yet` when the list is empty (`length === 0`), or the list when it isn’t.',
+			outro: {
+				panels: [
+					{
+						who: 'mina',
+						scene: 'phone',
+						text: 'Night market: my note, then Ravi’s. Episode 99: a polite “not found”. The fox: “No comments yet”, which is honestly a challenge to readers.'
+					},
+					{
+						who: 'theo',
+						text: 'I tried to break it on purpose for ten minutes. It just kept saying sensible things. Is that normal?'
+					},
+					{
+						who: 'bit',
+						scene: 'wire',
+						text: 'Fewer pointless trips, too. I didn’t go looking for comments on an episode that doesn’t exist. My legs thank you.'
+					}
+				]
+			},
 			hints: [
 				'Put an `if (!res.ok) { … } else { … }` around everything after the first `get`. The comments trip goes inside the `else` part, so it only happens for real episodes.',
 				"Inside the else: after fetching the comments, `if (comments.body.length === 0) { show('No comments yet'); } else { show(comments.body); }`.",
 				"The whole function:\n```js\nfunction openEpisode(id) {\n  const res = get('/episodes/' + id);\n  if (!res.ok) {\n    show('Episode not found');\n  } else {\n    show(res.body.title);\n    const comments = get('/episodes/' + id + '/comments');\n    if (comments.body.length === 0) {\n      show('No comments yet');\n    } else {\n      show(comments.body);\n    }\n  }\n}\n```"
 			],
-			world: clientWorld(),
+			world: clientWorld({ schema: LIVE }),
 			starterCode: `function openEpisode(id) {
   const res = get('/episodes/' + id);
   show(res.body.title);
@@ -327,9 +394,9 @@ show(comments);
   show(comments.body);
 }
 
-openEpisode(3);
 openEpisode(4);
-openEpisode(8);
+openEpisode(99);
+openEpisode(6);
 `,
 			solution: `function openEpisode(id) {
   const res = get('/episodes/' + id);
@@ -346,36 +413,36 @@ openEpisode(8);
   }
 }
 
-openEpisode(3);
 openEpisode(4);
-openEpisode(8);
+openEpisode(99);
+openEpisode(6);
 `,
 			checks: [
 				{
 					type: 'screen-includes',
-					text: 'The locked gate',
-					message: 'Episode 3 should show its title, The locked gate.'
+					text: 'The night market',
+					message: 'Episode 4 should show its title, The night market.'
 				},
 				{
 					type: 'screen-includes',
-					text: 'Called it.',
-					message: 'Episode 3 has a comment from ravi. It should be on the screen.'
+					text: 'Worth the wait.',
+					message: 'The night market has two comments, Mina’s and Ravi’s. Show them on the screen.'
 				},
 				{
 					type: 'screen-includes',
 					text: 'Episode not found',
-					message: 'Episode 4 answers 404. Show `Episode not found` when `res.ok` is false.'
+					message: 'Episode 99 answers 404. Show `Episode not found` when `res.ok` is false.'
 				},
 				{
 					type: 'screen-includes',
-					text: 'Extra spicy',
-					message: 'Episode 8 should show its title, Extra spicy.'
+					text: 'The clockwork fox',
+					message: 'Episode 6 should show its title, The clockwork fox.'
 				},
 				{
 					type: 'screen-includes',
 					text: 'No comments yet',
 					message:
-						'Episode 8 has no comments. Show `No comments yet` when the list’s `length` is 0.'
+						'The clockwork fox has no comments. Show `No comments yet` when the list’s `length` is 0.'
 				},
 				{
 					type: 'max-queries',
