@@ -17,19 +17,23 @@ anything called `mov`. Did you mean `move()`?" instead of JavaScript errors.
 the real picture of what a server, an endpoint and a database are and how they connect. You play
 the new tech person at a webtoon studio, Inkwell, and build the backend of its reader app.
 
-- **Thirteen parts, 85 levels**: what happens when you tap → requests and responses → endpoints
+- **Seventeen parts, 115 levels**: what happens when you tap → requests and responses → endpoints
   → your first server → sending data in → where the data lives (SQL) → changing data → connecting
-  tables → server meets database → the reader app → logins → shipping it → launch day.
+  tables → server meets database → the reader app → logins → shipping it → launch day → networks
+  for IT → git and versions → security basics → cloud and containers.
 - **One picture, three boxes**: the phone, the server with its endpoints, and the database. A
   packet named Bit carries every request along the wires so you can watch the round trip, the
   queries and the response. The database is **real SQLite** (sql.js, WebAssembly) running in the
   browser, so the SQL you write is the SQL that runs.
-- **Three roles**: some levels you are the phone (`get('/series')`), some the server
-  (`app.get('/series/:id', (req, res) => …)`), some the database (plain SQL).
+- **Roles and worlds**: some levels you are the phone (`get('/series')`), some the server
+  (`app.get('/series/:id', (req, res) => …)`), some the database (plain SQL). Later parts add a
+  **network** picture (DNS, routes, ports, firewalls, then containers behind a load balancer) and
+  a **git** terminal (a simulated repository: commits, branches, merges, conflicts).
 - **Concepts as webtoon strips**: explanations are short vertical comic panels with a cast (Mina
   the artist, Theo who runs the studio, Bit the packet) instead of paragraphs.
-- Eight more modules are on the map as "coming soon": networks for IT, the command line, git,
-  security basics, reading logs, cloud and containers, APIs in the wild, automation scripts.
+- The story remembers: an episode you publish in part 7 is live from part 8 on, and every boss
+  level ends with a short epilogue strip. Four more modules are on the map as "coming soon": the
+  command line, reading logs, APIs in the wild, automation scripts.
 
 Both tracks: **play as a guest** first; sign up later and your progress comes with you. XP, level
 titles, streaks and badges on an account basis. One Node process, one SQLite file.
@@ -139,7 +143,8 @@ Conventions (including the SvelteKit 3 specifics) are in `CLAUDE.md`.
 3. That's it: the map, the cheat sheet, the badges and XP all follow from the data.
 
 The "Behind the app" simulation, its learner-facing API and the Inkwell data model are described
-in `docs/WEB_TRACK.md`.
+in `docs/WEB_TRACK.md`; the network, cloud and git worlds and the security extensions in
+`docs/INFRA.md`.
 
 New vibes go in `src/lib/curriculum/themes.ts`; every theme must define the same vocabulary keys.
 
