@@ -467,10 +467,11 @@ describe('lessons: structure', () => {
 			const seen = new Set<string>();
 			for (const lesson of getLessonsForTrack(track.id)) {
 				for (const cmd of lesson.newCommands ?? []) {
-					const name = bareName(cmd);
-					expect(ALL_API.has(name), `${lesson.id}: ${cmd}`).toBe(true);
-					expect(seen.has(name), `${lesson.id}: ${cmd} introduced twice`).toBe(false);
-					seen.add(name);
+					expect(ALL_API.has(bareName(cmd)), `${lesson.id}: ${cmd}`).toBe(true);
+					// web: `res.status` (client property) and `res.status(code)` (server method) differ
+					const key = track.id === 'web' ? cmd : bareName(cmd);
+					expect(seen.has(key), `${lesson.id}: ${cmd} introduced twice`).toBe(false);
+					seen.add(key);
 				}
 			}
 		}
