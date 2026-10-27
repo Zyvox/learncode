@@ -320,7 +320,7 @@ export type Check =
 			exists?: boolean;
 			message?: ThemedText;
 	  }
-	/** Nothing unstaged, nothing untracked */
+	/** What git calls clean: nothing staged, nothing modified, nothing untracked */
 	| { type: 'git-clean'; message?: ThemedText }
 	/** `branch` has been merged into `into` (its tip is an ancestor of `into`) */
 	| { type: 'git-merged'; branch: string; into: string; message?: ThemedText }

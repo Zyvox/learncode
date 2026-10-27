@@ -1,20 +1,10 @@
-import { test, expect, type Page } from '@playwright/test';
-import { typeAndRun } from './helpers';
+import { test, expect } from '@playwright/test';
+import { firstLessonHref, typeAndRun } from './helpers';
 
 /**
  * "Behind the app" track. Lesson ids come from docs/WEB_TRACK.md's module plan; the exact
  * lesson slugs are read from the map (locked levels carry `data-lesson-href`).
  */
-
-async function firstLessonHref(page: Page, moduleId: string): Promise<string> {
-	await page.goto('/learn?track=web');
-	const card = page.locator(`[data-module-id="${moduleId}"]`);
-	await expect(card).toBeVisible();
-	const node = card.locator('a[href^="/learn/"], [data-lesson-href]').first();
-	const href = (await node.getAttribute('href')) ?? (await node.getAttribute('data-lesson-href'));
-	expect(href).toBeTruthy();
-	return href!;
-}
 
 test('the landing page has a second way in that opens the first web level', async ({ page }) => {
 	await page.goto('/');
@@ -81,4 +71,21 @@ test('the map has two tracks and remembers the one you picked', async ({ page })
 	await expect(page.getByTestId('track-tab-web')).toHaveAttribute('aria-selected', 'true');
 	await page.getByTestId('track-tab-code').click();
 	await expect(page.locator('[data-module-id="first-steps"]')).toBeVisible();
+});
+
+test('the map follows ?track= in the URL while you are already on it', async ({ page }) => {
+	await page.goto('/learn?track=code');
+	await expect(page.getByTestId('track-tab-code')).toHaveAttribute('aria-selected', 'true');
+	// A link elsewhere on the page (header, landing card…) to the other track: client-side nav.
+	await page.evaluate(() => {
+		const a = document.createElement('a');
+		a.href = '/learn?track=web';
+		a.textContent = 'to the web track';
+		a.id = 'e2e-track-link';
+		document.body.appendChild(a);
+	});
+	await page.locator('#e2e-track-link').click();
+	await expect(page).toHaveURL(/track=web/);
+	await expect(page.getByTestId('track-tab-web')).toHaveAttribute('aria-selected', 'true');
+	await expect(page.locator('[data-module-id="what-happens-when-you-tap"]')).toBeVisible();
 });

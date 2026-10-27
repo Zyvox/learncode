@@ -3,6 +3,7 @@
  * is injected (`new Function` in the worker, `node:vm` in Node), so both produce the same
  * RunResult for the same code.
  */
+import { emptyGitResult } from './worlds/git.ts';
 import type { SqlJsStatic } from 'sql.js';
 import type { WorldSpec } from '#lib/curriculum/types.ts';
 import { RunTimeout, SpecError, isFriendlyEngineError, type World } from './core.ts';
@@ -50,7 +51,9 @@ export function emptyWebResult(): WebResult {
 }
 
 /** The world-specific empty parts of a result, built straight from the spec. */
-function emptyWorldParts(spec: WorldSpec): Pick<RunResult, 'grid' | 'draws' | 'web' | 'net'> {
+function emptyWorldParts(
+	spec: WorldSpec
+): Pick<RunResult, 'grid' | 'draws' | 'web' | 'net' | 'git'> {
 	if (spec?.kind === 'grid') {
 		try {
 			return { grid: gridStateFromSpec(spec) };
@@ -71,6 +74,7 @@ function emptyWorldParts(spec: WorldSpec): Pick<RunResult, 'grid' | 'draws' | 'w
 				traffic: { total: 0, ok: 0, failed: 0, byStatus: {} }
 			}
 		};
+	if (spec?.kind === 'git') return { git: emptyGitResult() };
 	return {};
 }
 
