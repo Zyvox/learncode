@@ -6,7 +6,7 @@
 import type { WorldSpec } from '#lib/curriculum/types.ts';
 import { failureResult, timeoutResult } from './run.ts';
 import type { WorkerRequest, WorkerResponse } from './sandbox.worker.ts';
-import type { RunResult } from './types.ts';
+import type { RunResult, RunnerOptions } from './types.ts';
 
 export const DEFAULT_WORKER_TIMEOUT_MS = 3000;
 /** Extra time allowed for the worker module to load before the learner's clock starts. */
@@ -15,7 +15,7 @@ const STARTUP_GRACE_MS = 10000;
 export function runInWorker(
 	code: string,
 	world: WorldSpec,
-	{ timeoutMs = DEFAULT_WORKER_TIMEOUT_MS }: { timeoutMs?: number } = {}
+	{ timeoutMs = DEFAULT_WORKER_TIMEOUT_MS, verifySql }: RunnerOptions = {}
 ): Promise<RunResult> {
 	if (typeof window === 'undefined' || typeof Worker === 'undefined') {
 		throw new Error(
@@ -65,6 +65,7 @@ export function runInWorker(
 		worker.onmessageerror = () => broken('Worker message could not be read');
 
 		const request: WorkerRequest = { code: String(code ?? ''), world: spec };
+		if (verifySql?.length) request.verifySql = verifySql.map(String);
 		worker.postMessage(request);
 	});
 }

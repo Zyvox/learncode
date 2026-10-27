@@ -61,9 +61,19 @@ export interface Program {
 	commandNames: string[];
 }
 
-/** Wraps learner code. Exported so syntax checks can compile the exact same shape. */
-export function buildBody(code: string): string {
-	return `return (function () { "use strict";\n${code}\n}).call(undefined);`;
+/** Hidden parameter that runs the world's `afterProgram` hook inside the same call (and time limit). */
+export const AFTER_PROGRAM_NAME = '__learncodeAfterProgram__';
+
+/**
+ * Wraps learner code. Exported so syntax checks can compile the exact same shape. With
+ * `after`, the world's afterProgram hook is called once the learner's code has returned
+ * (on the last line, so learner line numbers don't move).
+ */
+export function buildBody(code: string, after = false): string {
+	return (
+		`return (function () { "use strict";\n${code}\n}).call(undefined)` +
+		(after ? `, ${AFTER_PROGRAM_NAME}();` : ';')
+	);
 }
 
 export function buildProgram(code: string, world: World): Program {
@@ -80,11 +90,13 @@ export function buildProgram(code: string, world: World): Program {
 	const log = world.log;
 	add('console', Object.freeze({ log, info: log, warn: log, error: log, debug: log }));
 	for (const name of SHADOWED_GLOBALS) add(name, undefined);
+	const after = typeof world.afterProgram === 'function';
+	if (after) add(AFTER_PROGRAM_NAME, () => world.afterProgram!());
 
 	return {
 		names,
 		values,
-		body: buildBody(code),
+		body: buildBody(code, after),
 		prefixLines: PREFIX_LINES,
 		bodyPrefixLines: BODY_PREFIX_LINES,
 		knownNames: [...commandNames, ...Object.keys(world.variables), 'console'],

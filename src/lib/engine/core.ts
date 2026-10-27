@@ -28,8 +28,31 @@ export interface World {
 	readonly halted: WorldHalt | null;
 	/** Likely wrong names → the command they probably meant, e.g. { forward: 'move' } */
 	aliases: Record<string, string>;
-	/** World-specific parts of the RunResult (grid / draws) */
-	finish(): Pick<RunResult, 'grid' | 'draws'>;
+	/**
+	 * Optional: "object.method" typo help, e.g. { db: { methods: ['all', 'get', 'run'],
+	 * what: 'a database command' } } turns `db.al is not a function` into a suggestion.
+	 */
+	objectMethods?: Record<string, ObjectMethods>;
+	/**
+	 * Optional: runs right after the learner's program returned, still inside the time limit
+	 * (the web world fires the phone's requests at the routes the program registered).
+	 * Errors it throws are reported like errors from the program.
+	 */
+	afterProgram?(): void;
+	/**
+	 * Optional: the world runs the learner's source itself instead of it being compiled as
+	 * JavaScript (the web world's SQL editor). Throws like a program would; an engine error with
+	 * a numeric `line` property (SqlError) points at the learner's line.
+	 */
+	executeSource?(code: string): void;
+	/** World-specific parts of the RunResult (grid / draws / web). Called exactly once. */
+	finish(): Pick<RunResult, 'grid' | 'draws' | 'web'>;
+}
+
+export interface ObjectMethods {
+	methods: string[];
+	/** How to name one of them, e.g. 'a database command' → "`db.al` isn't a database command." */
+	what: string;
 }
 
 /**

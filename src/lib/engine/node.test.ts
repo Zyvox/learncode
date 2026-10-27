@@ -154,3 +154,32 @@ describe('runInNode', () => {
 		expect(p.prefixLines).toBe(PREFIX_LINES);
 	});
 });
+
+describe('runInNode: web world end to end', () => {
+	it('schema + a handler using db.get with ? gives a JSON response', async () => {
+		const { INKWELL_TEST_SCHEMA } = await import('./worlds/web.fixtures.ts');
+		const code = `app.get('/episodes/:id', (req, res) => {
+  const episode = db.get('SELECT id, title, likes FROM episodes WHERE id = ?', [req.params.id])
+  if (!episode) {
+    return res.status(404).json({ error: 'No such episode' })
+  }
+  res.json(episode)
+})`;
+		const r = await runInNode(code, {
+			kind: 'web',
+			role: 'server',
+			schema: INKWELL_TEST_SCHEMA,
+			requests: [
+				{ method: 'GET', path: '/episodes/2' },
+				{ method: 'GET', path: '/episodes/42' }
+			]
+		});
+		expect(r.ok).toBe(true);
+		expect(r.web?.responses.map((x) => [x.status, x.body])).toEqual([
+			[200, { id: 2, title: 'Rain on the roofs', likes: 30 }],
+			[404, { error: 'No such episode' }]
+		]);
+		expect(r.web?.queryCount).toBe(2);
+		expect(structuredClone(r)).toEqual(r);
+	});
+});

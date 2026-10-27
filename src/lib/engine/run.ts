@@ -3,13 +3,17 @@
  * is injected (`new Function` in the worker, `node:vm` in Node), so both produce the same
  * RunResult for the same code.
  */
+import type { SqlJsStatic } from 'sql.js';
 import type { WorldSpec } from '#lib/curriculum/types.ts';
-import { RunTimeout, SpecError, type World } from './core.ts';
+import { RunTimeout, SpecError, isFriendlyEngineError, type World } from './core.ts';
 import { TIMEOUT_MESSAGE, findSyntaxErrorLine, toFriendlyError } from './errors.ts';
 import { buildBody, buildProgram } from './program.ts';
-import type { FriendlyError, RunResult } from './types.ts';
-import { createWorld } from './worlds/index.ts';
+import type { FriendlyError, RunResult, WebResult } from './types.ts';
+import { SqlNotLoaded, createWorld } from './worlds/index.ts';
 import { gridStateFromSpec } from './worlds/grid.ts';
+import { DB_LOAD_MESSAGE } from './worlds/web.ts';
+
+export { DB_LOAD_MESSAGE };
 
 /**
  * Runs the program. Must run it synchronously and let errors propagate. Throw `RunTimeout`
@@ -32,13 +36,21 @@ export const functionExecutor: Executor = (names, values, body) => {
 export interface RunProgramOptions {
 	/** Defaults to `new Function` compile (same engine as the executor in both runners). */
 	compile?: Compiler;
+	/** web world: the loaded sql.js module (the runners load it before calling runProgram) */
+	sql?: SqlJsStatic;
+	/** web world: SQL run after the program; results in `web.verification` (same order) */
+	verifySql?: string[];
 }
 
 export const SPEC_ERROR_MESSAGE =
 	"This level isn't set up quite right, so your code couldn't run. That's our mistake, not yours.";
 
+export function emptyWebResult(): WebResult {
+	return { responses: [], tables: {}, screen: [], queryCount: 0 };
+}
+
 /** The world-specific empty parts of a result, built straight from the spec. */
-function emptyWorldParts(spec: WorldSpec): Pick<RunResult, 'grid' | 'draws'> {
+function emptyWorldParts(spec: WorldSpec): Pick<RunResult, 'grid' | 'draws' | 'web'> {
 	if (spec?.kind === 'grid') {
 		try {
 			return { grid: gridStateFromSpec(spec) };
@@ -47,6 +59,7 @@ function emptyWorldParts(spec: WorldSpec): Pick<RunResult, 'grid' | 'draws'> {
 		}
 	}
 	if (spec?.kind === 'canvas') return { draws: [] };
+	if (spec?.kind === 'web') return { web: emptyWebResult() };
 	return {};
 }
 
@@ -101,17 +114,23 @@ export function runProgram(
 	code = String(code ?? '');
 	let world: World;
 	try {
-		world = createWorld(spec);
+		world = createWorld(spec, { SQL: opts.sql, verifySql: opts.verifySql });
 	} catch (e) {
+		if (e instanceof SqlNotLoaded) {
+			return failureResult(spec, { message: DB_LOAD_MESSAGE, raw: e.message });
+		}
 		const raw = e instanceof SpecError ? `Invalid world spec: ${e.message}` : String(e);
 		return failureResult(spec, { message: SPEC_ERROR_MESSAGE, raw });
 	}
+
+	if (world.executeSource) return runSource(code, spec, world);
 
 	const program = buildProgram(code, world);
 	const friendly = (err: unknown, line?: number) =>
 		toFriendlyError(err, code, program.knownNames, program.prefixLines, {
 			commandNames: program.commandNames,
 			aliases: world.aliases,
+			objectMethods: world.objectMethods,
 			line
 		});
 
@@ -127,12 +146,51 @@ export function runProgram(
 		return resultFrom(world, friendly(err, line));
 	}
 
-	// 2. Run.
+	// 2. Run (the world's afterProgram hook runs at the end of the same call).
 	try {
 		execute(program.names, program.values, program.body);
 	} catch (err) {
-		if (err instanceof RunTimeout) return timeoutResult(spec, err.timeoutMs);
+		if (err instanceof RunTimeout) return timedOut(world, spec, err.timeoutMs);
 		// A halt wins even if the learner caught it and something else went wrong later.
+		return resultFrom(world, friendly(world.halted ?? err));
+	}
+	if (world.halted) return resultFrom(world, friendly(world.halted));
+	return resultFrom(world);
+}
+
+/** Timeout: the result has nothing from the run, but the world still gets to clean up. */
+function timedOut(world: World, spec: WorldSpec, timeoutMs: number): RunResult {
+	try {
+		world.finish();
+	} catch {
+		// nothing to report from a program that never finished
+	}
+	return timeoutResult(spec, timeoutMs);
+}
+
+/** A world that runs the source itself (SQL): no JavaScript compile step. */
+function runSource(code: string, spec: WorldSpec, world: World): RunResult {
+	const friendly = (err: unknown): FriendlyError => {
+		if (!isFriendlyEngineError(err)) {
+			return {
+				message: 'Something went wrong while running this. Press Run to try again.',
+				raw: String((err as Error)?.message ?? err)
+			};
+		}
+		const raw = (err as { raw?: unknown }).raw;
+		const line = (err as { line?: unknown }).line;
+		const out: FriendlyError = {
+			message: err.friendly,
+			raw: typeof raw === 'string' ? raw : err.message
+		};
+		if (typeof line === 'number') out.line = line;
+		return out;
+	};
+	try {
+		world.executeSource!(code);
+		world.afterProgram?.();
+	} catch (err) {
+		if (err instanceof RunTimeout) return timedOut(world, spec, err.timeoutMs);
 		return resultFrom(world, friendly(world.halted ?? err));
 	}
 	if (world.halted) return resultFrom(world, friendly(world.halted));

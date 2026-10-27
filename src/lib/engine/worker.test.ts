@@ -19,8 +19,11 @@ describe('sandbox worker', () => {
 
 	it('imports only the engine core and touches no DOM', () => {
 		const src = read('./sandbox.worker.ts');
-		const imports = [...src.matchAll(/^import\s.*?from\s+'([^']+)'/gm)].map((m) => m[1]);
+		const imports = [...src.matchAll(/^import\s[\s\S]*?from\s+'([^']+)'/gm)].map((m) => m[1]);
 		expect(imports.sort()).toEqual(['#lib/curriculum/types.ts', './run.ts', './types.ts']);
+		// sql.js (WebAssembly) is only fetched for web lessons
+		const dynamic = [...src.matchAll(/import\('([^']+)'\)/g)].map((m) => m[1]);
+		expect(dynamic).toEqual(['./sql-browser.ts']);
 		expect(src).not.toMatch(/\b(document|window|localStorage)\b/);
 	});
 

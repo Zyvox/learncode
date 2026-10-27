@@ -36,3 +36,53 @@ describe('command reference', () => {
 		}
 	});
 });
+
+describe('web command reference', async () => {
+	const { INKWELL_TEST_SCHEMA } = await import('./worlds/web.fixtures.ts');
+	const { SQL_COMMANDS, webCommandNames } = await import('./commands.ts');
+	const serverCode = `
+app.get('/series', (req, res) => res.json(db.all('SELECT * FROM series')))
+app.post('/comments', (req, res) => res.status(201).json(req.body))
+app.put('/episodes/:id', (req, res) => res.json(req.body))
+app.delete('/comments/:id', (req, res) => res.status(204).end())`;
+	const worlds: Record<'client' | 'server' | 'sql', WorldSpec> = {
+		client: { kind: 'web', role: 'client', schema: INKWELL_TEST_SCHEMA, serverCode },
+		server: { kind: 'web', role: 'server', schema: INKWELL_TEST_SCHEMA },
+		sql: { kind: 'web', role: 'sql', schema: INKWELL_TEST_SCHEMA }
+	};
+
+	it('every web command has a role, a summary and a unique name', () => {
+		const names = COMMANDS.web.map((c) => c.name);
+		expect(new Set(names).size).toBe(names.length);
+		for (const c of COMMANDS.web) {
+			expect(c.roles?.length, c.name).toBeGreaterThan(0);
+			expect(c.summary, c.name).toBeTruthy();
+		}
+	});
+
+	it('the client globals match the client api', async () => {
+		const { loadSqlInNode } = await import('./node.ts');
+		const SQL = await loadSqlInNode();
+		const { createWebWorld } = await import('./worlds/web.ts');
+		const api = Object.keys(createWebWorld({ kind: 'web', role: 'client' }, { SQL }).api).sort();
+		expect(commandNames('web').sort()).toEqual(api);
+		expect(webCommandNames('sql')).toEqual(SQL_COMMANDS.map((c) => c.name.replace(/\(.*$/, '')));
+		expect(webCommandNames('server')).toContain('app.get');
+		expect(webCommandNames('server')).toContain('db.all');
+		expect(webCommandNames('client')).toEqual(
+			expect.arrayContaining(['get', 'post', 'show', 'log', 'res.status'])
+		);
+	});
+
+	it('examples run in their role', async () => {
+		for (const c of COMMANDS.web) {
+			if (!c.example) continue;
+			for (const role of c.roles ?? []) {
+				// SQL examples are shown for the server too, but they are SQL, not JavaScript
+				if (role === 'server' && SQL_COMMANDS.includes(c)) continue;
+				const r = await runInNode(c.example, worlds[role]);
+				expect(r.error?.raw, `${role}: ${c.name}`).toBeUndefined();
+			}
+		}
+	});
+});

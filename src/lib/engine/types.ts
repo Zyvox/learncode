@@ -48,7 +48,15 @@ export type TraceEvent =
 	/** A log line from log() on the server or the client */
 	| { t: 'log'; id?: number; where: 'server' | 'client'; text: string }
 	/** A database query ran (from a handler, or from the SQL editor). `rows` for SELECTs, `changes` for writes. */
-	| { t: 'query'; id?: number; sql: string; params: unknown[]; rows?: number; changes?: number; error?: string }
+	| {
+			t: 'query';
+			id?: number;
+			sql: string;
+			params: unknown[];
+			rows?: number;
+			changes?: number;
+			error?: string;
+	  }
 	/** The server answered request `id` */
 	| { t: 'response'; id: number; status: number; body: unknown }
 	/** The phone screen shows something (show() on the client, or the auto-rendered response) */
@@ -72,6 +80,8 @@ export interface SimResponse {
 export interface SqlResultSet {
 	columns: string[];
 	rows: Record<string, unknown>[];
+	/** Set when the statement failed (verification queries only), SQLite's own message */
+	error?: string;
 }
 
 export interface WebResult {
@@ -82,6 +92,11 @@ export interface WebResult {
 	tables: Record<string, SqlResultSet>;
 	screen: ScreenItem[];
 	queryCount: number;
+	/**
+	 * Results of the runner's `verifySql` statements (same order), run after the learner's code.
+	 * The `db-rows` checks read these: pass `verifySqlFor(lesson.checks)` as `opts.verifySql`.
+	 */
+	verification?: SqlResultSet[];
 }
 
 export interface FriendlyError {
@@ -122,14 +137,20 @@ export interface EvaluateResult {
 	failures: ThemedText[];
 }
 
+export interface RunnerOptions {
+	timeoutMs?: number;
+	/**
+	 * web world: SQL run on the database after the learner's code (and the requests), results in
+	 * `web.verification` in the same order. Pass `verifySqlFor(lesson.checks)` so `db-rows`
+	 * checks can be evaluated.
+	 */
+	verifySql?: string[];
+}
+
 /**
  * Runs learner code against a world spec.
- * - Browser: `runInWorker(code, world, { timeoutMs })` from `#lib/engine/worker`
- * - Node/tests: `runInNode(code, world)` from `#lib/engine/node`
+ * - Browser: `runInWorker(code, world, { timeoutMs, verifySql })` from `#lib/engine/worker`
+ * - Node/tests: `runInNode(code, world, { verifySql })` from `#lib/engine/node`
  * Both return a RunResult and never throw for learner mistakes.
  */
-export type Runner = (
-	code: string,
-	world: WorldSpec,
-	opts?: { timeoutMs?: number }
-) => Promise<RunResult>;
+export type Runner = (code: string, world: WorldSpec, opts?: RunnerOptions) => Promise<RunResult>;

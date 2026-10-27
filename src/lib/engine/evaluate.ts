@@ -6,7 +6,16 @@ import type { Check, CodeLesson, ThemedText, WorldKind } from '#lib/curriculum/t
 import { commandNames } from './commands.ts';
 import { declaredNames } from './errors.ts';
 import { codeOnly, stripComments } from './source.ts';
-import type { DrawOp, EvaluateResult, RunResult } from './types.ts';
+import type {
+	DrawOp,
+	EvaluateResult,
+	RunResult,
+	SimResponse,
+	SqlResultSet,
+	TraceEvent,
+	WebResult
+} from './types.ts';
+import { matchRoute, parseQuery, segmentsOf } from './worlds/web.ts';
 
 export { stripComments };
 
@@ -47,11 +56,11 @@ export function countCalls(code: string, command: string): number {
  * Commands written without round brackets, e.g. `move` or `if (pathAhead) {` — legal
  * JavaScript that silently does nothing (or is always true), a classic beginner trap.
  */
-export function bareCommands(code: string, kind: WorldKind): string[] {
+export function bareCommands(code: string, kind: WorldKind, names = commandNames(kind)): string[] {
 	const src = codeOnly(code);
 	const found: string[] = [];
 	const declared = declaredNames(code);
-	for (const name of commandNames(kind)) {
+	for (const name of names) {
 		if (declared.variables.includes(name) || declared.functions.includes(name)) continue;
 		const re = new RegExp(`(^|[^\\w$.])${escapeRegExp(name)}(?![\\w$])(?!\\s*\\()`, 'g');
 		for (const m of src.matchAll(re)) {
@@ -104,8 +113,410 @@ function compareLines(expected: string[], got: string[]): string | null {
 	return null;
 }
 
-/** Returns a failure message, or null when the check passes. */
-export function checkFails(check: Check, result: RunResult, code: string): ThemedText | null {
+/** Global functions in the web world's client role (for the "missing brackets" hint). */
+const CLIENT_FUNCTIONS = ['get', 'post', 'put', 'del', 'show', 'log'];
+
+// ---------------------------------------------------------------------------------------------
+// Web world helpers
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The SQL the runner must run after the learner's code so `db-rows` checks can be evaluated:
+ * `runInWorker(code, world, { verifySql: verifySqlFor(lesson.checks) })`. Results come back in
+ * `web.verification`, in the same order.
+ */
+export function verifySqlFor(checks: readonly Check[]): string[] {
+	return checks.flatMap((c) => (c.type === 'db-rows' ? [c.sql] : []));
+}
+
+/** Short JSON for messages. */
+function brief(v: unknown, max = 80): string {
+	let s: string;
+	try {
+		s = v === undefined ? 'undefined' : (JSON.stringify(v) ?? String(v));
+	} catch {
+		s = String(v);
+	}
+	return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+const clip = (s: string, max: number) => (s.length > max ? s.slice(0, max - 1) + '…' : s);
+
+const reqName = (r: SimResponse) => tick(`${r.method} ${r.path}`);
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+	return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+type JsonDiff =
+	| { why: 'value' | 'type'; path: string; expected: unknown; actual: unknown }
+	| { why: 'missing'; path: string; expected: unknown }
+	| { why: 'extra'; path: string; actual: unknown }
+	| { why: 'length'; path: string; expected: number; actual: number };
+
+const joinKey = (path: string, k: string) =>
+	/^[A-Za-z_$][\w$]*$/.test(k) ? `${path}.${k}` : `${path}[${JSON.stringify(k)}]`;
+
+/** First difference between expected and actual JSON values (subset: extra keys are fine). */
+export function jsonDiff(
+	expected: unknown,
+	actual: unknown,
+	subset = false,
+	path = ''
+): JsonDiff | null {
+	if (Array.isArray(expected)) {
+		if (!Array.isArray(actual)) return { why: 'type', path, expected, actual };
+		if (expected.length !== actual.length) {
+			return { why: 'length', path, expected: expected.length, actual: actual.length };
+		}
+		for (let i = 0; i < expected.length; i++) {
+			const d = jsonDiff(expected[i], actual[i], subset, `${path}[${i}]`);
+			if (d) return d;
+		}
+		return null;
+	}
+	if (isPlainObject(expected)) {
+		if (!isPlainObject(actual)) return { why: 'type', path, expected, actual };
+		for (const k of Object.keys(expected)) {
+			if (!(k in actual)) return { why: 'missing', path: joinKey(path, k), expected: expected[k] };
+			const d = jsonDiff(expected[k], actual[k], subset, joinKey(path, k));
+			if (d) return d;
+		}
+		if (!subset) {
+			for (const k of Object.keys(actual)) {
+				if (!(k in expected)) return { why: 'extra', path: joinKey(path, k), actual: actual[k] };
+			}
+		}
+		return null;
+	}
+	return Object.is(expected, actual) ? null : { why: 'value', path, expected, actual };
+}
+
+function describeJsonDiff(d: JsonDiff, r: SimResponse): string {
+	const where = tick(`body${d.path}`);
+	const answer = `the answer to ${reqName(r)}`;
+	switch (d.why) {
+		case 'missing':
+			return `${where} is missing from ${answer}. It should be ${tick(brief(d.expected))}.`;
+		case 'extra':
+			return `${answer[0].toUpperCase()}${answer.slice(1)} has ${where}, which shouldn't be there.`;
+		case 'length':
+			return `In ${answer}, ${where} should be a list of ${d.expected}, but it has ${d.actual}.`;
+		case 'type':
+		case 'value': {
+			let text = `In ${answer}, ${where} should be ${tick(brief(d.expected))}, but it is ${tick(brief(d.actual))}.`;
+			const scalar = (v: unknown) => typeof v === 'string' || typeof v === 'number';
+			if (
+				scalar(d.expected) &&
+				scalar(d.actual) &&
+				typeof d.expected !== typeof d.actual &&
+				String(d.expected) === String(d.actual)
+			) {
+				text += ` One is a number and the other is text. Check for quotes, and remember that ${tick('req.params')} and ${tick('req.query')} values are always text.`;
+			}
+			return text;
+		}
+	}
+}
+
+const looseEq = (a: unknown, b: unknown) =>
+	(a === null || a === undefined) && (b === null || b === undefined)
+		? true
+		: a === null || a === undefined || b === null || b === undefined
+			? false
+			: typeof a === 'object' || typeof b === 'object'
+				? JSON.stringify(a) === JSON.stringify(b)
+				: String(a) === String(b);
+
+function normalizedRow(row: Record<string, unknown>): string {
+	return JSON.stringify(
+		Object.keys(row)
+			.sort()
+			.map((k) => [k, row[k] === null || row[k] === undefined ? null : String(row[k])])
+	);
+}
+
+/**
+ * Compares rows: key order ignored, values compared loosely (1 and '1' match), row order
+ * matters unless `anyOrder`. Returns a sentence describing the first problem, or null.
+ */
+export function rowsDiff(
+	expected: Record<string, unknown>[],
+	actual: Record<string, unknown>[],
+	anyOrder = false
+): string | null {
+	const rows = (n: number) => `${n} ${plural(n, 'row', 'rows')}`;
+	if (expected.length !== actual.length) {
+		return `there should be ${rows(expected.length)}, but there ${plural(actual.length, 'is', 'are')} ${rows(actual.length)}.`;
+	}
+	const eCols = [...new Set(expected.flatMap((r) => Object.keys(r)))].sort();
+	const aCols = [...new Set(actual.flatMap((r) => Object.keys(r)))].sort();
+	if (expected.length > 0 && eCols.join('\u0000') !== aCols.join('\u0000')) {
+		const missing = eCols.filter((c) => !aCols.includes(c));
+		const extra = aCols.filter((c) => !eCols.includes(c));
+		const parts: string[] = [];
+		if (missing.length)
+			parts.push(`${missing.map(tick).join(', ')} ${plural(missing.length, 'is', 'are')} missing`);
+		if (extra.length) parts.push(`${extra.map(tick).join(', ')} shouldn't be there`);
+		return `the columns aren't right: ${parts.join(', and ')}.`;
+	}
+	const e = anyOrder
+		? [...expected].sort((a, b) => normalizedRow(a).localeCompare(normalizedRow(b)))
+		: expected;
+	const a = anyOrder
+		? [...actual].sort((x, y) => normalizedRow(x).localeCompare(normalizedRow(y)))
+		: actual;
+	for (let i = 0; i < e.length; i++) {
+		const same = eCols.every((c) => looseEq(e[i][c], a[i][c]));
+		if (same) continue;
+		if (anyOrder) {
+			return `the row ${tick(brief(e[i]))} isn't there (or doesn't look like that).`;
+		}
+		return `row ${i + 1} should be ${tick(brief(e[i]))}, but it is ${tick(brief(a[i]))}.`;
+	}
+	return null;
+}
+
+const sentence = (s: string) => s[0].toUpperCase() + s.slice(1);
+
+function screenText(web: WebResult): string[] {
+	return web.screen.map((item) =>
+		item.kind === 'text'
+			? item.text
+			: item.kind === 'error'
+				? `${item.status} ${item.text}`
+				: (JSON.stringify(item.value) ?? String(item.value))
+	);
+}
+
+function logLines(trace: TraceEvent[], id?: number): string[] {
+	return trace.flatMap((e) => (e.t === 'log' && (id === undefined || e.id === id) ? [e.text] : []));
+}
+
+/** Values the requests carried (path params, query, body): the things that must never be glued into SQL. */
+function requestValues(trace: TraceEvent[]): { text: string[]; numbers: string[] } {
+	const patterns = new Map<number, string | null>();
+	for (const e of trace) if (e.t === 'route') patterns.set(e.id, e.pattern);
+	const values: unknown[] = [];
+	const walk = (v: unknown) => {
+		if (Array.isArray(v)) v.forEach(walk);
+		else if (isPlainObject(v)) Object.values(v).forEach(walk);
+		else values.push(v);
+	};
+	for (const e of trace) {
+		if (e.t !== 'request') continue;
+		const q = e.path.indexOf('?');
+		const pathname = q < 0 ? e.path : e.path.slice(0, q);
+		if (q >= 0) values.push(...Object.values(parseQuery(e.path.slice(q + 1))));
+		const pattern = patterns.get(e.id);
+		if (pattern) {
+			const params = matchRoute(segmentsOf(pattern), segmentsOf(pathname));
+			if (params) values.push(...Object.values(params));
+		}
+		walk(e.body);
+	}
+	const text = new Set<string>();
+	const numbers = new Set<string>();
+	for (const v of values) {
+		if (typeof v === 'number' && Number.isFinite(v)) numbers.add(String(v));
+		else if (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v.trim())) numbers.add(v.trim());
+		else if (typeof v === 'string' && v.length >= 2) text.add(v);
+	}
+	return { text: [...text], numbers: [...numbers] };
+}
+
+/** The first query with a request value glued into its SQL text, if any. */
+export function gluedQuery(trace: TraceEvent[]): string | undefined {
+	const { text, numbers } = requestValues(trace);
+	for (const e of trace) {
+		if (e.t !== 'query') continue;
+		if (text.some((v) => e.sql.includes(v))) return e.sql;
+		if (
+			e.params.length === 0 &&
+			numbers.some((n) => new RegExp(`(^|[^\\w.])${n.replace('.', '\\.')}(?![\\w.])`).test(e.sql))
+		) {
+			return e.sql;
+		}
+	}
+	return undefined;
+}
+
+function webCheckFails(
+	check: Check,
+	result: RunResult,
+	msg: (f: ThemedText) => ThemedText,
+	dbRowsIndex?: number
+): ThemedText | null {
+	const web = result.web ?? { responses: [], tables: {}, screen: [], queryCount: 0 };
+	const responseFor = (n: number): SimResponse | ThemedText => {
+		const r = web.responses[n];
+		if (r) return r;
+		const sent = web.responses.length;
+		return msg(
+			sent === 0
+				? 'No requests were sent, so there is no answer to look at yet.'
+				: `Only ${sent} ${plural(sent, 'request was', 'requests were')} sent, so there is no answer to look at for request number ${n + 1}.`
+		);
+	};
+	const why = (r: SimResponse): string => {
+		if (r.status === 0) return " The server couldn't be reached.";
+		if (r.route === null && r.status === 404) {
+			return ' No endpoint matched it, so the server answered 404 (not found).';
+		}
+		if (r.status >= 500) {
+			const lines = logLines(result.trace, r.id).filter((l) =>
+				/^(Error in|The handler for)/.test(l)
+			);
+			if (lines.length) return ` The server log says: "${lines[0]}"`;
+		}
+		return '';
+	};
+
+	switch (check.type) {
+		case 'response-status': {
+			const r = responseFor(check.request);
+			if (typeof r !== 'object' || !('status' in r)) return r as ThemedText;
+			if (r.status === check.status) return null;
+			return msg(
+				`${reqName(r)} should get the status ${tick(String(check.status))}, but it got ${tick(String(r.status))}.${why(r)}`
+			);
+		}
+		case 'response-json': {
+			const r = responseFor(check.request);
+			if (typeof r !== 'object' || !('status' in r)) return r as ThemedText;
+			const d = jsonDiff(check.expected, r.body, check.mode === 'subset');
+			if (!d) return null;
+			const status =
+				r.status >= 300 || r.status === 0 ? ` (It got the status ${r.status}.${why(r)})` : '';
+			return msg(describeJsonDiff(d, r) + status);
+		}
+		case 'response-includes': {
+			const r = responseFor(check.request);
+			if (typeof r !== 'object' || !('status' in r)) return r as ThemedText;
+			const text = typeof r.body === 'string' ? r.body : (JSON.stringify(r.body) ?? '');
+			if (text.includes(check.text)) return null;
+			return msg(
+				`The answer to ${reqName(r)} should include ${tick(check.text)}, but it doesn't yet.${why(r)}`
+			);
+		}
+		case 'all-responses-ok': {
+			if (web.responses.length === 0)
+				return msg('No requests were sent, so there are no answers to check yet.');
+			const bad = web.responses.find((r) => r.status < 200 || r.status >= 300);
+			if (!bad) return null;
+			return msg(
+				`${reqName(bad)} got the status ${tick(String(bad.status))}. Every request should get an answer in the 200s.${why(bad)}`
+			);
+		}
+		case 'db-rows': {
+			const results = web.verification ?? [];
+			const set: SqlResultSet | undefined = results[dbRowsIndex ?? (results.length === 1 ? 0 : -1)];
+			if (!set || set.error) {
+				return msg("The database couldn't be checked this time. That's our mistake, not yours.");
+			}
+			const d = rowsDiff(check.expected, set.rows, check.anyOrder);
+			return d ? msg(`The data in the database isn't right yet: ${d}`) : null;
+		}
+		case 'sql-result': {
+			const set = web.sqlResult;
+			if (!set) {
+				return msg(
+					`Your SQL didn't give back any rows to look at. The last statement that gives back rows, like ${tick('SELECT …')}, is the one that's checked.`
+				);
+			}
+			const d = rowsDiff(check.expected, set.rows, check.anyOrder);
+			if (!d) return null;
+			if (check.expected.length > 0 && set.rows.length === 0 && set.columns.length) {
+				const eCols = Object.keys(check.expected[0])
+					.map((c) => c.toLowerCase())
+					.sort();
+				const aCols = set.columns.map((c) => c.toLowerCase()).sort();
+				if (eCols.join() === aCols.join()) {
+					return msg(`Your result is empty: no rows matched. Check the ${tick('WHERE')} part.`);
+				}
+			}
+			return msg(`Your result isn't quite right yet: ${d}`);
+		}
+		case 'sql-columns': {
+			const set = web.sqlResult;
+			if (!set) {
+				return msg(
+					`Your SQL didn't give back any rows to look at. End with a ${tick('SELECT …')} statement.`
+				);
+			}
+			const want = check.columns.map((c) => c.toLowerCase()).sort();
+			const got = set.columns.map((c) => c.toLowerCase()).sort();
+			if (want.join('\u0000') === got.join('\u0000')) return null;
+			return msg(
+				`Your result has the ${plural(set.columns.length, 'column', 'columns')} ${set.columns.map(tick).join(', ') || 'nothing'}, but it should have ${check.columns.map(tick).join(', ')}.`
+			);
+		}
+		case 'sql-row-count': {
+			const set = web.sqlResult;
+			const n = set?.rows.length ?? 0;
+			if (!set) {
+				return msg(
+					`Your SQL didn't give back any rows to look at. End with a ${tick('SELECT …')} statement.`
+				);
+			}
+			if (check.min !== undefined && n < check.min) {
+				return msg(
+					`Your result has ${n} ${plural(n, 'row', 'rows')}. It should have at least ${check.min}.`
+				);
+			}
+			if (check.max !== undefined && n > check.max) {
+				return msg(
+					`Your result has ${n} ${plural(n, 'row', 'rows')}. It should have at most ${check.max}.`
+				);
+			}
+			return null;
+		}
+		case 'screen-includes': {
+			const texts = screenText(web);
+			if (texts.some((t) => t.includes(check.text))) return null;
+			if (texts.length === 0) {
+				return msg(
+					`Nothing is on the phone screen yet. Use ${tick('show(…)')} to put something there.`
+				);
+			}
+			return msg(`The phone screen should show ${tick(check.text)}, but it doesn't yet.`);
+		}
+		case 'log-includes': {
+			const lines = logLines(result.trace);
+			if (lines.some((l) => l.includes(check.text))) return null;
+			if (lines.length === 0) {
+				return msg(`Nothing was written to the log. Use ${tick('log(…)')} to write a line.`);
+			}
+			return msg(`The log should include ${tick(check.text)}, but it doesn't yet.`);
+		}
+		case 'queries-parameterized': {
+			const sql = gluedQuery(result.trace);
+			if (!sql) return null;
+			return msg(
+				`A query has a value from the request glued right into the SQL: ${tick(clip(sql.replace(/\s+/g, ' '), 90))}. Put a ${tick('?')} in the SQL and pass the value in the list instead, like ${tick("db.all('SELECT * FROM comments WHERE author = ?', [name])")}.`
+			);
+		}
+		case 'max-queries': {
+			const n = web.queryCount;
+			if (n <= check.count) return null;
+			return msg(
+				`Your code ran ${n} database ${plural(n, 'query', 'queries')}. It can be done with at most ${check.count}.`
+			);
+		}
+	}
+	return null;
+}
+
+/**
+ * Returns a failure message, or null when the check passes. `dbRowsIndex`: for a `db-rows`
+ * check, its position among the lesson's db-rows checks (= its index in `web.verification`).
+ */
+export function checkFails(
+	check: Check,
+	result: RunResult,
+	code: string,
+	dbRowsIndex?: number
+): ThemedText | null {
 	const grid = result.grid;
 	const draws = result.draws ?? [];
 	const output = result.output;
@@ -208,8 +619,9 @@ export function checkFails(check: Check, result: RunResult, code: string): Theme
 			return draws.some((d) => d.op === 'background')
 				? null
 				: msg(`Give the canvas a background colour with ${tick('background("…")')}.`);
+		default:
+			return webCheckFails(check, result, msg, dbRowsIndex);
 	}
-	return null;
 }
 
 export function evaluate(lesson: CodeLesson, result: RunResult, code: string): EvaluateResult {
@@ -220,12 +632,19 @@ export function evaluate(lesson: CodeLesson, result: RunResult, code: string): E
 		};
 	}
 	const failures: ThemedText[] = [];
+	let dbRows = 0;
 	for (const check of lesson.checks) {
-		const f = checkFails(check, result, code);
+		const f = checkFails(check, result, code, check.type === 'db-rows' ? dbRows++ : undefined);
 		if (f !== null) failures.push(f);
 	}
 	if (failures.length > 0 && lesson.world) {
-		const bare = bareCommands(code, lesson.world.kind);
+		const world = lesson.world;
+		const bare =
+			world.kind !== 'web'
+				? bareCommands(code, world.kind)
+				: world.role === 'sql' || lesson.language === 'sql'
+					? []
+					: bareCommands(code, 'web', world.role === 'client' ? CLIENT_FUNCTIONS : ['log']);
 		failures.unshift(
 			...bare.map(
 				(n) =>

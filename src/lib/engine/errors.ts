@@ -3,7 +3,7 @@
  * Messages are ThemedText (placeholders like {hero} allowed) and use markdown-lite `code`.
  */
 import type { ThemedText } from '#lib/curriculum/types.ts';
-import { RunTimeout, formatValue, isFriendlyEngineError } from './core.ts';
+import { RunTimeout, formatValue, isFriendlyEngineError, type ObjectMethods } from './core.ts';
 import { codeOnly, maskStrings, stripComments } from './source.ts';
 import type { FriendlyError } from './types.ts';
 
@@ -109,6 +109,8 @@ export interface FriendlyErrorOptions {
 	aliases?: Record<string, string>;
 	/** Known line (e.g. from findSyntaxErrorLine); wins over the stack */
 	line?: number;
+	/** Objects whose methods get typo help, e.g. { db: { methods: ['all'], what: 'a database command' } } */
+	objectMethods?: Record<string, ObjectMethods>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -265,7 +267,11 @@ export function toFriendlyError(
 		return out;
 	};
 
-	if (isFriendlyEngineError(err)) return done(err.friendly, err.message);
+	if (isFriendlyEngineError(err)) {
+		// SqlError keeps SQLite's own words in `raw` (its message is the friendly text)
+		const r = (err as { raw?: unknown }).raw;
+		return done(err.friendly, typeof r === 'string' ? r : err.message);
+	}
 
 	if (!isObj || typeof (err as { message?: unknown }).message !== 'string') {
 		// `throw "oops"` or `throw 42`
@@ -339,6 +345,35 @@ export function toFriendlyError(
 		}
 		if (x.includes('.')) {
 			const method = x.slice(x.lastIndexOf('.') + 1);
+			const owner = x.slice(0, x.lastIndexOf('.'));
+			if (method === 'then' && owner.endsWith('(...)')) {
+				return done(
+					`In this simulation, commands give their answer back straight away, so there's no ${tick('.then()')} or ${tick('await')} needed. Keep the answer in a variable instead, like ${tick('const rows = db.all(…)')}.`,
+					raw
+				);
+			}
+			const root = owner.match(/^[\w$]+/)?.[0] ?? '';
+			const group = opts.objectMethods?.[root];
+			// `db.al(…)`, or a chain that gives the same object back: `res.status(404).jsn(…)`
+			if (group && (owner === root || /^[\w$]+(\.status\(\.\.\.\))+$/.test(owner))) {
+				const s =
+					closestName(method, group.methods) ??
+					(method.length >= 2
+						? group.methods.find(
+								(m) => m.startsWith(method) || editDistance(m, method.toLowerCase()) <= 1
+							)
+						: undefined);
+				const all = group.methods.map((m) => tick(`${root}.${m}()`));
+				return done(
+					`${tick(`${root}.${method}`)} isn't ${group.what}.` +
+						(s
+							? ` Did you mean ${tick(`${root}.${s}()`)}?`
+							: all.length === 1
+								? ` The one you can use is ${all[0]}.`
+								: ` The ones you can use are ${all.slice(0, -1).join(', ')} and ${all[all.length - 1]}.`),
+					raw
+				);
+			}
 			const s = COMMON_METHODS.includes(method) ? undefined : closestName(method, COMMON_METHODS);
 			return done(
 				`${tick(`.${method}()`)} isn't something this value can do.` +

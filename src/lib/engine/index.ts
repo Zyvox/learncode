@@ -12,9 +12,35 @@ export {
 	formatArgs,
 	formatValue,
 	MAX_OUTPUT_LINES,
-	type World
+	type World,
+	type ObjectMethods
 } from './core.ts';
-export { createWorld } from './worlds/index.ts';
+export { createWorld, SqlNotLoaded, type WorldDeps } from './worlds/index.ts';
+export {
+	createWebWorld,
+	validateWebSpec,
+	parseQuery,
+	matchRoute,
+	segmentsOf,
+	WEB_MAX_STEPS,
+	MAX_SCREEN_ITEMS,
+	SNAPSHOT_ROWS,
+	DB_LOAD_MESSAGE,
+	SERVER_DOWN_BODY,
+	SERVER_ERROR_BODY,
+	type WebWorld,
+	type WebWorldDeps,
+	type WebState
+} from './worlds/web.ts';
+export {
+	SqlError,
+	SQL_KEYWORDS,
+	friendlySqlMessage,
+	splitSqlStatements,
+	countPlaceholders,
+	type SqlStatement,
+	type SqlErrorContext
+} from './sql-errors.ts';
 export {
 	createGridWorld,
 	gridStateFromSpec,
@@ -45,6 +71,7 @@ export {
 } from './program.ts';
 export {
 	runProgram,
+	emptyWebResult,
 	timeoutResult,
 	failureResult,
 	functionExecutor,
@@ -68,9 +95,22 @@ export {
 export {
 	evaluate,
 	checkFails,
+	verifySqlFor,
+	jsonDiff,
+	rowsDiff,
+	gluedQuery,
 	countCalls,
 	countCodeLines,
 	bareCommands,
 	stripComments
 } from './evaluate.ts';
-export { COMMANDS, SYNTAX, commandNames, type CommandDoc, type SyntaxDoc } from './commands.ts';
+export {
+	COMMANDS,
+	SYNTAX,
+	SQL_COMMANDS,
+	commandNames,
+	webCommandNames,
+	type CommandDoc,
+	type SyntaxDoc,
+	type WebRole
+} from './commands.ts';
