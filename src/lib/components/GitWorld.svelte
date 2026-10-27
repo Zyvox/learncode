@@ -95,12 +95,20 @@
 		for (const end of [...pending]) end();
 	}
 
+	// New lesson → fresh picture.
 	$effect(() => {
 		void spec;
-		void base;
 		cancel();
 		playing = false;
 		untrack(resetState);
+	});
+
+	// The setup's state arrives a moment after mounting: show it unless a run is already on screen.
+	$effect(() => {
+		void base;
+		untrack(() => {
+			if (!ran && !playing) resetState();
+		});
 	});
 
 	onDestroy(cancel);
