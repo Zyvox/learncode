@@ -1569,7 +1569,7 @@ export function gitCheckFails(
 			if (conflicted) return conflictMsg(conflicted);
 			if (g.untracked.length) {
 				return msg(
-					`${firstOf(g.untracked)} ${g.untracked.length > 1 ? "aren't" : "isn't"} in the history yet: ${tick('git add')} then ${tick('git commit')} put it there.`
+					`${firstOf(g.untracked)} ${g.untracked.length > 1 ? "aren't" : "isn't"} in the history yet: ${tick('git add')} then ${tick('git commit')} put ${g.untracked.length > 1 ? 'them' : 'it'} there.`
 				);
 			}
 			if (g.modified.length) {

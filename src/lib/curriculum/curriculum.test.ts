@@ -223,6 +223,9 @@ function lessonTexts(lesson: Lesson): [string, ThemedText][] {
 function bareName(command: string): string {
 	// 'COUNT(*)' is a name in its own right; 'move()' and 'get(path)' are not
 	if (command.endsWith('(*)')) return command;
+	// shell: 'git commit -m "message"' -> 'git commit'; 'echo "text" > file' -> 'echo'
+	if (/^git\s/.test(command)) return command.split(/\s+/).slice(0, 2).join(' ');
+	if (/^(echo|cat|ls|rm|touch)\b/.test(command)) return command.split(/\s+/)[0];
 	return command.replace(/\(.*$/, '').trim();
 }
 

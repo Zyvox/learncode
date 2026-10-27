@@ -270,7 +270,8 @@ git commit -m "Note about comments"`
 git log
 `,
 			newCommands: ['git log'],
-			question: 'Mina adds scene 5 and runs `git log` straight away. What’s at the top of the list?',
+			question:
+				'Mina adds scene 5 and runs `git log` straight away. What’s at the top of the list?',
 			choices: [
 				'A new commit for scene 5, because git noticed the file change',
 				'“Note about comments”, marked `(HEAD -> main)`: the newest commit. Scene 5 isn’t in the history yet',
@@ -492,8 +493,9 @@ git commit -m "Merge Theo's ending"
 `,
 			newCommands: ['echo "text" > file'],
 			checks: [
+				// One file check only: with markers left in, every git-file check on this file
+				// gives the same "still has conflict markers" message.
 				{ type: 'git-file', path: 'episode-9.txt', committed: true, includes: THEO_ENDING },
-				{ type: 'git-file', path: 'episode-9.txt', committed: true, includes: TITLE },
 				{ type: 'git-merged', branch: 'theo-ending', into: 'main' },
 				{ type: 'git-clean' }
 			],
@@ -539,8 +541,7 @@ git log
 				{
 					type: 'git-commits',
 					min: 3,
-					message:
-						'One commit per scene: there should be two new commits on top of the first save.'
+					message: 'One commit per scene: there should be two new commits on top of the first save.'
 				},
 				{ type: 'git-merged', branch: 'episode-9', into: 'main' },
 				{ type: 'git-head', branch: 'main' },
@@ -573,10 +574,12 @@ git log
 					},
 					{
 						who: 'you',
-						text: '…it’s whatever `main` says. Every save has a note and an author, and scenes go in on a branch first, so nothing gets pasted over by accident.'
+						text: '…it’s whatever `main` says. Every save has a note and an author, and new scenes go in on a branch first.'
 					},
-					{ who: 'mina', text: 'And if I do paste over a scene again?' },
-					{ who: 'you', text: '`git restore`, and it’s back. About ten seconds.' },
+					{
+						who: 'mina',
+						text: 'And if I paste over a scene again, it’s `git restore` and ten seconds of mild embarrassment.'
+					},
 					{
 						who: 'theo',
 						text: 'Then the USB stick can go in a drawer. I’m keeping it, mind. Sentimental reasons.'
