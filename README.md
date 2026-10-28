@@ -43,6 +43,10 @@ step caps and timeouts, and the result is animated afterwards.
 
 ## Run it locally
 
+Use **Node 22 or 24 (LTS)**. Newer majors have no prebuilt binary for the SQLite driver yet, so
+`npm ci` would try to compile it and ask for a C++ toolchain. `.npmrc` has `engine-strict=true`,
+so the wrong Node version fails fast with a clear message.
+
 ```bash
 npm ci
 npm run dev          # http://localhost:5173
