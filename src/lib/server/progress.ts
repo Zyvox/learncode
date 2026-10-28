@@ -6,7 +6,7 @@
  */
 import { and, asc, eq } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
-import type { RunResult } from 'better-sqlite3';
+import type { RunResult } from './sqlite.ts';
 import type { Lesson } from '#lib/curriculum/types.ts';
 import { getLesson, getLessonContext, getModules } from '#lib/curriculum/index.ts';
 import { describeBadge, evaluateBadges, type Badge, type BadgeModule } from '#lib/game/badges.ts';

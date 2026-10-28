@@ -8,8 +8,8 @@ and the contracts between them.
 - SvelteKit **3** + Svelte **5** (runes mode is forced: use `$state`, `$derived`, `$props`, `$effect`; no `export let`, no `$:`)
 - `@sveltejs/adapter-node` → `npm run build` produces `build/index.js`, start with `node build`
 - Tailwind **v4** via `@tailwindcss/vite` (no tailwind.config.js; `@import 'tailwindcss'` in `src/app.css`, theme tokens via `@theme {}`)
-- Drizzle ORM + better-sqlite3 (single SQLite file, path from `DATABASE_PATH`)
-- `@node-rs/argon2` for password hashing, CodeMirror 6 for the editor, zod for validation
+- Drizzle ORM over Node's built-in `node:sqlite` via a small adapter in `src/lib/server/sqlite.ts` (single SQLite file, path from `DATABASE_PATH`; no native modules)
+- `@node-rs/argon2` for password hashing (prebuilt binaries for every platform, nothing to compile), CodeMirror 6 for the editor, zod for validation
 - Vitest for unit tests (`npm test`), Playwright for e2e (`npm run test:e2e`)
 
 ## SvelteKit 3 differences you must respect (newer than most training data)

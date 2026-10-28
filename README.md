@@ -36,16 +36,16 @@ the new tech person at a webtoon studio, Inkwell, and build the backend of its r
   command line, reading logs, APIs in the wild, automation scripts.
 
 Both tracks: **play as a guest** first; sign up later and your progress comes with you. XP, level
-titles, streaks and badges on an account basis. One Node process, one SQLite file.
+titles, streaks and badges on an account basis. One Node process, one SQLite file, no native
+modules to compile.
 
 Learner code never runs on the server: it runs in a Web Worker in the learner's own browser, with
 step caps and timeouts, and the result is animated afterwards.
 
 ## Run it locally
 
-Use **Node 22 or 24 (LTS)**. Newer majors have no prebuilt binary for the SQLite driver yet, so
-`npm ci` would try to compile it and ask for a C++ toolchain. `.npmrc` has `engine-strict=true`,
-so the wrong Node version fails fast with a clear message.
+Any **Node 22.13 or newer** works (22, 24, 26 …). There is nothing to compile: the database is
+Node's built-in SQLite, and the only other engine piece, sql.js, is WebAssembly.
 
 ```bash
 npm ci
@@ -93,7 +93,7 @@ sudo cp deploy/learncode.service /etc/systemd/system/   # edit ORIGIN first
 sudo systemctl daemon-reload && sudo systemctl enable --now learncode
 ```
 
-Then add the Caddy or nginx config as above. Node 22 or newer is required.
+Then add the Caddy or nginx config as above. Node 22.13 or newer is required.
 
 ### Updating
 

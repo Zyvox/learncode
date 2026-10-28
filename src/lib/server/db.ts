@@ -1,5 +1,5 @@
 /**
- * The one SQLite database (better-sqlite3 + drizzle).
+ * The one SQLite database (Node's built-in SQLite + drizzle, see ./sqlite.ts).
  *
  * - Path: `DATABASE_PATH` (default `./data/learncode.sqlite`, `:memory:` works for tests).
  * - Migrations: SQL files in `drizzle/` (from `npx drizzle-kit generate`), applied by `runMigrations()`
@@ -8,15 +8,20 @@
  * - `db` is a lazy singleton: the file is opened on first use, not at import time, so importing
  *   server modules during `vite build` never touches the disk.
  */
-import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { createTableRelationsHelpers, extractTablesRelationalConfig } from 'drizzle-orm';
+import { BetterSQLiteSession } from 'drizzle-orm/better-sqlite3/session';
+import { BaseSQLiteDatabase, SQLiteSyncDialect } from 'drizzle-orm/sqlite-core';
+import type { RunResult } from './sqlite.ts';
+import { SqliteDatabase } from './sqlite.ts';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as schema from './schema.ts';
 
-export type DB = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
+export type DB = BaseSQLiteDatabase<'sync', RunResult, typeof schema> & {
+	$client: SqliteDatabase;
+};
 
 let instance: DB | null = null;
 
@@ -29,12 +34,30 @@ function open(): DB {
 	const inMemory = file === ':memory:' || file.startsWith('file::memory:');
 	if (!inMemory) mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
 
-	const sqlite = new Database(file);
+	const sqlite = new SqliteDatabase(file);
 	sqlite.pragma('journal_mode = WAL');
 	sqlite.pragma('foreign_keys = ON');
 	sqlite.pragma('busy_timeout = 5000');
 	sqlite.pragma('synchronous = NORMAL');
-	return drizzle({ client: sqlite, schema });
+	// Build the Drizzle database from its parts instead of `drizzle-orm/better-sqlite3`'s driver,
+	// which imports the native `better-sqlite3` package at load time even when a client is given.
+	// The adapter implements the slice of that API Drizzle's session calls.
+	const dialect = new SQLiteSyncDialect({});
+	const tables = extractTablesRelationalConfig(schema, createTableRelationsHelpers);
+	const relational = {
+		fullSchema: schema,
+		schema: tables.tables,
+		tableNamesMap: tables.tableNamesMap
+	};
+	const session = new BetterSQLiteSession(
+		sqlite as unknown as ConstructorParameters<typeof BetterSQLiteSession>[0],
+		dialect,
+		relational,
+		{}
+	);
+	const db = new BaseSQLiteDatabase('sync', dialect, session, relational) as unknown as DB;
+	db.$client = sqlite;
+	return db;
 }
 
 /** The database, opened on first call. */
@@ -98,5 +121,8 @@ export function migrationsFolder(): string {
 
 /** Apply any pending migrations. Safe to call repeatedly. */
 export function runMigrations(): void {
-	migrate(getDb(), { migrationsFolder: migrationsFolder() });
+	// The migrator only touches `db.dialect` and `db.session`; the parameter type is the driver's.
+	migrate(getDb() as unknown as Parameters<typeof migrate>[0], {
+		migrationsFolder: migrationsFolder()
+	});
 }
