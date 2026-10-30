@@ -14,10 +14,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    # main is the deploy branch. The second entry is the repository's original default branch:
-    # GitHub Pages' environment rule allows deployments from the default branch, so this keeps
-    # deploys working until main is made the default. Remove it after that.
-    branches: [main, claude/bold-bell-uy9b3w]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
