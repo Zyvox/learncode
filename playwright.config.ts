@@ -4,6 +4,8 @@ const origin = 'http://localhost:4173';
 
 export default defineConfig({
 	testDir: 'tests/e2e',
+	// The static build has its own config (playwright.static.config.ts)
+	testIgnore: 'static.spec.ts',
 	timeout: 60_000,
 	use: {
 		baseURL: origin,

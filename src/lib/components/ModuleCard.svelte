@@ -7,6 +7,7 @@
 	import type { Theme } from '#lib/curriculum/types.ts';
 	import { renderText } from '#lib/curriculum/index.ts';
 	import type { MapModule } from '#lib/stores/map.ts';
+	import { lessonLink } from '#lib/links.ts';
 	import LessonNode from './LessonNode.svelte';
 
 	let {
@@ -97,7 +98,7 @@
 						number={i + 1}
 						title={renderText(item.lesson.title, theme)}
 						state={item.state}
-						href={item.href}
+						href={lessonLink(item.lesson.id)}
 						boss={item.lesson.boss}
 						kind={item.lesson.kind}
 					/>

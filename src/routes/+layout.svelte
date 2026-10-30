@@ -2,7 +2,9 @@
 	import '../app.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
-	import { APP_NAME } from '#lib/config.ts';
+	import { asset, resolve } from '$app/paths';
+	import { APP_NAME, STATIC } from '#lib/config.ts';
+	import { pwa } from '#lib/pwa.svelte.ts';
 	import Header from '#lib/components/Header.svelte';
 	import { guest } from '#lib/stores/guest.svelte.ts';
 	import { currentTheme, onAccentFor } from '#lib/stores/viewer.svelte.ts';
@@ -10,7 +12,10 @@
 
 	let { children, data }: LayoutProps = $props();
 
-	onMount(() => guest.load());
+	onMount(() => {
+		guest.load();
+		pwa.start();
+	});
 
 	const accent = $derived(currentTheme().accent);
 	const onAccent = $derived(onAccentFor(accent));
@@ -33,6 +38,15 @@
 	<link rel="icon" href={favicon} />
 	<title>{APP_NAME}</title>
 	<meta name="description" content="Learn to code from zero with tiny, game-like levels." />
+	{#if STATIC}
+		<!-- Installable app (static build): manifest, home-screen icon and name -->
+		<link rel="manifest" href={resolve('/manifest.webmanifest')} />
+		<link rel="apple-touch-icon" href={asset('icons/apple-touch-icon.png')} />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content={APP_NAME} />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+	{/if}
 </svelte:head>
 
 <div

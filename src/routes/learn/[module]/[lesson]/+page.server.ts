@@ -1,7 +1,17 @@
 import { error } from '@sveltejs/kit';
-import { getLessonContext } from '#lib/curriculum/index.ts';
+import { getLessonContext, getModules } from '#lib/curriculum/index.ts';
 import { getProgress, type LessonProgress } from '#lib/server/progress.ts';
-import type { PageServerLoad } from './$types';
+import type { EntryGenerator, PageServerLoad } from './$types';
+
+/**
+ * Every playable level, for the static build's prerendering (the server build ignores this).
+ * Prerendering has no request user, so the load below sends no progress there and the play page
+ * reads it from the device instead.
+ */
+export const entries: EntryGenerator = () =>
+	getModules()
+		.filter((m) => !m.comingSoon)
+		.flatMap((m) => m.lessons.map((l) => ({ module: m.id, lesson: l.id.split('/')[1] })));
 
 export const load: PageServerLoad = ({ params, locals }) => {
 	const lessonId = `${params.module}/${params.lesson}`;

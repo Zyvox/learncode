@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
+	import { browser } from '$app/env';
+	import { resolve } from '$app/paths';
 	import { replaceState } from '$app/navigation';
-	import { APP_NAME } from '#lib/config.ts';
+	import { APP_NAME, STATIC } from '#lib/config.ts';
+	import { lessonLink } from '#lib/links.ts';
 	import { getModules, getTheme, renderText } from '#lib/curriculum/index.ts';
 	import type { TrackId } from '#lib/curriculum/types.ts';
 	import ModuleCard from '#lib/components/ModuleCard.svelte';
@@ -21,8 +24,11 @@
 	const user = $derived(data.user);
 
 	// Which track tab is open: ?track=… wins, then the remembered choice, then the first track.
+	// The static build prerenders one copy of this page (prerendering can't read the query
+	// string), so there ?track=… is only picked up in the browser, by the effect below.
 	const known = (v: string | null): v is TrackId => isTrackId(v) && tracks.some((t) => t.id === v);
-	const fromUrl = page.url.searchParams.get('track');
+	const readTrack = () => (STATIC && !browser ? null : page.url.searchParams.get('track'));
+	const fromUrl = STATIC ? null : readTrack();
 	let trackId = $state<TrackId>(known(fromUrl) ? fromUrl : tracks[0].id);
 	onMount(() => {
 		if (isTrackId(fromUrl)) return;
@@ -31,7 +37,7 @@
 	});
 
 	// Follow the URL while staying on this page, e.g. a link to /learn?track=web from the header.
-	const urlTrack = $derived(page.url.searchParams.get('track'));
+	const urlTrack = $derived(readTrack());
 	$effect(() => {
 		const t = urlTrack;
 		if (!known(t)) return;
@@ -139,7 +145,7 @@
 		</div>
 		{#if map.current && currentModule}
 			<a
-				href="/learn/{map.current.id}"
+				href={lessonLink(map.current.id)}
 				class="btn btn-primary self-start px-5 py-3 md:self-end"
 				data-testid="continue-button"
 			>
@@ -170,12 +176,24 @@
 		<div
 			class="border-accent/50 bg-accent-soft/60 mb-8 flex flex-col gap-3 rounded-2xl border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between"
 		>
-			<p class="text-sm">
-				<span class="chip text-accent-ink mr-2 bg-white">playing as guest</span>
-				Your progress is saved in this browser only. Sign up to keep it everywhere.
-			</p>
-			<a href="/signup" class="btn btn-quiet min-h-0 shrink-0 py-2 text-sm">Create a free account</a
-			>
+			{#if STATIC}
+				<p class="text-sm" data-testid="device-banner">
+					<span class="chip text-accent-ink mr-2 bg-white">saved on this device</span>
+					Your progress stays in this browser on this device. Once you've opened a level, it works offline
+					too.
+				</p>
+				<a href={resolve('/profile')} class="btn btn-quiet min-h-0 shrink-0 py-2 text-sm"
+					>Your progress</a
+				>
+			{:else}
+				<p class="text-sm">
+					<span class="chip text-accent-ink mr-2 bg-white">playing as guest</span>
+					Your progress is saved in this browser only. Sign up to keep it everywhere.
+				</p>
+				<a href={resolve('/signup')} class="btn btn-quiet min-h-0 shrink-0 py-2 text-sm"
+					>Create a free account</a
+				>
+			{/if}
 		</div>
 	{/if}
 

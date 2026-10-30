@@ -10,6 +10,10 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { STATIC } from '#lib/config.ts';
+	import { lessonLink } from '#lib/links.ts';
+	import { pwa } from '#lib/pwa.svelte.ts';
 	import { getAllLessons, getModule, renderText } from '#lib/curriculum/index.ts';
 	import type { Lesson, Module, Theme, ThemedText, WorldSpec } from '#lib/curriculum/types.ts';
 	import type {
@@ -140,7 +144,7 @@
 		// Never hop into the other track: the end of a track goes back to the map.
 		return m && !m.comingSoon && trackOf(m) === trackId ? next : null;
 	});
-	const nextHref = $derived(nextPlayable ? `/learn/${nextPlayable.id}` : '/learn');
+	const nextHref = $derived(nextPlayable ? lessonLink(nextPlayable.id) : resolve('/learn'));
 	const nextLabel = $derived(
 		nextPlayable
 			? nextPlayable.id.split('/')[0] === module.id
@@ -274,7 +278,7 @@
 			return;
 		}
 		try {
-			await fetch('/api/progress/draft', {
+			await fetch(resolve('/api/progress/draft'), {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({ lessonId: lesson.id, code: value })
@@ -428,6 +432,8 @@
 				}
 			};
 			lastSaved = source;
+			// Offline app: ask the browser to keep this site's storage, where the progress lives.
+			void pwa.requestPersistence();
 			if (!guest.nudgeDismissed) {
 				showNudge = true;
 				guest.dismissNudge(); // only ever offered once
@@ -453,7 +459,7 @@
 		if (!user) return;
 		const prevLevel = levelForXp(user.xp).level;
 		try {
-			const res = await fetch('/api/progress/complete', {
+			const res = await fetch(resolve('/api/progress/complete'), {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({
@@ -599,7 +605,7 @@
 	<!-- Title row -->
 	<div class="mb-5 flex flex-col gap-2">
 		<nav aria-label="Breadcrumb" class="text-muted flex flex-wrap items-center gap-1.5 text-sm">
-			<a href="/learn" class="text-ink-soft hover:text-ink font-bold">← Map</a>
+			<a href={resolve('/learn')} class="text-ink-soft hover:text-ink font-bold">← Map</a>
 			<span aria-hidden="true">·</span>
 			<span>{module.emoji} {r(module.title)}</span>
 			<span aria-hidden="true">·</span>
@@ -856,21 +862,47 @@
 				<div
 					class="card animate-fade-up flex flex-col gap-3 p-4 sm:flex-row sm:items-center"
 					role="complementary"
-					aria-label="Save your progress"
+					aria-label={STATIC ? 'Where your progress lives' : 'Save your progress'}
+					data-testid="progress-nudge"
 				>
 					<span class="text-2xl" aria-hidden="true">💾</span>
-					<p class="flex-1 text-sm">
-						<strong>Want to keep this progress?</strong> Create a free account and everything you've done
-						so far comes with you.
-					</p>
-					<div class="flex gap-2">
-						<a href="/signup" class="btn btn-primary min-h-0 py-2 text-sm">Create account</a>
-						<button
-							type="button"
-							class="btn btn-ghost min-h-0 py-2 text-sm"
-							onclick={() => (showNudge = false)}>Not now</button
-						>
-					</div>
+					{#if STATIC}
+						<p class="flex-1 text-sm">
+							<strong>Your progress is saved on this device.</strong>
+							{pwa.standalone
+								? 'It stays here, and the app works offline too.'
+								: 'Add the app to your home screen to keep it safest; it works offline too.'}
+						</p>
+						<div class="flex gap-2">
+							{#if pwa.installPrompt}
+								<button
+									type="button"
+									class="btn btn-primary min-h-0 py-2 text-sm"
+									onclick={() => pwa.install()}>Install app</button
+								>
+							{/if}
+							<button
+								type="button"
+								class="btn btn-ghost min-h-0 py-2 text-sm"
+								onclick={() => (showNudge = false)}>Got it</button
+							>
+						</div>
+					{:else}
+						<p class="flex-1 text-sm">
+							<strong>Want to keep this progress?</strong> Create a free account and everything you've
+							done so far comes with you.
+						</p>
+						<div class="flex gap-2">
+							<a href={resolve('/signup')} class="btn btn-primary min-h-0 py-2 text-sm"
+								>Create account</a
+							>
+							<button
+								type="button"
+								class="btn btn-ghost min-h-0 py-2 text-sm"
+								onclick={() => (showNudge = false)}>Not now</button
+							>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</section>

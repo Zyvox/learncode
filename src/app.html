@@ -5,8 +5,10 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
 		<meta name="theme-color" content="#fbf7f0" />
-		<script nonce="%sveltekit.nonce%">
+		<script>
 			// Apply the last-used vibe colour before first paint so guests don't see a flash.
+			// Allowed by its hash in the CSP (vite.config.ts), so it needs no nonce: prerendered
+			// pages (the static build) can't carry one.
 			try {
 				var a = localStorage.getItem('lc:accent');
 				var o = localStorage.getItem('lc:on-accent');

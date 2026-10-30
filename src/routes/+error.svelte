@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 
 	const notFound = $derived(page.status === 404);
 </script>
@@ -25,7 +26,7 @@
 		<p class="text-muted mt-3 text-sm">{page.error.message}</p>
 	{/if}
 	<div class="mt-8 flex flex-wrap justify-center gap-3">
-		<a href="/learn" class="btn btn-primary">Back to the map</a>
-		<a href="/" class="btn btn-quiet">Home</a>
+		<a href={resolve('/learn')} class="btn btn-primary">Back to the map</a>
+		<a href={resolve('/')} class="btn btn-quiet">Home</a>
 	</div>
 </div>

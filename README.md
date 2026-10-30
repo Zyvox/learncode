@@ -42,6 +42,60 @@ modules to compile.
 Learner code never runs on the server: it runs in a Web Worker in the learner's own browser, with
 step caps and timeouts, and the result is animated afterwards.
 
+## Use it as an app (offline)
+
+There is a second way to run Hatch with no server at all: a **static build** where every page
+is prepared ahead of time, progress stays on the device, and the whole thing works offline once
+it has been opened. This repository publishes it to GitHub Pages on every push to `main`:
+
+```
+https://<your-github-user>.github.io/<repo-name>/
+```
+
+Open that link once and you can **install it**:
+
+- **iPhone / iPad (Safari):** tap Share, then **Add to Home Screen**.
+- **Android (Chrome):** tap **Install app** in the page header, or the menu → **Install app**.
+- **Desktop (Chrome, Edge):** the **Install app** button in the header, or the install icon in
+  the address bar.
+
+From then on it opens like any other app, with or without internet. When a new version has been
+published, a small "Update available · reload" button shows up in the header.
+
+**Your progress.** There are no accounts in this version: XP, finished levels and badges live in
+this browser on this device (tap the 🙂 in the header to see them). Installing the app to the home
+screen keeps it safest: on iPhone and iPad, Safari clears website data after about a week of not
+using the site, unless it was added to the home screen. The app also asks the browser to mark its
+storage as persistent. To move progress to another device, or to be extra safe, use **Download a
+backup** on the progress page, and **Restore from a backup** on the other device (restoring never
+undoes a level you've already finished).
+
+### One-time setup for GitHub Pages
+
+1. Repository **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+2. Push to `main` (or run the "Deploy to GitHub Pages" workflow by hand). The workflow in
+   `.github/workflows/pages.yml` checks, tests, builds and deploys.
+3. GitHub Pages on a free plan needs the repository to be **public**. If it must stay private,
+   point Cloudflare Pages or Netlify at the repository instead: build command
+   `npm run build:static`, output folder `site`, and set `BASE_PATH` only if it's served under a
+   sub-path.
+4. Custom domain (site at the root)? Add a repository variable `BASE_PATH` with the value `/`
+   (Settings → Secrets and variables → Actions → Variables).
+
+### Build it yourself
+
+```bash
+BASE_PATH=/learncode npm run build:static   # writes site/ for https://example.com/learncode/
+BASE_PATH=/learncode npm run preview:static # serves it at http://localhost:4174/learncode/
+npm run build:static                        # for the root of a domain
+```
+
+On Windows PowerShell: `$env:BASE_PATH='/learncode'; npm run build:static`. Any static host
+works: upload the `site/` folder and make it serve `404.html` for unknown addresses.
+
+The static build leaves out everything that needs a server: accounts, login and sign-up, saving
+to the database, streaks across devices. `/login` and `/signup` just explain that.
+
 ## Run it locally
 
 Any **Node 22.13 or newer** works (22, 24, 26 …). There is nothing to compile: the database is
@@ -130,6 +184,7 @@ See `.env.example`.
 npm run check        # svelte-check (types)
 npm test             # vitest: engine, curriculum (every solution is run through the engine), server, game
 npm run test:e2e     # playwright: builds, starts the app on :4173 and plays real levels in Chromium
+npm run test:e2e:static  # same for the static build, under /learncode/ on :4174, including offline
 npm run format
 ```
 

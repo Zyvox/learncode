@@ -13,6 +13,7 @@
  *   success:  sets the session cookie and redirects (303) to /learn.
  */
 import { fail, redirect } from '@sveltejs/kit';
+import { STATIC } from '#lib/config.ts';
 import {
 	AuthError,
 	createSession,
@@ -28,11 +29,12 @@ import { importProgress } from '#lib/server/progress.ts';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
+	if (STATIC) return {};
 	if (locals.user) redirect(303, '/learn');
 	return {};
 };
 
-export const actions: Actions = {
+const serverActions = {
 	default: async ({ request, cookies, getClientAddress, url }) => {
 		const form = await request.formData();
 		const email = field(form, 'email');
@@ -75,4 +77,7 @@ export const actions: Actions = {
 		setSessionCookie(cookies, session.id, session.expiresAt, url);
 		redirect(303, '/learn');
 	}
-};
+} satisfies Actions;
+
+// No accounts (and no actions, which SvelteKit can't prerender) in the static build.
+export const actions = (STATIC ? undefined : serverActions) as typeof serverActions;

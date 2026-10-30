@@ -23,6 +23,11 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+
+	interface ImportMetaEnv {
+		/** '1' in the static build (vite.config.ts); read it through `STATIC` in #lib/config.ts */
+		readonly VITE_STATIC?: string;
+	}
 }
 
 export {};

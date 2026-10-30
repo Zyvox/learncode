@@ -1,20 +1,22 @@
 <script lang="ts">
-	import { APP_NAME } from '#lib/config.ts';
+	import { resolve } from '$app/paths';
+	import { APP_NAME, STATIC } from '#lib/config.ts';
 	import { THEMES, getModules, getTheme, renderText } from '#lib/curriculum/index.ts';
 	import ThemePicker from '#lib/components/ThemePicker.svelte';
 	import { guest } from '#lib/stores/guest.svelte.ts';
 	import { currentThemeId } from '#lib/stores/viewer.svelte.ts';
-	import { lessonHref } from '#lib/stores/map.ts';
+	import { lessonLink } from '#lib/links.ts';
+	import { pwa } from '#lib/pwa.svelte.ts';
 	import { allTracks, firstLessonOfTrack, trackInfo } from '#lib/stores/tracks.ts';
 	import type { ThemeId } from '#lib/curriculum/types.ts';
 
 	const firstLesson = firstLessonOfTrack('code', getModules());
-	const startHref = firstLesson ? lessonHref(firstLesson) : '/learn';
+	const startHref = firstLesson ? lessonLink(firstLesson.id) : resolve('/learn');
 
 	// "Behind the app": straight into its first level, or to its map tab while it has none.
 	const hasWebTrack = allTracks(getModules()).some((t) => t.id === 'web');
 	const firstWebLesson = firstLessonOfTrack('web', getModules());
-	const webHref = firstWebLesson ? lessonHref(firstWebLesson) : '/learn?track=web';
+	const webHref = firstWebLesson ? lessonLink(firstWebLesson.id) : resolve('/learn?track=web');
 	const webTrack = trackInfo('web');
 
 	const themeId = $derived(currentThemeId());
@@ -63,11 +65,18 @@
 					class="btn btn-primary px-6 py-3.5 text-lg"
 					data-testid="start-first-level"
 				>
-					Try the first level, no account needed
+					{STATIC ? 'Try the first level' : 'Try the first level, no account needed'}
 					<span aria-hidden="true">→</span>
 				</a>
-				<a href="/learn" class="btn btn-ghost">See the whole map</a>
+				<a href={resolve('/learn')} class="btn btn-ghost">See the whole map</a>
 			</div>
+			{#if STATIC && pwa.iosHint}
+				<p class="text-muted mt-4 max-w-xl text-sm" data-testid="ios-install-hint">
+					On an iPhone or iPad? Tap <strong class="text-ink-soft">Share</strong>, then
+					<strong class="text-ink-soft">Add to Home Screen</strong> to keep {APP_NAME} as an app that
+					works offline.
+				</p>
+			{/if}
 		</div>
 
 		<!-- A tiny, decorative preview of what playing looks like -->
@@ -157,7 +166,10 @@
 				{theme.name}
 				<span aria-hidden="true">→</span>
 			</a>
-			<span class="text-muted text-sm">No account needed. Your progress stays in this browser.</span
+			<span class="text-muted text-sm"
+				>{STATIC
+					? 'Free, and your progress stays on this device.'
+					: 'No account needed. Your progress stays in this browser.'}</span
 			>
 		</div>
 	</section>
@@ -200,12 +212,18 @@
 		class="text-ink-soft mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6"
 	>
 		<p><strong class="text-ink">{APP_NAME}</strong> · learn to code, one small level at a time.</p>
-		<p class="flex gap-4">
-			<a href="/login" class="font-bold underline-offset-4 hover:underline">Log in</a>
-			<a href="/signup" class="font-bold underline-offset-4 hover:underline"
-				>Create a free account</a
-			>
-		</p>
+		{#if STATIC}
+			<p data-testid="device-note">
+				Your progress stays on this device. Once you've opened it, it works offline too.
+			</p>
+		{:else}
+			<p class="flex gap-4">
+				<a href={resolve('/login')} class="font-bold underline-offset-4 hover:underline">Log in</a>
+				<a href={resolve('/signup')} class="font-bold underline-offset-4 hover:underline"
+					>Create a free account</a
+				>
+			</p>
+		{/if}
 	</div>
 </footer>
 

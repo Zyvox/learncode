@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { advanceStreak, currentStreak, previousDay, utcDay } from './streak.ts';
+import {
+	advanceStreak,
+	currentStreak,
+	previousDay,
+	streaksFromCompletions,
+	utcDay
+} from './streak.ts';
 
 describe('streak', () => {
 	it('formats UTC days', () => {
@@ -33,5 +39,20 @@ describe('streak', () => {
 		expect(currentStreak({ streak: 3, lastActiveDay: '2026-05-01' }, '2026-05-02')).toBe(3);
 		expect(currentStreak({ streak: 3, lastActiveDay: '2026-04-30' }, '2026-05-02')).toBe(0);
 		expect(currentStreak({ streak: 0, lastActiveDay: null }, '2026-05-02')).toBe(0);
+	});
+
+	it('works out streaks from completion times kept on a device', () => {
+		const at = (d: string) => `${d}T10:00:00.000Z`;
+		const times = [
+			'2026-04-01',
+			'2026-04-02',
+			'2026-04-03',
+			'2026-04-10',
+			'2026-04-11',
+			'2026-04-11'
+		];
+		expect(streaksFromCompletions(times.map(at), '2026-04-12')).toEqual({ current: 2, longest: 3 });
+		expect(streaksFromCompletions(times.map(at), '2026-04-20')).toEqual({ current: 0, longest: 3 });
+		expect(streaksFromCompletions([], '2026-04-20')).toEqual({ current: 0, longest: 0 });
 	});
 });

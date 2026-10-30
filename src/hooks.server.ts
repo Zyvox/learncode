@@ -17,7 +17,7 @@ export const init: ServerInit = () => {
 
 /**
  * Content-Security-Policy. The real policy for rendered pages is `csp` in vite.config.ts:
- * SvelteKit nonces only the scripts it renders itself (and `%sveltekit.nonce%` in app.html), so
+ * SvelteKit nonces only the scripts it renders itself (app.html's one script is allowed by hash), so
  * markup that ever slipped into a page could not run a <script>. This fallback covers any other
  * HTML response (e.g. SvelteKit's static error page); it allows no inline scripts at all.
  */

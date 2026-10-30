@@ -45,3 +45,21 @@ export function currentStreak(state: StreakState, today: string): number {
 	}
 	return 0;
 }
+
+/**
+ * Streaks from a list of completion times (progress kept on the device has no stored streak):
+ * `current` as `currentStreak` would show it on `today`, `longest` the best run ever (for badges).
+ */
+export function streaksFromCompletions(
+	completedAt: readonly string[],
+	today: string
+): { current: number; longest: number } {
+	const days = [...new Set(completedAt.map((iso) => iso.slice(0, 10)))].sort();
+	let state: StreakState = { streak: 0, lastActiveDay: null };
+	let longest = 0;
+	for (const day of days) {
+		state = advanceStreak(state, day);
+		longest = Math.max(longest, state.streak);
+	}
+	return { current: currentStreak(state, today), longest };
+}

@@ -188,7 +188,42 @@ Play page layout (desktop): story + task + hints on the left, the world in the m
 below/right, Run / Reset / Hint buttons, result banner, "Next" when passed. On mobile it stacks:
 world, editor, text. Keyboard: Ctrl/Cmd+Enter runs.
 
+## Builds
+
+One codebase, two builds, switched by `STATIC_BUILD=1` in `vite.config.ts` (app code reads
+`STATIC` from `src/lib/config.ts`):
+
+- **Server build** (`npm run build`, adapter-node → `build/`): accounts, SQLite, form actions and
+  the JSON API. Nothing is prerendered. This is the self-hosted app described below.
+- **Static build** (`npm run build:static` = `scripts/build-static.mjs`, adapter-static →
+  `site/`): the root layout sets `prerender = true`, so every page is rendered at build time
+  (`/`, `/learn`, every playable lesson via `entries` in the lesson route, `/profile`, the
+  manifest), with `404.html` as the SPA fallback. `BASE_PATH` sets `paths.base` (e.g.
+  `/learncode` on GitHub Pages) and paths are relative, so links go through `resolve()` /
+  `asset()` from `$app/paths` (`#lib/links.ts` for lesson links). CSP comes as a `<meta>` tag with
+  hashes instead of nonces.
+
+What static mode disables or swaps:
+
+- No request user ever (prerendering has no cookies): everyone plays as a guest and progress lives
+  in `localStorage` (`stores/guest.svelte.ts`). `/api/*` is not part of the site.
+- `/login`, `/signup`, `/logout` render a "no accounts here" note; their form actions and the
+  profile's are left out (SvelteKit can't prerender pages with actions). No page links to them.
+- `/profile` is `DeviceProfile.svelte`: XP, streak, badges and levels done from the device, the
+  vibe, persistent-storage status, and backup download/restore (`#lib/game/backup.ts`, same
+  validation rules as `POST /api/progress/import`, merging never undoes a finished level).
+- PWA: `src/routes/manifest.webmanifest/+server.ts` (prerendered), icons in `static/icons/`
+  (`scripts/render-icons.mjs`), and `src/service-worker/` (own tsconfig, checked by
+  `npm run check`), registered by `#lib/pwa.svelte.ts` in static mode only. It precaches Vite's
+  output, the engine worker with its chunks and the sql.js wasm, `static/`, every prerendered page
+  and data file, and `404.html`; hashed files are cache-first, everything else network-first with
+  the cache as the offline fallback. A new version waits until the learner taps "Update
+  available"; old caches are dropped on activate.
+
 ## Deployment
 
 Single Node process + one SQLite file. `Dockerfile` + `docker-compose.yml` with a `./data` volume,
 plus a systemd unit example in `deploy/`. Reverse proxy (Caddy/nginx) terminates TLS. See README.
+
+The static build deploys to GitHub Pages from `.github/workflows/pages.yml` (pushes to `main`);
+`.github/workflows/ci.yml` checks other branches and pull requests.

@@ -14,6 +14,7 @@
  *   success:  sets the session cookie and redirects (303) to redirectTo or /learn.
  */
 import { fail, redirect } from '@sveltejs/kit';
+import { STATIC } from '#lib/config.ts';
 import {
 	AuthError,
 	createSession,
@@ -28,12 +29,14 @@ import type { Actions, PageServerLoad } from './$types';
 const MISMATCH = 'That email and password don’t match.';
 
 export const load: PageServerLoad = ({ locals, url }) => {
+	// Static build: prerendered as a "no accounts here" note (prerendering can't read the query).
+	if (STATIC) return { redirectTo: null };
 	const requested = url.searchParams.get('redirectTo');
 	if (locals.user) redirect(303, safeRedirect(requested));
 	return { redirectTo: requested && safeRedirect(requested, '') ? requested : null };
 };
 
-export const actions: Actions = {
+const serverActions = {
 	default: async ({ request, cookies, getClientAddress, url }) => {
 		const form = await request.formData();
 		const email = field(form, 'email');
@@ -69,4 +72,7 @@ export const actions: Actions = {
 		setSessionCookie(cookies, session.id, session.expiresAt, url);
 		redirect(303, redirectTo);
 	}
-};
+} satisfies Actions;
+
+// No accounts (and no actions, which SvelteKit can't prerender) in the static build.
+export const actions = (STATIC ? undefined : serverActions) as typeof serverActions;

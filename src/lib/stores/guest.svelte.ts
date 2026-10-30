@@ -7,7 +7,9 @@
  * On the server it simply stays at its defaults.
  */
 import { browser } from '$app/env';
+import { resolve } from '$app/paths';
 import { THEME_IDS, type ThemeId } from '#lib/curriculum/types.ts';
+import { mergeProgress, type DeviceProgress } from '#lib/game/backup.ts';
 
 export const GUEST_PROGRESS_KEY = 'lc:progress:v1';
 export const GUEST_THEME_KEY = 'lc:theme';
@@ -195,8 +197,8 @@ class GuestStore {
 	async transferToAccount(opts: { importCompleted: boolean }): Promise<void> {
 		this.load();
 		if (!this.hasProgress) return;
-		const post = (url: string, body: unknown) =>
-			fetch(url, {
+		const post = (url: '/api/progress/draft' | '/api/progress/import', body: unknown) =>
+			fetch(resolve(url), {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify(body)
@@ -215,6 +217,30 @@ class GuestStore {
 		} catch {
 			// Keep it locally; nothing is lost.
 		}
+	}
+
+	/** A plain copy of everything stored on this device (for a backup file). */
+	snapshot(): GuestProgress {
+		this.load();
+		return {
+			themeId: this.themeId,
+			entries: $state.snapshot(this.entries),
+			xp: this.xp
+		};
+	}
+
+	/**
+	 * Merge progress from a backup (already validated by `parseBackup`): finished levels stay
+	 * finished, the higher XP total is kept. Returns how many levels became newly done.
+	 */
+	restore(incoming: DeviceProgress): number {
+		if (!browser) return 0;
+		const { progress, newlyDone } = mergeProgress(this.snapshot(), incoming);
+		this.entries = progress.entries;
+		this.xp = progress.xp;
+		this.themeId = progress.themeId;
+		this.persist();
+		return newlyDone;
 	}
 
 	dismissNudge() {

@@ -28,6 +28,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { resolve } from '$app/paths';
 	import RichText from './RichText.svelte';
 
 	let {
@@ -203,7 +204,7 @@
 				>
 					{nextLabel} <span aria-hidden="true">→</span>
 				</a>
-				<a href="/learn" class="btn btn-quiet">Map</a>
+				<a href={resolve('/learn')} class="btn btn-quiet">Map</a>
 			</div>
 		</div>
 	{/if}

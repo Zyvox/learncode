@@ -1,0 +1,83 @@
+# Publishes the static, offline version of the app to GitHub Pages on every push to main.
+#
+# What it does: installs, type-checks, runs the unit tests, builds the static site
+# (`npm run build:static`, every page prerendered, no server, progress kept on the device) and
+# deploys the `site/` folder. The site ends up at https://<user>.github.io/<repo>/.
+#
+# One-time setup:
+#   1. Repository Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+#   2. On a free plan the repository has to be public for Pages to work.
+#   3. Optional: using a custom domain (site at the root of the domain)? Add a repository
+#      variable BASE_PATH with the value / (Settings -> Secrets and variables -> Actions ->
+#      Variables). Without it the site lives under /<repo>/.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push waits instead of cancelling a deploy halfway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+
+      - name: Build the static site
+        env:
+          BASE_PATH_OVERRIDE: ${{ vars.BASE_PATH }}
+          REPO: ${{ github.event.repository.name }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          # The repo's own name is the sub-path, except for <user>.github.io repos (served at the
+          # root) or when the BASE_PATH variable says otherwise ("/" = root).
+          if [ -n "$BASE_PATH_OVERRIDE" ]; then
+            export BASE_PATH="$BASE_PATH_OVERRIDE"
+          elif [ "$REPO" = "$OWNER.github.io" ]; then
+            export BASE_PATH=""
+          else
+            export BASE_PATH="/$REPO"
+          fi
+          npm run build:static
+
+      - name: Browser for the offline tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Offline tests against the built site (install, cut the network, play a level)
+        run: npx playwright test -c playwright.static.config.ts
+        env:
+          # The config builds the site itself; reuse the one built above instead.
+          STATIC_SITE_READY: '1'
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
