@@ -191,6 +191,41 @@ test('the progress page is device-only, with backup and restore', async ({ page 
 	await expect(page.getByTestId('device-done-count')).toContainText('2');
 });
 
+test('marking a part as done stays after a reload and goes into the backup', async ({ page }) => {
+	await page.goto('learn');
+	const card = page.locator('[data-module-id="first-steps"]');
+	await expect(async () => {
+		const yes = card.getByTestId('mark-done-yes');
+		if (!(await yes.isVisible())) await card.getByTestId('mark-done').click();
+		await expect(yes).toBeVisible({ timeout: 1_000 });
+	}).toPass({ timeout: 15_000 });
+	await card.getByTestId('mark-done-yes').click();
+	await expect(card.getByTestId('mark-done-result')).toContainText(/8 levels marked done/);
+
+	// Jump into a later part too: it belongs in the backup as well
+	const later = page.locator('[data-module-id="making-choices"]');
+	await later.getByTestId('jump-in').click();
+	await later.getByRole('button', { name: 'Yes, jump in' }).click();
+	await expect(later.getByTestId('jumped-chip')).toBeVisible();
+
+	await page.reload();
+	await expect(card).toContainText('8 of 8');
+	await expect(later.getByTestId('jumped-chip')).toBeVisible();
+
+	await page.goto('profile');
+	await expect(page.getByTestId('device-done-count')).toContainText('8');
+	const [download] = await Promise.all([
+		page.waitForEvent('download'),
+		page.getByTestId('backup-download').click()
+	]);
+	const stream = await download.createReadStream();
+	const chunks: Buffer[] = [];
+	for await (const c of stream) chunks.push(c as Buffer);
+	const backup = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+	expect(backup.entries['first-steps/08-boss'].completedAt).toBeTruthy();
+	expect(backup.unlocked).toEqual(['making-choices']);
+});
+
 test('typing an account address shows a friendly note instead', async ({ page }) => {
 	for (const path of ['login', 'signup', 'logout']) {
 		await page.goto(path);

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { typeAndRun, expectPassed } from './helpers';
+import { typeAndRun, expectPassed, confirmCardAction } from './helpers';
 
 test('landing page lets a guest pick a vibe and start the first level', async ({ page }) => {
 	await page.goto('/');
@@ -24,6 +24,58 @@ test('a guest can solve the first level, see XP, and the next level unlocks', as
 	await expect(page.locator('body')).toContainText('1 of 8');
 	const stored = await page.evaluate(() => localStorage.getItem('lc:progress:v1'));
 	expect(stored).toContain('first-steps/01-first-step');
+});
+
+test('a guest can jump into a locked part and open its first level', async ({ page }) => {
+	await page.goto('/learn');
+	const card = page.locator('[data-module-id="making-choices"]');
+	await expect(card).toContainText('locked');
+	await expect(card.locator('a[data-state]')).toHaveCount(0);
+
+	await confirmCardAction(page, 'making-choices', 'jump-in');
+	await expect(card.getByTestId('jumped-chip')).toBeVisible();
+	await expect(card).not.toContainText('🔒');
+	await expect(card.getByTestId('jump-in')).toHaveCount(0);
+	// Only the first level opens; the rest still open one after another
+	await expect(card.locator('a[data-state]')).toHaveCount(1);
+	// The part in between stays locked
+	await expect(page.locator('[data-module-id="doing-it-again"]')).toContainText('locked');
+
+	await page.reload();
+	await expect(card.getByTestId('jumped-chip')).toBeVisible();
+	const stored = await page.evaluate(() => localStorage.getItem('lc:unlocked:v1'));
+	expect(JSON.parse(stored ?? '[]')).toEqual(['making-choices']);
+
+	await card.locator('a[data-state]').first().click();
+	await expect(page).toHaveURL(/\/learn\/making-choices\/01-/);
+	await expect(page.getByTestId('lesson-title')).toBeVisible();
+});
+
+test('a guest marks part 1 as done and part 2 opens', async ({ page }) => {
+	await page.goto('/learn');
+	const card = await confirmCardAction(page, 'first-steps', 'mark-done');
+	await expect(card.getByTestId('mark-done-result')).toContainText(
+		/8 levels marked done · \+\d+ XP/
+	);
+	await expect(card).toContainText('8 of 8');
+	await expect(card).toContainText('all done');
+	await expect(card.getByTestId('mark-done')).toHaveCount(0);
+
+	const next = page.locator('[data-module-id="doing-it-again"]');
+	await expect(next).not.toContainText('locked');
+	await expect(next.locator('a[data-state="current"]')).toHaveCount(1);
+	await expect(page.getByTestId('continue-button')).toContainText('Continue');
+
+	// Saved on the device, with XP
+	await page.reload();
+	await expect(card).toContainText('8 of 8');
+	const stored = JSON.parse(
+		(await page.evaluate(() => localStorage.getItem('lc:progress:v1'))) ?? '{}'
+	);
+	expect(
+		Object.values(stored.entries).filter((e) => (e as { completedAt: string | null }).completedAt)
+	).toHaveLength(8);
+	expect(stored.xp).toBeGreaterThan(0);
 });
 
 test('a wrong answer gets a friendly, specific message instead of a JS error', async ({ page }) => {

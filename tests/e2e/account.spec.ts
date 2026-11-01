@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { typeAndRun, expectPassed, signUp, logIn, uniqueEmail } from './helpers';
+import { typeAndRun, expectPassed, signUp, logIn, uniqueEmail, confirmCardAction } from './helpers';
 
 test('guest progress is imported on signup and XP shows in the header', async ({ page }) => {
 	await page.goto('/learn/first-steps/01-first-step');
@@ -41,6 +41,27 @@ test('a logged-in user completes a level and it is saved on the server', async (
 	await typeAndRun(page, 'move();\nmove();\n');
 	await expectPassed(page);
 	await expect(page.getByTestId('xp-gained')).toHaveCount(0);
+});
+
+test('a logged-in user marks a part as done and it is saved with its XP', async ({ page }) => {
+	await signUp(page, uniqueEmail('markdone'));
+	await page.goto('/learn');
+	const card = await confirmCardAction(page, 'first-steps', 'mark-done');
+	const result = card.getByTestId('mark-done-result');
+	await expect(result).toContainText(/8 levels marked done · \+\d+ XP/);
+	const xp = Number(/\+(\d+) XP/.exec((await result.textContent()) ?? '')?.[1]);
+	expect(xp).toBeGreaterThan(0);
+	await expect(card).toContainText('8 of 8');
+	await expect(page.locator('[data-module-id="doing-it-again"]')).not.toContainText('locked');
+	// The header caught up without a reload
+	await expect(page.locator('header').first()).toContainText(`${xp} XP`);
+
+	await page.reload();
+	await expect(card).toContainText('8 of 8');
+	await expect(card.getByTestId('mark-done')).toHaveCount(0);
+	await expect(page.locator('header').first()).toContainText(`${xp} XP`);
+	await page.goto('/profile');
+	await expect(page.locator('body')).toContainText(`${xp} XP in total`);
 });
 
 test('login rejects a wrong password without revealing which field is wrong', async ({

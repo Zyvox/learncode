@@ -3,6 +3,10 @@
  * (`lc:progress:v1`) and is handed to the server on signup (hidden `guestProgress` field) or
  * imported after login (`POST /api/progress/import`).
  *
+ * It also keeps the parts someone chose to "Jump in here" on the map (`lc:unlocked:v1`). That
+ * list is about this device, for guests and signed-in users alike: it survives signup and is not
+ * sent to the server, but it is part of the backup file.
+ *
  * The store is a module-level singleton, so it must only ever be *written* in the browser.
  * On the server it simply stays at its defaults.
  */
@@ -10,9 +14,11 @@ import { browser } from '$app/env';
 import { resolve } from '$app/paths';
 import { THEME_IDS, type ThemeId } from '#lib/curriculum/types.ts';
 import { mergeProgress, type DeviceProgress } from '#lib/game/backup.ts';
+import { markLessonsDone } from '#lib/game/mark-done.ts';
 
 export const GUEST_PROGRESS_KEY = 'lc:progress:v1';
 export const GUEST_THEME_KEY = 'lc:theme';
+export const UNLOCKED_KEY = 'lc:unlocked:v1';
 const NUDGE_KEY = 'lc:signup-nudge-dismissed';
 
 export interface GuestEntry {
@@ -27,6 +33,8 @@ export interface GuestProgress {
 	themeId: ThemeId | null;
 	entries: Record<string, GuestEntry>;
 	xp: number;
+	/** Only in snapshots (backups); stored under its own key */
+	unlocked?: string[];
 }
 
 export interface ImportEntry {
@@ -81,6 +89,8 @@ class GuestStore {
 	themeId = $state<ThemeId | null>(null);
 	entries = $state<Record<string, GuestEntry>>({});
 	xp = $state(0);
+	/** Module ids opened with "Jump in here" on this device */
+	unlocked = $state<string[]>([]);
 	nudgeDismissed = $state(false);
 	/** True once localStorage has been read (always false during SSR) */
 	loaded = $state(false);
@@ -115,6 +125,14 @@ class GuestStore {
 		const theme = safeGet(GUEST_THEME_KEY);
 		if (isThemeId(theme)) this.themeId = theme;
 		this.nudgeDismissed = safeGet(NUDGE_KEY) === '1';
+		try {
+			const ids: unknown = JSON.parse(safeGet(UNLOCKED_KEY) ?? '[]');
+			if (Array.isArray(ids)) {
+				this.unlocked = [...new Set(ids.filter((id): id is string => typeof id === 'string'))];
+			}
+		} catch {
+			// Corrupt: nothing jumped into.
+		}
 		this.loaded = true;
 	}
 
@@ -123,6 +141,21 @@ class GuestStore {
 		const data: GuestProgress = { themeId: this.themeId, entries: this.entries, xp: this.xp };
 		safeSet(GUEST_PROGRESS_KEY, JSON.stringify(data));
 		if (this.themeId) safeSet(GUEST_THEME_KEY, this.themeId);
+	}
+
+	private persistUnlocked() {
+		if (!browser) return;
+		if (this.unlocked.length) safeSet(UNLOCKED_KEY, JSON.stringify(this.unlocked));
+		else safeRemove(UNLOCKED_KEY);
+	}
+
+	/** "Jump in here": open a module on the map without finishing the ones before it. */
+	unlockModule(moduleId: string) {
+		if (!browser) return;
+		this.load();
+		if (this.unlocked.includes(moduleId)) return;
+		this.unlocked = [...this.unlocked, moduleId];
+		this.persistUnlocked();
 	}
 
 	setTheme(id: ThemeId) {
@@ -170,6 +203,24 @@ class GuestStore {
 		this.xp += xpGained;
 		this.persist();
 		return { firstTime, xpGained, totalXp: this.xp };
+	}
+
+	/**
+	 * "Mark as done": every lesson of a module becomes finished, with XP by the usual
+	 * first-completion rules (no hints, module bonus once). Levels already done earn nothing.
+	 */
+	markModuleDone(lessons: readonly { id: string; xp: number }[]): {
+		marked: number;
+		xpGained: number;
+	} {
+		if (!browser) return { marked: 0, xpGained: 0 };
+		this.load();
+		const res = markLessonsDone($state.snapshot(this.entries), lessons);
+		if (res.marked.length === 0) return { marked: 0, xpGained: 0 };
+		this.entries = res.entries;
+		this.xp += res.xpGained;
+		this.persist();
+		return { marked: res.marked.length, xpGained: res.xpGained };
 	}
 
 	/**
@@ -225,7 +276,8 @@ class GuestStore {
 		return {
 			themeId: this.themeId,
 			entries: $state.snapshot(this.entries),
-			xp: this.xp
+			xp: this.xp,
+			...(this.unlocked.length ? { unlocked: [...this.unlocked] } : {})
 		};
 	}
 
@@ -239,7 +291,9 @@ class GuestStore {
 		this.entries = progress.entries;
 		this.xp = progress.xp;
 		this.themeId = progress.themeId;
+		this.unlocked = progress.unlocked ?? [];
 		this.persist();
+		this.persistUnlocked();
 		return newlyDone;
 	}
 
@@ -248,7 +302,10 @@ class GuestStore {
 		safeSet(NUDGE_KEY, '1');
 	}
 
-	/** Forget guest progress (after it has been saved to an account). Keeps the vibe. */
+	/**
+	 * Forget guest progress (after it has been saved to an account). Keeps the vibe and the parts
+	 * jumped into, which belong to the device.
+	 */
 	clearProgress() {
 		this.entries = {};
 		this.xp = 0;

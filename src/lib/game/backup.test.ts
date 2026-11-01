@@ -81,6 +81,40 @@ describe('backup files', () => {
 		expect(parsed.ok && Object.keys(parsed.progress.entries)).toEqual(['m/one']);
 	});
 
+	it('keeps the parts jumped into, and still reads backups without them', () => {
+		const withUnlocked = { ...progress, unlocked: ['making-choices', 'endpoints'] };
+		const file = JSON.stringify(makeBackup(withUnlocked, 'Hatch', now));
+		expect(parseBackup(file, known, now)).toEqual({
+			ok: true,
+			progress: withUnlocked,
+			skipped: 0
+		});
+		// Nothing jumped into: the field is left out, like in older backups
+		expect('unlocked' in makeBackup(progress, 'Hatch', now)).toBe(false);
+		const old = parseBackup(JSON.stringify(makeBackup(progress, 'Hatch', now)), known, now);
+		expect(old.ok && old.progress.unlocked).toBeUndefined();
+	});
+
+	it('drops broken unlocked ids without failing the file', () => {
+		const file = JSON.stringify({
+			...makeBackup(progress, 'Hatch', now),
+			unlocked: ['a', 'a', 7, '', null, 'x'.repeat(201), 'b']
+		});
+		const parsed = parseBackup(file, known, now);
+		expect(parsed.ok && parsed.progress.unlocked).toEqual(['a', 'b']);
+		const notAList = parseBackup(
+			JSON.stringify({ ...makeBackup(progress, 'Hatch', now), unlocked: 'a' }),
+			known,
+			now
+		);
+		expect(notAList.ok && notAList.progress.unlocked).toBeUndefined();
+	});
+
+	it('accepts a backup that only has parts jumped into', () => {
+		const parsed = parseBackup(JSON.stringify({ entries: {}, unlocked: ['a'] }), known, now);
+		expect(parsed.ok && parsed.progress.unlocked).toEqual(['a']);
+	});
+
 	it('says so when nothing in the file belongs to this app', () => {
 		const parsed = parseBackup(
 			JSON.stringify({ entries: { 'x/y': { completedAt: null } } }),
@@ -127,5 +161,14 @@ describe('mergeProgress', () => {
 		expect(merged.entries['m/one'].completedAt).toBe('2026-09-01T00:00:00.000Z');
 		expect(merged.entries['m/one'].code).toBe('move();');
 		expect(merged.xp).toBe(500);
+	});
+
+	it('keeps parts jumped into on either side', () => {
+		const here: DeviceProgress = { ...progress, unlocked: ['a', 'b'] };
+		const incoming: DeviceProgress = { themeId: null, xp: 0, entries: {}, unlocked: ['b', 'c'] };
+		expect(mergeProgress(here, incoming).progress.unlocked).toEqual(['a', 'b', 'c']);
+		expect(mergeProgress(progress, { ...incoming, unlocked: undefined }).progress.unlocked).toBe(
+			undefined
+		);
 	});
 });

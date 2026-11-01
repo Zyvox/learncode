@@ -4,6 +4,8 @@
  *  - Lessons unlock one after another inside a module.
  *  - A module unlocks when the previous playable module's boss level (or its last level) is done.
  *  - Anything the learner already started or finished stays open, whatever the rules say.
+ *  - A module the learner chose to jump into ("Jump in here", the `unlocked` ids) is open too: its
+ *    first lesson is playable and the rest still open one after another.
  *  - `comingSoon` modules are shown but never playable.
  *  - Each track has its own map: the first module of every track is open (`buildTrackMap`).
  */
@@ -22,6 +24,8 @@ export interface MapLesson {
 export interface MapModule {
 	module: Module;
 	unlocked: boolean;
+	/** Open only because the learner jumped in (the rules alone would still lock it) */
+	jumped: boolean;
 	comingSoon: boolean;
 	done: number;
 	total: number;
@@ -38,8 +42,10 @@ function bossOf(module: Module): Lesson | undefined {
 
 export function buildMap(
 	modules: readonly Module[],
-	status: StatusMap
+	status: StatusMap,
+	unlockedIds: ReadonlySet<string> | readonly string[] = []
 ): { modules: MapModule[]; current: Lesson | null } {
+	const jumpedIn = new Set(unlockedIds);
 	const sorted = [...modules].sort((a, b) => a.order - b.order);
 	let prevCleared = true;
 	let current: Lesson | null = null;
@@ -48,7 +54,9 @@ export function buildMap(
 	for (const module of sorted) {
 		const comingSoon = !!module.comingSoon;
 		const touched = module.lessons.some((l) => status[l.id]);
-		const unlocked = !comingSoon && (prevCleared || touched);
+		const byRules = prevCleared || touched;
+		const jumped = !comingSoon && !byRules && jumpedIn.has(module.id);
+		const unlocked = !comingSoon && (byRules || jumped);
 		const lessons: MapLesson[] = [];
 		let prevDone = true;
 		for (const lesson of module.lessons) {
@@ -65,7 +73,15 @@ export function buildMap(
 			prevDone = s === 'done';
 		}
 		const done = lessons.filter((l) => l.state === 'done').length;
-		out.push({ module, unlocked, comingSoon, done, total: module.lessons.length, lessons });
+		out.push({
+			module,
+			unlocked,
+			jumped,
+			comingSoon,
+			done,
+			total: module.lessons.length,
+			lessons
+		});
 		if (!comingSoon) {
 			const boss = bossOf(module);
 			prevCleared = !!boss && status[boss.id] === 'done';
@@ -88,10 +104,11 @@ export interface TrackMap {
 export function buildTrackMap(
 	modules: readonly Module[],
 	status: StatusMap,
-	track: TrackId
+	track: TrackId,
+	unlockedIds: ReadonlySet<string> | readonly string[] = []
 ): TrackMap {
 	const own = modules.filter((m) => (m.track ?? 'code') === track);
-	const map = buildMap(own, status);
+	const map = buildMap(own, status, unlockedIds);
 	let done = 0;
 	let total = 0;
 	for (const m of map.modules) {

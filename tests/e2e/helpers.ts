@@ -59,3 +59,25 @@ export async function firstLessonHref(
 	expect(href).toBeTruthy();
 	return href!;
 }
+
+/**
+ * Confirm one of a map card's quiet actions ("Jump in here", "Mark as done"): click it, then the
+ * inline Yes. Retries the first click, which can land before the page has hydrated.
+ */
+export async function confirmCardAction(
+	page: Page,
+	moduleId: string,
+	action: 'jump-in' | 'mark-done'
+) {
+	const card = page.locator(`[data-module-id="${moduleId}"]`);
+	const yes =
+		action === 'jump-in'
+			? card.getByRole('button', { name: 'Yes, jump in' })
+			: card.getByTestId('mark-done-yes');
+	await expect(async () => {
+		if (!(await yes.isVisible())) await card.getByTestId(action).click();
+		await expect(yes).toBeVisible({ timeout: 1_000 });
+	}).toPass({ timeout: 15_000 });
+	await yes.click();
+	return card;
+}

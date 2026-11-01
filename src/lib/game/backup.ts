@@ -3,6 +3,7 @@
  * `makeBackup` writes the guest store's data as JSON, `parseBackup` validates a file with the same
  * rules the server applies to `POST /api/progress/import` (#lib/server/api.ts, progress.ts), and
  * `mergeProgress` folds it into what's already on the device without ever losing a finished level.
+ * `unlocked` (parts the learner jumped into from the map) is optional, so older backups still load.
  * Pure: no DOM, no storage.
  */
 import { THEME_IDS, type ThemeId } from '#lib/curriculum/types.ts';
@@ -12,6 +13,7 @@ export const BACKUP_VERSION = 1;
 /** Same limits as #lib/server/api.ts (which client code can't import) */
 export const MAX_CODE_LENGTH = 20_000;
 const MAX_ENTRIES = 1_000;
+const MAX_UNLOCKED = 200;
 const MAX_COUNT = 1_000_000;
 const MAX_XP = 1_000_000_000;
 const MAX_FILE_CHARS = 30_000_000;
@@ -28,6 +30,8 @@ export interface DeviceProgress {
 	themeId: ThemeId | null;
 	entries: Record<string, ProgressEntry>;
 	xp: number;
+	/** Module ids opened with "Jump in here". Optional: older backups don't have it. */
+	unlocked?: string[];
 }
 
 export interface Backup extends DeviceProgress {
@@ -48,7 +52,8 @@ export function makeBackup(progress: DeviceProgress, app: string, now = new Date
 		exportedAt: now.toISOString(),
 		themeId: progress.themeId,
 		xp: progress.xp,
-		entries: progress.entries
+		entries: progress.entries,
+		...(progress.unlocked?.length ? { unlocked: progress.unlocked } : {})
 	};
 }
 
@@ -150,7 +155,9 @@ export function parseBackup(
 			? (data.themeId as ThemeId)
 			: null;
 
-	if (Object.keys(entries).length === 0 && xp === 0) {
+	const unlocked = cleanUnlocked(data.unlocked);
+
+	if (Object.keys(entries).length === 0 && xp === 0 && unlocked.length === 0) {
 		return {
 			ok: false,
 			error: pairs.length
@@ -158,13 +165,27 @@ export function parseBackup(
 				: 'That backup is empty, so there was nothing to restore.'
 		};
 	}
-	return { ok: true, progress: { themeId, entries, xp }, skipped };
+	return {
+		ok: true,
+		progress: { themeId, entries, xp, ...(unlocked.length ? { unlocked } : {}) },
+		skipped
+	};
+}
+
+/** Module ids from a backup: short strings, no duplicates. Anything else is dropped quietly. */
+function cleanUnlocked(raw: unknown): string[] {
+	if (!Array.isArray(raw)) return [];
+	const ids = raw.filter(
+		(id): id is string => typeof id === 'string' && id.length >= 1 && id.length <= 200
+	);
+	return [...new Set(ids)].slice(0, MAX_UNLOCKED);
 }
 
 /**
  * Fold a backup into the progress on this device. A finished level never goes back to unfinished
  * (the earliest finish date wins), attempts add up to the larger count, drafts only fill gaps, the
- * higher XP total is kept, and the device's own vibe stays if it has one.
+ * higher XP total is kept, the device's own vibe stays if it has one, and parts jumped into on
+ * either side stay open.
  */
 export function mergeProgress(
 	current: DeviceProgress,
@@ -192,11 +213,13 @@ export function mergeProgress(
 			entries[id] = { ...cur, code: cur.code || inc.code, attempts };
 		}
 	}
+	const unlocked = [...new Set([...(current.unlocked ?? []), ...(incoming.unlocked ?? [])])];
 	return {
 		progress: {
 			themeId: current.themeId ?? incoming.themeId,
 			entries,
-			xp: Math.max(current.xp, incoming.xp)
+			xp: Math.max(current.xp, incoming.xp),
+			...(unlocked.length ? { unlocked } : {})
 		},
 		newlyDone
 	};

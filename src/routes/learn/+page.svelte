@@ -3,11 +3,11 @@
 	import { page } from '$app/state';
 	import { browser } from '$app/env';
 	import { resolve } from '$app/paths';
-	import { replaceState } from '$app/navigation';
+	import { invalidateAll, replaceState } from '$app/navigation';
 	import { APP_NAME, STATIC } from '#lib/config.ts';
 	import { lessonLink } from '#lib/links.ts';
 	import { getModules, getTheme, renderText } from '#lib/curriculum/index.ts';
-	import type { TrackId } from '#lib/curriculum/types.ts';
+	import type { Module, TrackId } from '#lib/curriculum/types.ts';
 	import ModuleCard from '#lib/components/ModuleCard.svelte';
 	import XpBar from '#lib/components/XpBar.svelte';
 	import { guest } from '#lib/stores/guest.svelte.ts';
@@ -66,15 +66,20 @@
 		e.preventDefault();
 	}
 
+	/** Levels a signed-in user just marked done, shown as done before the server answers */
+	let optimistic = $state<StatusMap>({});
+
 	const status = $derived.by((): StatusMap => {
-		if (user) return data.status;
+		if (user) return { ...data.status, ...optimistic };
 		const s: StatusMap = {};
 		for (const [id, e] of Object.entries(guest.entries)) s[id] = e.completedAt ? 'done' : 'started';
 		return s;
 	});
 
 	const maps = $derived(
-		Object.fromEntries(tracks.map((t) => [t.id, buildTrackMap(modules, status, t.id)]))
+		Object.fromEntries(
+			tracks.map((t) => [t.id, buildTrackMap(modules, status, t.id, guest.unlocked)])
+		)
 	);
 	const map = $derived(maps[trackId] ?? maps[tracks[0].id]);
 	const track = $derived(tracks.find((t) => t.id === trackId) ?? tracks[0]);
@@ -83,6 +88,51 @@
 	const firstVisit = $derived(doneTotal === 0);
 	const anyDone = $derived(Object.values(status).some((s) => s === 'done'));
 	const isWeb = $derived(trackId === 'web');
+	// ---------- jump in / mark as done (ModuleCard asks, this does it) ----------
+	// Parts jumped into are remembered on this device for everyone (guest store, lc:unlocked:v1).
+	function jumpIn(module: Module) {
+		guest.unlockModule(module.id);
+	}
+
+	/**
+	 * Guests and the offline build: the guest store applies the XP rules on the device. Signed-in
+	 * users: the import endpoint does (it skips levels already done), then everything reloads so
+	 * the header XP, streak and badges catch up.
+	 */
+	async function markDone(module: Module): Promise<{ marked: number; xpGained: number }> {
+		if (STATIC || !user) return guest.markModuleDone(module.lessons);
+		const todo = module.lessons.filter((l) => status[l.id] !== 'done');
+		if (todo.length === 0) return { marked: 0, xpGained: 0 };
+		const xpBefore = user.xp;
+		const previous = optimistic;
+		optimistic = { ...optimistic, ...Object.fromEntries(todo.map((l) => [l.id, 'done' as const])) };
+		try {
+			const completedAt = new Date().toISOString();
+			const res = await fetch(resolve('/api/progress/import'), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({
+					// code: null keeps any draft already saved on the account
+					entries: todo.map((l) => ({
+						lessonId: l.id,
+						code: null,
+						hintsUsed: 0,
+						attempts: 0,
+						completedAt
+					}))
+				})
+			});
+			if (!res.ok) throw new Error(`import failed: ${res.status}`);
+			const { imported } = (await res.json()) as { imported: number };
+			await invalidateAll();
+			const xpAfter = (page.data.user as { xp?: number } | null)?.xp ?? xpBefore;
+			return { marked: imported, xpGained: Math.max(0, xpAfter - xpBefore) };
+		} catch (e) {
+			optimistic = previous;
+			throw e;
+		}
+	}
+
 	const currentModule = $derived(
 		map.current
 			? map.modules.find((m) => m.lessons.some((l) => l.lesson.id === map.current?.id))
@@ -205,7 +255,14 @@
 		data-track={trackId}
 	>
 		{#each map.modules as entry, i (entry.module.id)}
-			<ModuleCard {entry} {theme} index={i} ink={isWeb} />
+			<ModuleCard
+				{entry}
+				{theme}
+				index={i}
+				ink={isWeb}
+				onjump={() => jumpIn(entry.module)}
+				onmarkdone={() => markDone(entry.module)}
+			/>
 		{/each}
 	</div>
 </div>
